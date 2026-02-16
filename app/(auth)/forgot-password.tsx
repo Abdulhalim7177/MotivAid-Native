@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../../lib/supabase';
@@ -9,63 +9,68 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useToast } from '@/context/toast';
 
-export default function LoginScreen() {
-  const { showToast } = useToast();
+export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [emailError, setEmailError] = useState('');
-  const [passwordError, setPasswordError] = useState('');
+  const [timer, setTimer] = useState(0);
+  const [resendCount, setResendCount] = useState(0);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const { showToast } = useToast();
   
   const textColor = useThemeColor({}, 'text');
   const borderColor = useThemeColor({ light: 'rgba(0,0,0,0.1)', dark: 'rgba(255,255,255,0.1)' }, 'icon');
+  const tint = useThemeColor({}, 'tint');
+
+  useEffect(() => {
+    if (timer > 0) {
+      timerRef.current = setInterval(() => {
+        setTimer((prev) => prev - 1);
+      }, 1000);
+    } else {
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [timer]);
 
   const validate = () => {
-    let valid = true;
-    setEmailError('');
-    setPasswordError('');
-
     if (!email) {
       setEmailError('Email is required');
-      valid = false;
+      return false;
     } else if (!/\S+@\S+\.\S+/.test(email)) {
       setEmailError('Please enter a valid email address');
-      valid = false;
+      return false;
     }
-
-    if (!password) {
-      setPasswordError('Password is required');
-      valid = false;
-    } else if (password.length < 6) {
-      setPasswordError('Password must be at least 6 characters');
-      valid = false;
-    }
-
-    return valid;
+    return true;
   };
 
-  async function signInWithEmail() {
+  const getNextInterval = () => {
+    return 60; // Standard Supabase rate limit is 60 seconds
+  };
+
+  async function handleResetPassword() {
     if (!validate()) return;
     
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: 'motivaid://reset-password',
     });
 
     if (error) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      if (error.message.includes('Invalid login credentials')) {
-        setPasswordError('Incorrect email or password');
-      } else if (error.message.includes('Email not confirmed')) {
-        setEmailError('Please confirm your email address');
+      if (error.message.includes('rate limit')) {
+        showToast('Too many requests. Please wait.', 'error');
+        setTimer(getNextInterval()); // Force start timer on rate limit
       } else {
-        Alert.alert('Login Failed', error.message);
+        Alert.alert('Error', error.message);
       }
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      showToast('Welcome back!', 'success');
-      router.replace('/(app)/(tabs)');
+      showToast('Reset link sent!', 'success');
+      setTimer(getNextInterval());
+      setResendCount((prev) => prev + 1);
     }
     setLoading(false);
   }
@@ -76,12 +81,19 @@ export default function LoginScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
+        <TouchableOpacity 
+          style={styles.backButton} 
+          onPress={() => router.back()}
+        >
+          <IconSymbol name="chevron.right" size={24} color={textColor} style={{ transform: [{ rotate: '180deg' }] }} />
+        </TouchableOpacity>
+
         <View style={styles.header}>
           <View style={styles.iconContainer}>
-            <IconSymbol size={60} name="lock.fill" color="#A1CEDC" />
+            <IconSymbol size={60} name="lock.fill" color={tint} />
           </View>
-          <ThemedText type="title" style={styles.title}>Welcome Back</ThemedText>
-          <ThemedText style={styles.subtitle}>Sign in to continue your journey</ThemedText>
+          <ThemedText type="title" style={styles.title}>Reset Password</ThemedText>
+          <ThemedText style={styles.subtitle}>Enter your email to receive a reset link</ThemedText>
         </View>
 
         <View style={styles.form}>
@@ -101,56 +113,45 @@ export default function LoginScreen() {
                 { color: textColor, borderColor: emailError ? '#ff4444' : borderColor }
               ]}
               keyboardType="email-address"
+              editable={timer === 0}
             />
             {emailError ? <ThemedText style={styles.errorText}>{emailError}</ThemedText> : null}
           </View>
 
-          <View style={styles.inputContainer}>
-            <ThemedText style={styles.label}>Password</ThemedText>
-            <TextInput
-              onChangeText={(text) => {
-                setPassword(text);
-                if (passwordError) setPasswordError('');
-              }}
-              value={password}
-              secureTextEntry={true}
-              placeholder="Enter your password"
-              placeholderTextColor="#888"
-              autoCapitalize={'none'}
-              style={[
-                styles.input, 
-                { color: textColor, borderColor: passwordError ? '#ff4444' : borderColor }
-              ]}
-            />
-            {passwordError ? <ThemedText style={styles.errorText}>{passwordError}</ThemedText> : null}
-          </View>
-
-          <Link href="/(auth)/forgot-password" asChild>
-            <TouchableOpacity style={styles.forgotPasswordContainer}>
-              <ThemedText style={styles.forgotPasswordText}>Forgot Password?</ThemedText>
-            </TouchableOpacity>
-          </Link>
+          {timer > 0 && (
+            <View style={styles.timerContainer}>
+              <IconSymbol name="time-outline" size={20} color={tint} />
+              <ThemedText style={[styles.timerText, { color: tint }]}>
+                Wait {Math.floor(timer / 60)}:{(timer % 60).toString().padStart(2, '0')} before resending
+              </ThemedText>
+            </View>
+          )}
 
           <TouchableOpacity 
-            style={styles.loginButton} 
-            onPress={signInWithEmail}
-            disabled={loading}
+            style={[
+              styles.resetButton, 
+              { backgroundColor: timer > 0 ? 'rgba(150, 150, 150, 0.1)' : tint }
+            ]} 
+            onPress={handleResetPassword}
+            disabled={loading || timer > 0}
           >
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <ThemedText style={styles.loginButtonText}>Sign In</ThemedText>
+              <ThemedText style={[
+                styles.resetButtonText,
+                timer > 0 && { color: textColor, opacity: 0.5 }
+              ]}>
+                {resendCount > 0 ? 'Resend Link' : 'Send Reset Link'}
+              </ThemedText>
             )}
           </TouchableOpacity>
-        </View>
 
-        <View style={styles.footer}>
-          <ThemedText>New here? </ThemedText>
-          <Link href="/(auth)/register" asChild>
-            <TouchableOpacity>
-              <ThemedText style={styles.link}>Create Account</ThemedText>
-            </TouchableOpacity>
-          </Link>
+          {resendCount > 0 && timer === 0 && (
+            <ThemedText style={styles.infoText}>
+              Didn't receive the email? Check your spam folder or try resending.
+            </ThemedText>
+          )}
         </View>
       </KeyboardAvoidingView>
     </ThemedView>
@@ -166,6 +167,12 @@ const styles = StyleSheet.create({
     padding: 24,
     justifyContent: 'center',
   },
+  backButton: {
+    position: 'absolute',
+    top: 60,
+    left: 20,
+    padding: 8,
+  },
   header: {
     alignItems: 'center',
     marginBottom: 40,
@@ -174,7 +181,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: 'rgba(161, 206, 220, 0.1)',
+    backgroundColor: 'rgba(0, 210, 255, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
@@ -187,6 +194,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     opacity: 0.6,
     marginTop: 8,
+    textAlign: 'center',
   },
   form: {
     gap: 20,
@@ -205,15 +213,25 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     marginTop: 2,
   },
-  forgotPasswordContainer: {
-    alignSelf: 'flex-end',
-    marginTop: -8,
-    marginBottom: 8,
+  timerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 10,
+    backgroundColor: 'rgba(0, 210, 255, 0.05)',
+    padding: 12,
+    borderRadius: 12,
   },
-  forgotPasswordText: {
-    color: '#00D2FF',
+  timerText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  infoText: {
+    fontSize: 13,
+    opacity: 0.5,
+    textAlign: 'center',
+    marginTop: 10,
   },
   input: {
     height: 56,
@@ -221,20 +239,17 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 16,
     fontSize: 16,
-    color: 'inherit', // Works in some RN versions or handled by component
     borderWidth: 1,
-    borderColor: 'rgba(150, 150, 150, 0.1)',
   },
-  loginButton: {
+  resetButton: {
     height: 56,
-    backgroundColor: '#A1CEDC',
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 10,
     ...Platform.select({
       ios: {
-        shadowColor: '#A1CEDC',
+        shadowColor: '#00D2FF',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
@@ -243,22 +258,13 @@ const styles = StyleSheet.create({
         elevation: 4,
       },
       web: {
-        boxShadow: '0px 4px 8px rgba(161, 206, 220, 0.3)',
+        boxShadow: '0px 4px 8px rgba(0, 210, 255, 0.3)',
       },
     }),
   },
-  loginButtonText: {
+  resetButtonText: {
     color: '#000',
     fontSize: 16,
-    fontWeight: '700',
-  },
-  footer: {
-    flexDirection: 'row',
-    marginTop: 32,
-    justifyContent: 'center',
-  },
-  link: {
-    color: '#A1CEDC',
     fontWeight: '700',
   },
 });

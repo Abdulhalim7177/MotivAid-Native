@@ -42,6 +42,7 @@ A **trusted digital companion** for midwives ensuring timely, standardized, and 
 ## Scope
 
 ### In-Scope (MVP)
+
 - ✅ Clinical decision support for PPH
 - ✅ Training and simulation mode
 - ✅ Offline-first mobile usage
@@ -49,6 +50,7 @@ A **trusted digital companion** for midwives ensuring timely, standardized, and 
 - ✅ Supabase authentication and analytics
 
 ### Out-of-Scope (Future)
+
 - ❌ Patient-facing features
 - ❌ Billing/insurance systems
 - ❌ Hardware integrations (wearables)
@@ -95,8 +97,8 @@ A **trusted digital companion** for midwives ensuring timely, standardized, and 
 ```
 ┌─────────────────────────────────────────────┐
 │                 FRONTEND                     │
-│  Flutter (Dart) • Android-first             │
-│  Local: SQLite/Hive • State: Riverpod       │
+│ # add current implementation here           │
+│  Local: SQLite/Hive • State:    │
 └─────────────────────────────────────────────┘
                       │
                       ▼

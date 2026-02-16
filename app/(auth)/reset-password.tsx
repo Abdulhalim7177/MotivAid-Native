@@ -2,36 +2,27 @@ import React, { useState } from 'react';
 import { View, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../../lib/supabase';
-import { Link, router } from 'expo-router';
+import { router } from 'expo-router';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useToast } from '@/context/toast';
 
-export default function LoginScreen() {
-  const { showToast } = useToast();
-  const [email, setEmail] = useState('');
+export default function ResetPasswordScreen() {
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const { showToast } = useToast();
   
   const textColor = useThemeColor({}, 'text');
   const borderColor = useThemeColor({ light: 'rgba(0,0,0,0.1)', dark: 'rgba(255,255,255,0.1)' }, 'icon');
+  const tint = useThemeColor({}, 'tint');
 
   const validate = () => {
     let valid = true;
-    setEmailError('');
     setPasswordError('');
-
-    if (!email) {
-      setEmailError('Email is required');
-      valid = false;
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      setEmailError('Please enter a valid email address');
-      valid = false;
-    }
 
     if (!password) {
       setPasswordError('Password is required');
@@ -39,33 +30,29 @@ export default function LoginScreen() {
     } else if (password.length < 6) {
       setPasswordError('Password must be at least 6 characters');
       valid = false;
+    } else if (password !== confirmPassword) {
+      setPasswordError('Passwords do not match');
+      valid = false;
     }
 
     return valid;
   };
 
-  async function signInWithEmail() {
+  async function handleUpdatePassword() {
     if (!validate()) return;
     
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+    const { error } = await supabase.auth.updateUser({
+      password: password
     });
 
     if (error) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      if (error.message.includes('Invalid login credentials')) {
-        setPasswordError('Incorrect email or password');
-      } else if (error.message.includes('Email not confirmed')) {
-        setEmailError('Please confirm your email address');
-      } else {
-        Alert.alert('Login Failed', error.message);
-      }
+      Alert.alert('Error', error.message);
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      showToast('Welcome back!', 'success');
-      router.replace('/(app)/(tabs)');
+      showToast('Password updated successfully!', 'success');
+      router.replace('/(auth)/login');
     }
     setLoading(false);
   }
@@ -78,35 +65,15 @@ export default function LoginScreen() {
       >
         <View style={styles.header}>
           <View style={styles.iconContainer}>
-            <IconSymbol size={60} name="lock.fill" color="#A1CEDC" />
+            <IconSymbol size={60} name="lock-closed-outline" color={tint} />
           </View>
-          <ThemedText type="title" style={styles.title}>Welcome Back</ThemedText>
-          <ThemedText style={styles.subtitle}>Sign in to continue your journey</ThemedText>
+          <ThemedText type="title" style={styles.title}>New Password</ThemedText>
+          <ThemedText style={styles.subtitle}>Enter your new secure password</ThemedText>
         </View>
 
         <View style={styles.form}>
           <View style={styles.inputContainer}>
-            <ThemedText style={styles.label}>Email</ThemedText>
-            <TextInput
-              onChangeText={(text) => {
-                setEmail(text);
-                if (emailError) setEmailError('');
-              }}
-              value={email}
-              placeholder="Enter your email"
-              placeholderTextColor="#888"
-              autoCapitalize={'none'}
-              style={[
-                styles.input, 
-                { color: textColor, borderColor: emailError ? '#ff4444' : borderColor }
-              ]}
-              keyboardType="email-address"
-            />
-            {emailError ? <ThemedText style={styles.errorText}>{emailError}</ThemedText> : null}
-          </View>
-
-          <View style={styles.inputContainer}>
-            <ThemedText style={styles.label}>Password</ThemedText>
+            <ThemedText style={styles.label}>New Password</ThemedText>
             <TextInput
               onChangeText={(text) => {
                 setPassword(text);
@@ -114,7 +81,26 @@ export default function LoginScreen() {
               }}
               value={password}
               secureTextEntry={true}
-              placeholder="Enter your password"
+              placeholder="Min 6 characters"
+              placeholderTextColor="#888"
+              autoCapitalize={'none'}
+              style={[
+                styles.input, 
+                { color: textColor, borderColor: passwordError ? '#ff4444' : borderColor }
+              ]}
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <ThemedText style={styles.label}>Confirm Password</ThemedText>
+            <TextInput
+              onChangeText={(text) => {
+                setConfirmPassword(text);
+                if (passwordError) setPasswordError('');
+              }}
+              value={confirmPassword}
+              secureTextEntry={true}
+              placeholder="Confirm new password"
               placeholderTextColor="#888"
               autoCapitalize={'none'}
               style={[
@@ -125,32 +111,17 @@ export default function LoginScreen() {
             {passwordError ? <ThemedText style={styles.errorText}>{passwordError}</ThemedText> : null}
           </View>
 
-          <Link href="/(auth)/forgot-password" asChild>
-            <TouchableOpacity style={styles.forgotPasswordContainer}>
-              <ThemedText style={styles.forgotPasswordText}>Forgot Password?</ThemedText>
-            </TouchableOpacity>
-          </Link>
-
           <TouchableOpacity 
-            style={styles.loginButton} 
-            onPress={signInWithEmail}
+            style={[styles.resetButton, { backgroundColor: tint }]} 
+            onPress={handleUpdatePassword}
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color="#000" />
             ) : (
-              <ThemedText style={styles.loginButtonText}>Sign In</ThemedText>
+              <ThemedText style={styles.resetButtonText}>Update Password</ThemedText>
             )}
           </TouchableOpacity>
-        </View>
-
-        <View style={styles.footer}>
-          <ThemedText>New here? </ThemedText>
-          <Link href="/(auth)/register" asChild>
-            <TouchableOpacity>
-              <ThemedText style={styles.link}>Create Account</ThemedText>
-            </TouchableOpacity>
-          </Link>
         </View>
       </KeyboardAvoidingView>
     </ThemedView>
@@ -174,7 +145,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: 'rgba(161, 206, 220, 0.1)',
+    backgroundColor: 'rgba(0, 210, 255, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
@@ -187,6 +158,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     opacity: 0.6,
     marginTop: 8,
+    textAlign: 'center',
   },
   form: {
     gap: 20,
@@ -205,36 +177,23 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     marginTop: 2,
   },
-  forgotPasswordContainer: {
-    alignSelf: 'flex-end',
-    marginTop: -8,
-    marginBottom: 8,
-  },
-  forgotPasswordText: {
-    color: '#00D2FF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
   input: {
     height: 56,
     backgroundColor: 'rgba(150, 150, 150, 0.05)',
     borderRadius: 16,
     paddingHorizontal: 16,
     fontSize: 16,
-    color: 'inherit', // Works in some RN versions or handled by component
     borderWidth: 1,
-    borderColor: 'rgba(150, 150, 150, 0.1)',
   },
-  loginButton: {
+  resetButton: {
     height: 56,
-    backgroundColor: '#A1CEDC',
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 10,
     ...Platform.select({
       ios: {
-        shadowColor: '#A1CEDC',
+        shadowColor: '#00D2FF',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
@@ -243,22 +202,13 @@ const styles = StyleSheet.create({
         elevation: 4,
       },
       web: {
-        boxShadow: '0px 4px 8px rgba(161, 206, 220, 0.3)',
+        boxShadow: '0px 4px 8px rgba(0, 210, 255, 0.3)',
       },
     }),
   },
-  loginButtonText: {
+  resetButtonText: {
     color: '#000',
     fontSize: 16,
-    fontWeight: '700',
-  },
-  footer: {
-    flexDirection: 'row',
-    marginTop: 32,
-    justifyContent: 'center',
-  },
-  link: {
-    color: '#A1CEDC',
     fontWeight: '700',
   },
 });

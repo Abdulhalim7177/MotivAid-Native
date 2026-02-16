@@ -5,19 +5,20 @@ import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useThemeColor } from '@/hooks/use-theme-color';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useEffect, useState } from 'react';
 
 // --- User Dashboard Component ---
-function UserDashboard({ tint }: { tint: string }) {
+function UserDashboard({ tint, cardStyle }: { tint: string, cardStyle: any }) {
   const { user, profile } = useAuth();
   return (
     <View>
-      <View style={styles.card}>
+      <View style={[styles.card, cardStyle]}>
         <ThemedText style={styles.cardLabel}>Personal Progress</ThemedText>
         <View style={styles.statsContainer}>
-          <View style={styles.statBox}>
+          <View style={[styles.statBox, cardStyle]}>
             <ThemedText style={styles.statNumber}>12</ThemedText>
             <ThemedText style={styles.statLabel}>Tasks Done</ThemedText>
           </View>
@@ -31,14 +32,14 @@ function UserDashboard({ tint }: { tint: string }) {
       <ThemedText type="subtitle" style={styles.sectionTitle}>My Actions</ThemedText>
       <View style={styles.actionsGrid}>
         <TouchableOpacity style={styles.actionItem}>
-          <View style={[styles.actionIcon, { backgroundColor: '#4CAF5020' }]}>
-            <IconSymbol size={24} name="plus" color="#4CAF50" />
+          <View style={[styles.actionIcon, { backgroundColor: tint + '15' }]}>
+            <IconSymbol size={24} name="plus" color={tint} />
           </View>
           <ThemedText style={styles.actionLabel}>Add Task</ThemedText>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionItem}>
-          <View style={[styles.actionIcon, { backgroundColor: '#2196F320' }]}>
-            <IconSymbol size={24} name="calendar" color="#2196F3" />
+          <View style={[styles.actionIcon, { backgroundColor: tint + '15' }]}>
+            <IconSymbol size={24} name="calendar" color={tint} />
           </View>
           <ThemedText style={styles.actionLabel}>Schedule</ThemedText>
         </TouchableOpacity>
@@ -48,13 +49,13 @@ function UserDashboard({ tint }: { tint: string }) {
 }
 
 // --- Supervisor Dashboard Component ---
-function SupervisorDashboard({ tint }: { tint: string }) {
+function SupervisorDashboard({ tint, cardStyle }: { tint: string, cardStyle: any }) {
   return (
     <View>
-      <View style={styles.card}>
+      <View style={[styles.card, cardStyle]}>
         <ThemedText style={styles.cardLabel}>Team Overview</ThemedText>
         <View style={styles.statsContainer}>
-          <View style={styles.statBox}>
+          <View style={[styles.statBox, cardStyle]}>
             <ThemedText style={styles.statNumber}>8</ThemedText>
             <ThemedText style={styles.statLabel}>Active Users</ThemedText>
           </View>
@@ -68,14 +69,14 @@ function SupervisorDashboard({ tint }: { tint: string }) {
       <ThemedText type="subtitle" style={styles.sectionTitle}>Supervisor Actions</ThemedText>
       <View style={styles.actionsGrid}>
         <TouchableOpacity style={styles.actionItem}>
-          <View style={[styles.actionIcon, { backgroundColor: '#FF980020' }]}>
-            <IconSymbol size={24} name="person.2.fill" color="#FF9800" />
+          <View style={[styles.actionIcon, { backgroundColor: tint + '15' }]}>
+            <IconSymbol size={24} name="person.2.fill" color={tint} />
           </View>
           <ThemedText style={styles.actionLabel}>Manage Team</ThemedText>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionItem}>
-          <View style={[styles.actionIcon, { backgroundColor: '#9C27B020' }]}>
-            <IconSymbol size={24} name="doc.text.fill" color="#9C27B0" />
+          <View style={[styles.actionIcon, { backgroundColor: tint + '15' }]}>
+            <IconSymbol size={24} name="doc.text.fill" color={tint} />
           </View>
           <ThemedText style={styles.actionLabel}>Reports</ThemedText>
         </TouchableOpacity>
@@ -85,13 +86,13 @@ function SupervisorDashboard({ tint }: { tint: string }) {
 }
 
 // --- Admin Dashboard Component ---
-function AdminDashboard({ tint }: { tint: string }) {
+function AdminDashboard({ tint, cardStyle }: { tint: string, cardStyle: any }) {
   return (
     <View>
-      <View style={[styles.card, { borderColor: '#FF444450' }]}>
+      <View style={[styles.card, cardStyle, { borderColor: '#FF444450' }]}>
         <ThemedText style={[styles.cardLabel, { color: '#FF4444' }]}>System Status</ThemedText>
         <View style={styles.statsContainer}>
-          <View style={styles.statBox}>
+          <View style={[styles.statBox, cardStyle]}>
             <ThemedText style={styles.statNumber}>99.9%</ThemedText>
             <ThemedText style={styles.statLabel}>Uptime</ThemedText>
           </View>
@@ -105,14 +106,14 @@ function AdminDashboard({ tint }: { tint: string }) {
       <ThemedText type="subtitle" style={styles.sectionTitle}>Admin Controls</ThemedText>
       <View style={styles.actionsGrid}>
         <TouchableOpacity style={styles.actionItem}>
-          <View style={[styles.actionIcon, { backgroundColor: '#ff444420' }]}>
-            <IconSymbol size={24} name="gearshape.fill" color="#ff4444" />
+          <View style={[styles.actionIcon, { backgroundColor: tint + '15' }]}>
+            <IconSymbol size={24} name="gearshape.fill" color={tint} />
           </View>
           <ThemedText style={styles.actionLabel}>Settings</ThemedText>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionItem}>
-          <View style={[styles.actionIcon, { backgroundColor: '#00000020' }]}>
-            <IconSymbol size={24} name="shield.fill" color="#888" />
+          <View style={[styles.actionIcon, { backgroundColor: tint + '15' }]}>
+            <IconSymbol size={24} name="shield.fill" color={tint} />
           </View>
           <ThemedText style={styles.actionLabel}>Security</ThemedText>
         </TouchableOpacity>
@@ -125,7 +126,11 @@ export default function HomeScreen() {
   const { user, profile } = useAuth();
   const colorScheme = useColorScheme();
   const tint = Colors[colorScheme ?? 'light'].tint;
+  const cardBg = useThemeColor({}, 'card');
+  const borderColor = useThemeColor({}, 'border');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  const cardStyle = { backgroundColor: cardBg, borderColor: borderColor };
 
   const displayName = profile?.full_name || profile?.username || user?.email?.split('@')[0];
 
@@ -151,11 +156,11 @@ export default function HomeScreen() {
   const renderDashboard = () => {
     switch (profile?.role) {
       case 'admin':
-        return <AdminDashboard tint={tint} />;
+        return <AdminDashboard tint={tint} cardStyle={cardStyle} />;
       case 'supervisor':
-        return <SupervisorDashboard tint={tint} />;
+        return <SupervisorDashboard tint={tint} cardStyle={cardStyle} />;
       default:
-        return <UserDashboard tint={tint} />;
+        return <UserDashboard tint={tint} cardStyle={cardStyle} />;
     }
   };
 
@@ -187,7 +192,7 @@ export default function HomeScreen() {
 
         {renderDashboard()}
 
-        <View style={[styles.card, { marginTop: 24 }]}>
+        <View style={[styles.card, cardStyle, { marginTop: 24 }]}>
           <ThemedText style={styles.cardLabel}>Account Information</ThemedText>
           <View style={styles.infoRow}>
             <IconSymbol size={20} name="envelope.fill" color={tint} />

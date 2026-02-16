@@ -18,45 +18,19 @@ graph LR
 ## 1. Authentication Module
 
 ### Features
+
 | Feature | Description | Priority |
 |---------|-------------|----------|
 | Login | Email/password authentication | P0 |
 | Logout | Secure session termination | P0 |
 | Session Management | JWT token handling | P0 |
 | Offline Auth | Cached credentials for offline | P0 |
-
-### Components
-- `LoginScreen.js` - Authentication form
-- `ForgotPasswordScreen.js` - Password recovery
-
-### Files
-```
-src/screens/auth/
-├── LoginScreen.js
-├── ForgotPasswordScreen.js
-├── styles.js
-└── index.js
-
-src/contexts/
-├── AuthContext.js
-└── UserContext.js
-
-src/hooks/
-├── useAuth.js
-└── useSession.js
-
-src/services/
-├── api/
-│   └── authService.js
-└── storage/
-    └── authStorage.js
-```
-
----
+--
 
 ## 2. Dashboard Module
 
 ### Features
+
 | Feature | Description | Priority |
 |---------|-------------|----------|
 | Mode Selection | Clinical/Training mode entry | P0 |
@@ -65,6 +39,7 @@ src/services/
 | Sync Status | Online/offline indicator | P0 |
 
 ### Components
+
 - `DashboardScreen.js` - Main home screen
 
 ---
@@ -72,6 +47,7 @@ src/services/
 ## 3. Clinical Mode Module
 
 ### Features
+
 | Feature | Description | Priority |
 |---------|-------------|----------|
 | Risk Assessment | Maternal risk factor entry | P0 |
@@ -85,6 +61,7 @@ src/services/
 | Documentation | Automatic event logging | P0 |
 
 ### Components
+
 - `RiskAssessmentScreen.js` - Maternal data entry
 - `ClinicalModeScreen.js` - Active PPH management
 - `ChecklistScreen.js` - E-MOTIVE steps
@@ -92,6 +69,7 @@ src/services/
 - `EscalationScreen.js` - Emergency contacts
 
 ### E-MOTIVE Workflow
+
 ```
 ┌─────────────────────────────────────────────┐
 │  E-MOTIVE CHECKLIST                         │
@@ -128,6 +106,7 @@ src/services/
 ## 4. Training Module
 
 ### Features
+
 | Feature | Description | Priority |
 |---------|-------------|----------|
 | Scenarios | Simulated PPH cases | P1 |
@@ -137,6 +116,7 @@ src/services/
 | Certificates | Completion badges | P2 |
 
 ### Components
+
 - `TrainingHomeScreen.js` - Module selection
 - `ScenarioScreen.js` - Interactive scenario
 - `QuizScreen.js` - Assessment questions
@@ -148,6 +128,7 @@ src/services/
 ## 5. Reports Module
 
 ### Features
+
 | Feature | Description | Priority |
 |---------|-------------|----------|
 | Case Reports | Individual PPH case summaries | P1 |
@@ -156,6 +137,7 @@ src/services/
 | Export | PDF/CSV generation | P2 |
 
 ### Components
+
 - `ReportsListScreen.js` - Report list
 - `CaseReportScreen.js` - Single case detail
 - `AnalyticsScreen.js` - Facility metrics
@@ -165,6 +147,7 @@ src/services/
 ## 6. Settings Module
 
 ### Features
+
 | Feature | Description | Priority |
 |---------|-------------|----------|
 | Profile | User information | P1 |
@@ -175,6 +158,7 @@ src/services/
 | About | Version, licenses | P2 |
 
 ### Components
+
 - `SettingsScreen.js` - Settings menu
 - `ProfileScreen.js` - User profile edit
 - `EmergencyContactsScreen.js` - Contact management
@@ -184,6 +168,7 @@ src/services/
 ## Shared Components
 
 ### UI Components
+
 | Component | Usage |
 |-----------|-------|
 | `MotivAidButton.js` | Primary action buttons |
@@ -195,6 +180,7 @@ src/services/
 | `SyncIndicator.js` | Online/offline status |
 
 ### Services
+
 | Service | Responsibility |
 |---------|----------------|
 | `SyncService.js` | Data synchronization |
@@ -203,6 +189,7 @@ src/services/
 | `AnalyticsService.js` | Event tracking |
 
 ### Store (Zustand)
+
 | Store | Responsibility |
 |-------|----------------|
 | `authStore.js` | Authentication state |
