@@ -9,6 +9,7 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useEffect, useState } from 'react';
+import NetInfo from '@react-native-community/netinfo';
 
 // --- User Dashboard Component ---
 function UserDashboard({ tint, cardStyle }: { tint: string, cardStyle: any }) {
@@ -124,6 +125,7 @@ function AdminDashboard({ tint, cardStyle }: { tint: string, cardStyle: any }) {
 
 export default function HomeScreen() {
   const { user, profile } = useAuth();
+  const [isOffline, setIsOffline] = useState(false);
   const colorScheme = useColorScheme();
   const tint = Colors[colorScheme ?? 'light'].tint;
   const cardBg = useThemeColor({}, 'card');
@@ -133,6 +135,13 @@ export default function HomeScreen() {
   const cardStyle = { backgroundColor: cardBg, borderColor: borderColor };
 
   const displayName = profile?.full_name || profile?.username || user?.email?.split('@')[0];
+
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(state => {
+      setIsOffline(!state.isConnected);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (profile?.avatar_url) downloadImage(profile.avatar_url);
@@ -169,7 +178,14 @@ export default function HomeScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <View>
-            <ThemedText style={styles.greetingText}>{profile?.role?.toUpperCase() || 'USER'}</ThemedText>
+            <View style={styles.greetingRow}>
+              <ThemedText style={styles.greetingText}>{profile?.role?.toUpperCase() || 'USER'}</ThemedText>
+              {isOffline && (
+                <View style={styles.offlineBadge}>
+                  <ThemedText style={styles.offlineText}>OFFLINE</ThemedText>
+                </View>
+              )}
+            </View>
             <ThemedText type="title" style={styles.welcomeText}>
               {displayName}
             </ThemedText>
@@ -228,12 +244,30 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: '800',
   },
+  greetingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   greetingText: {
     fontSize: 14,
     fontWeight: '700',
     opacity: 0.5,
     marginBottom: -4,
     letterSpacing: 1,
+  },
+  offlineBadge: {
+    backgroundColor: '#FF3D0020',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#FF3D00',
+  },
+  offlineText: {
+    fontSize: 10,
+    color: '#FF3D00',
+    fontWeight: '800',
   },
   profileButton: {
     borderRadius: 25,

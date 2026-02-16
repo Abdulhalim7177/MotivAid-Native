@@ -14,7 +14,7 @@ export const unstable_settings = {
 };
 
 function RootLayoutNav() {
-  const { session, isLoading } = useAuth();
+  const { isOfflineAuthenticated, isLoading } = useAuth();
   const segments = useSegments();
   const colorScheme = useColorScheme();
 
@@ -24,14 +24,14 @@ function RootLayoutNav() {
     const inAuthGroup = segments[0] === '(auth)';
     const isSplash = segments.length === 0 || segments[0] === 'index';
 
-    if (isSplash) return; // Let the splash screen handle its own timer
+    if (isSplash) return; 
 
-    if (!session && !inAuthGroup) {
+    if (!isOfflineAuthenticated && !inAuthGroup) {
       router.replace('/(auth)/login');
-    } else if (session && inAuthGroup) {
+    } else if (isOfflineAuthenticated && inAuthGroup) {
       router.replace('/(app)/(tabs)');
     }
-  }, [session, isLoading, segments]);
+  }, [isOfflineAuthenticated, isLoading, segments]);
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>

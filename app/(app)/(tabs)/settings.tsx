@@ -13,7 +13,7 @@ import { router } from 'expo-router';
 export default function SettingsScreen() {
   const { showToast } = useToast();
   const { preference, setThemePreference } = useAppTheme();
-  const { profile } = useAuth();
+  const { profile, signOut } = useAuth();
   const tint = useThemeColor({}, 'tint');
   const textColor = useThemeColor({}, 'text');
   const borderColor = useThemeColor({ light: 'rgba(0,0,0,0.05)', dark: 'rgba(255,255,255,0.05)' }, 'icon');
@@ -21,8 +21,8 @@ export default function SettingsScreen() {
   const handleSignOut = async () => {
     try {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await signOut();
       showToast('Signed out successfully', 'success');
-      await supabase.auth.signOut();
     } catch (error: any) {
       showToast('Error signing out', 'error');
     }
