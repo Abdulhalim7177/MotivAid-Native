@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Image } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Link, router } from 'expo-router';
 import { ThemedView } from '@/components/themed-view';
@@ -8,11 +8,13 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useToast } from '@/context/toast';
 import { useAuth } from '@/context/auth';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { checkBiometrics, getSavedEmail } from '@/lib/security';
 
 export default function LoginScreen() {
   const { showToast } = useToast();
   const { signIn, signInBiometric, isOfflineAuthenticated } = useAuth();
+  const colorScheme = useColorScheme();
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -24,6 +26,10 @@ export default function LoginScreen() {
   const textColor = useThemeColor({}, 'text');
   const borderColor = useThemeColor({ light: 'rgba(0,0,0,0.1)', dark: 'rgba(255,255,255,0.1)' }, 'icon');
   const tint = useThemeColor({}, 'tint');
+
+  const logo = colorScheme === 'dark' 
+    ? require('@/assets/images/motivaid-dark.png') 
+    : require('@/assets/images/motivaid-light.png');
 
   useEffect(() => {
     async function init() {
@@ -97,9 +103,11 @@ export default function LoginScreen() {
         style={styles.keyboardView}
       >
         <View style={styles.header}>
-          <View style={styles.iconContainer}>
-            <IconSymbol size={60} name="lock.fill" color={tint} />
-          </View>
+          <Image 
+            source={logo} 
+            style={styles.logo} 
+            resizeMode="contain"
+          />
           <ThemedText type="title" style={styles.title}>Welcome Back</ThemedText>
           <ThemedText style={styles.subtitle}>Sign in to continue your journey</ThemedText>
         </View>
@@ -200,6 +208,11 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     marginBottom: 40,
+  },
+  logo: {
+    width: 216,
+    height: 144,
+    marginBottom: 5,
   },
   iconContainer: {
     width: 100,

@@ -1,0 +1,1 @@
+INSERT INTO facilities (name, registration_code) VALUES ('General Hospital', '123456')

@@ -11,7 +11,7 @@ type Profile = {
   full_name: string | null;
   avatar_url: string | null;
   website: string | null;
-  role: 'admin' | 'user' | 'supervisor';
+  role: 'admin' | 'user' | 'supervisor' | 'midwife' | 'student' | 'nurse';
 };
 
 type AuthContextType = {

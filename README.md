@@ -1,50 +1,81 @@
-# Welcome to your Expo app 👋
+# MotivAid 🩺
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+**MotivAid** is a specialized mobile health (mHealth) application designed to empower midwives and frontline healthcare workers in the early detection and management of **Postpartum Hemorrhage (PPH)** using the WHO-endorsed **E-MOTIVE** clinical bundle.
 
-## Get started
+Built with a "Noir Tech" aesthetic for the year 2026, MotivAid provides a high-performance, offline-first experience to save lives in even the most resource-constrained environments.
 
-1. Install dependencies
+---
 
+## ✨ Key Features
+
+### 🛡️ Secure & Resilient
+- **Advanced Auth:** Supabase-backed authentication with Biometric (Fingerprint/FaceID) support.
+- **Offline-First:** Seamless SQLite + SecureStore caching allows users to log in and manage cases without an internet connection.
+- **Smart Session Locking:** Offline sign-out "locks" the app instead of clearing data, ensuring immediate resume when needed.
+
+### 🏥 Clinical Excellence (E-MOTIVE)
+- **Early Detection:** Automated risk assessment and PPH triggers.
+- **Guided Interventions:** Step-by-step checklist for Massage, Oxytocics, Tranexamic Acid, and IV Fluids.
+- **Vitals Tracking:** Real-time Shock Index calculation and threshold-based alerts.
+- **Emergency Escalation:** One-tap notification system for unit and facility supervisors.
+
+### 🎭 Role-Based Dashboards
+- **Midwife:** Focused on clinical mode, patient monitoring, and training.
+- **Supervisor:** Unit management, performance analytics, and team approvals.
+- **Administrator:** Global facility oversight and system configuration.
+
+---
+
+## 🚀 Tech Stack
+
+- **Frontend:** React Native Expo (SDK 54+)
+- **Navigation:** Expo Router (File-based)
+- **Backend:** Supabase (Auth, PostgreSQL, Storage, Edge Functions)
+- **Database (Offline):** SQLite (via `expo-sqlite`)
+- **State Management:** React Context + Zustand
+- **UI/UX:** custom "Noir Tech" theme with Animated Toasts and Haptic Feedback.
+
+---
+
+## 🛠️ Getting Started
+
+### Prerequisites
+- Node.js & npm
+- Expo Go app or Emulator
+- [Supabase CLI](https://supabase.com/docs/guides/cli) (for local development)
+
+### Installation
+1. Clone the repository
+2. Install dependencies:
    ```bash
    npm install
    ```
-
-2. Start the app
-
+3. Initialize local Supabase:
+   ```bash
+   npx supabase start
+   ```
+4. Start the app:
    ```bash
    npx expo start
    ```
 
-In the output, you'll find options to open the app in a
+---
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## 🗺️ Project Status
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+- [x] **Phase 1:** Core Auth, SQLite Caching, and Biometrics.
+- [ ] **Phase 2:** Facility/Unit Management & Supervisor Approvals.
+- [ ] **Phase 3:** Risk Assessment & Clinical Vitals logic.
+- [ ] **Phase 4:** Active E-MOTIVE Checklist & Case Timeline.
+- [ ] **Phase 5:** Simulation Training Mode & Quizzes.
 
-## Get a fresh project
+---
 
-When you're ready, run:
+## 📜 Compliance & Guidelines
+MotivAid is strictly aligned with:
+- **WHO E-MOTIVE Clinical Guidelines**
+- **National Maternal Health Policies**
+- **Data Protection & Privacy Standards (AES-256 local encryption)**
 
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+---
+*MotivAid: Your Journey, Better. Saving Lives, One Delivery at a Time.*

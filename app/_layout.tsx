@@ -8,6 +8,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/context/auth';
 import { ToastProvider } from '@/context/toast';
 import { ThemeProvider as AppThemeProvider } from '@/context/theme';
+import { UnitProvider } from '@/context/unit';
 
 export const unstable_settings = {
   anchor: '(app)/(tabs)',
@@ -50,7 +51,9 @@ export default function RootLayout() {
     <AppThemeProvider>
       <ToastProvider>
         <AuthProvider>
-          <RootLayoutNav />
+          <UnitProvider>
+            <RootLayoutNav />
+          </UnitProvider>
         </AuthProvider>
       </ToastProvider>
     </AppThemeProvider>

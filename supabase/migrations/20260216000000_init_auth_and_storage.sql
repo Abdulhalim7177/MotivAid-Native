@@ -29,14 +29,35 @@ create policy "Users can update their own profile." on public.profiles
 -- Create a function to handle new user profiles
 create or replace function public.handle_new_user()
 returns trigger as $$
+declare
+  found_role public.user_role;
+  registration_code text;
 begin
+  registration_code := new.raw_user_meta_data->>'registration_code';
+  
+  -- Default role
+  found_role := 'user'::public.user_role;
+
+  -- If a code was provided, verify it exists and matches the role
+  if registration_code is not null then
+    select role into found_role 
+    from public.facility_codes 
+    where code = registration_code;
+
+    -- If code doesn't exist, we fallback to 'user'
+    if found_role is null then
+      found_role := 'user'::public.user_role;
+    end if;
+  end if;
+
   insert into public.profiles (id, full_name, avatar_url, role)
   values (
     new.id, 
     new.raw_user_meta_data->>'full_name', 
     new.raw_user_meta_data->>'avatar_url',
-    coalesce((new.raw_user_meta_data->>'role')::public.user_role, 'user'::public.user_role)
+    found_role
   );
+
   return new;
 end;
 $$ language plpgsql security definer;

@@ -1,4 +1,4 @@
-import { StyleSheet, View, ScrollView, TouchableOpacity, Image, Platform } from 'react-native';
+import { StyleSheet, View, ScrollView, TouchableOpacity, Image, Platform, ActivityIndicator } from 'react-native';
 import { useAuth } from '@/context/auth';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -10,113 +10,136 @@ import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useEffect, useState } from 'react';
 import NetInfo from '@react-native-community/netinfo';
+import UnitSelector from '@/components/unit-selector';
 
-// --- User Dashboard Component ---
-function UserDashboard({ tint, cardStyle }: { tint: string, cardStyle: any }) {
-  const { user, profile } = useAuth();
+// --- Shared Components ---
+const StatBox = ({ label, value, tint, cardStyle }: { label: string, value: string | number, tint: string, cardStyle: any }) => (
+  <View style={[styles.statBox, cardStyle]}>
+    <ThemedText style={styles.statNumber}>{value}</ThemedText>
+    <ThemedText style={styles.statLabel}>{label}</ThemedText>
+  </View>
+);
+
+const ActionItem = ({ label, icon, tint, onPress }: { label: string, icon: any, tint: string, onPress?: () => void }) => (
+  <TouchableOpacity style={styles.actionItem} onPress={onPress}>
+    <View style={[styles.actionIcon, { backgroundColor: tint + '15' }]}>
+      <IconSymbol size={24} name={icon} color={tint} />
+    </View>
+    <ThemedText style={styles.actionLabel}>{label}</ThemedText>
+  </TouchableOpacity>
+);
+
+// --- Staff Dashboard (Midwife, Nurse, Student) ---
+function StaffDashboard({ tint, cardStyle }: { tint: string, cardStyle: any }) {
   return (
     <View>
       <View style={[styles.card, cardStyle]}>
-        <ThemedText style={styles.cardLabel}>Personal Progress</ThemedText>
+        <ThemedText style={styles.cardLabel}>Shift Overview</ThemedText>
         <View style={styles.statsContainer}>
-          <View style={[styles.statBox, cardStyle]}>
-            <ThemedText style={styles.statNumber}>12</ThemedText>
-            <ThemedText style={styles.statLabel}>Tasks Done</ThemedText>
-          </View>
-          <View style={styles.statBox}>
-            <ThemedText style={styles.statNumber}>85%</ThemedText>
-            <ThemedText style={styles.statLabel}>Success</ThemedText>
-          </View>
+          <StatBox label="My Cases" value="8" tint={tint} cardStyle={cardStyle} />
+          <StatBox label="Success Rate" value="100%" tint={tint} cardStyle={cardStyle} />
         </View>
       </View>
       
-      <ThemedText type="subtitle" style={styles.sectionTitle}>My Actions</ThemedText>
+      <ThemedText type="subtitle" style={styles.sectionTitle}>Main Workflow</ThemedText>
       <View style={styles.actionsGrid}>
-        <TouchableOpacity style={styles.actionItem}>
-          <View style={[styles.actionIcon, { backgroundColor: tint + '15' }]}>
-            <IconSymbol size={24} name="plus" color={tint} />
+        <ActionItem label="Clinical Mode" icon="plus" tint={tint} />
+        <ActionItem label="Training" icon="calendar" tint={tint} />
+        <ActionItem label="My History" icon="document-text-outline" tint={tint} />
+      </View>
+
+      <View style={[styles.card, cardStyle, { marginTop: 24 }]}>
+        <ThemedText style={styles.cardLabel}>Training Progress</ThemedText>
+        <View style={styles.progressRow}>
+          <View style={[styles.progressBarBase, { backgroundColor: tint + '20' }]}>
+            <View style={[styles.progressBarFill, { backgroundColor: tint, width: '65%' }]} />
           </View>
-          <ThemedText style={styles.actionLabel}>Add Task</ThemedText>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionItem}>
-          <View style={[styles.actionIcon, { backgroundColor: tint + '15' }]}>
-            <IconSymbol size={24} name="calendar" color={tint} />
-          </View>
-          <ThemedText style={styles.actionLabel}>Schedule</ThemedText>
-        </TouchableOpacity>
+          <ThemedText style={styles.progressText}>65% Complete</ThemedText>
+        </View>
       </View>
     </View>
   );
 }
 
-// --- Supervisor Dashboard Component ---
+// --- Supervisor Dashboard ---
 function SupervisorDashboard({ tint, cardStyle }: { tint: string, cardStyle: any }) {
   return (
     <View>
       <View style={[styles.card, cardStyle]}>
-        <ThemedText style={styles.cardLabel}>Team Overview</ThemedText>
+        <View style={styles.cardHeader}>
+          <ThemedText style={styles.cardLabel}>Unit Adherence</ThemedText>
+          <View style={styles.trendBadge}>
+            <IconSymbol name="chevron.right" size={12} color="#4CAF50" style={{ transform: [{ rotate: '-90deg' }] }} />
+            <ThemedText style={styles.trendText}>+4%</ThemedText>
+          </View>
+        </View>
         <View style={styles.statsContainer}>
-          <View style={[styles.statBox, cardStyle]}>
-            <ThemedText style={styles.statNumber}>8</ThemedText>
-            <ThemedText style={styles.statLabel}>Active Users</ThemedText>
-          </View>
-          <View style={styles.statBox}>
-            <ThemedText style={styles.statNumber}>24</ThemedText>
-            <ThemedText style={styles.statLabel}>Pending</ThemedText>
-          </View>
+          <StatBox label="Avg Response" value="3.2m" tint={tint} cardStyle={cardStyle} />
+          <StatBox label="E-MOTIVE" value="92%" tint={tint} cardStyle={cardStyle} />
         </View>
       </View>
 
-      <ThemedText type="subtitle" style={styles.sectionTitle}>Supervisor Actions</ThemedText>
+      <TouchableOpacity 
+        style={styles.alertCard}
+        onPress={() => router.push('/(app)/approvals')}
+      >
+        <View style={styles.alertIcon}>
+          <IconSymbol name="person-add-outline" size={20} color="#FFD600" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <ThemedText style={styles.alertTitle}>Pending Approvals</ThemedText>
+          <ThemedText style={styles.alertSub}>Midwives awaiting unit assignment</ThemedText>
+        </View>
+        <IconSymbol name="chevron.right" size={20} color="#888" />
+      </TouchableOpacity>
+
+      <ThemedText type="subtitle" style={styles.sectionTitle}>Management</ThemedText>
       <View style={styles.actionsGrid}>
-        <TouchableOpacity style={styles.actionItem}>
-          <View style={[styles.actionIcon, { backgroundColor: tint + '15' }]}>
-            <IconSymbol size={24} name="person.2.fill" color={tint} />
-          </View>
-          <ThemedText style={styles.actionLabel}>Manage Team</ThemedText>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionItem}>
-          <View style={[styles.actionIcon, { backgroundColor: tint + '15' }]}>
-            <IconSymbol size={24} name="doc.text.fill" color={tint} />
-          </View>
-          <ThemedText style={styles.actionLabel}>Reports</ThemedText>
-        </TouchableOpacity>
+        <ActionItem label="Team" icon="people-outline" tint={tint} />
+        <ActionItem label="Analytics" icon="document-text-outline" tint={tint} />
+        <ActionItem label="Units" icon="settings-outline" tint={tint} />
       </View>
     </View>
   );
 }
 
-// --- Admin Dashboard Component ---
+// --- Admin Dashboard ---
 function AdminDashboard({ tint, cardStyle }: { tint: string, cardStyle: any }) {
   return (
     <View>
-      <View style={[styles.card, cardStyle, { borderColor: '#FF444450' }]}>
-        <ThemedText style={[styles.cardLabel, { color: '#FF4444' }]}>System Status</ThemedText>
+      <View style={[styles.card, cardStyle, { borderLeftWidth: 4, borderLeftColor: tint }]}>
+        <ThemedText style={styles.cardLabel}>Global Statistics</ThemedText>
         <View style={styles.statsContainer}>
-          <View style={[styles.statBox, cardStyle]}>
-            <ThemedText style={styles.statNumber}>99.9%</ThemedText>
-            <ThemedText style={styles.statLabel}>Uptime</ThemedText>
-          </View>
-          <View style={styles.statBox}>
-            <ThemedText style={styles.statNumber}>1.2k</ThemedText>
-            <ThemedText style={styles.statLabel}>Logins Today</ThemedText>
-          </View>
+          <StatBox label="Facilities" value="24" tint={tint} cardStyle={cardStyle} />
+          <StatBox label="Total Users" value="1.2k" tint={tint} cardStyle={cardStyle} />
         </View>
       </View>
 
-      <ThemedText type="subtitle" style={styles.sectionTitle}>Admin Controls</ThemedText>
+      <ThemedText type="subtitle" style={styles.sectionTitle}>System Administration</ThemedText>
       <View style={styles.actionsGrid}>
-        <TouchableOpacity style={styles.actionItem}>
-          <View style={[styles.actionIcon, { backgroundColor: tint + '15' }]}>
-            <IconSymbol size={24} name="gearshape.fill" color={tint} />
-          </View>
-          <ThemedText style={styles.actionLabel}>Settings</ThemedText>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionItem}>
-          <View style={[styles.actionIcon, { backgroundColor: tint + '15' }]}>
-            <IconSymbol size={24} name="shield.fill" color={tint} />
-          </View>
-          <ThemedText style={styles.actionLabel}>Security</ThemedText>
+        <ActionItem label="Security" icon="shield-checkmark-outline" tint={tint} />
+        <ActionItem label="Config" icon="settings-outline" tint={tint} />
+        <ActionItem label="Audit Logs" icon="time-outline" tint={tint} />
+      </View>
+    </View>
+  );
+}
+
+// --- Basic User Dashboard ---
+function UserDashboard({ tint, cardStyle }: { tint: string, cardStyle: any }) {
+  return (
+    <View style={{ gap: 24 }}>
+      <View style={[styles.card, cardStyle, { paddingVertical: 40, alignItems: 'center' }]}>
+        <View style={[styles.largeIconCircle, { backgroundColor: tint + '15' }]}>
+          <IconSymbol size={48} name="plus" color={tint} />
+        </View>
+        <ThemedText type="subtitle" style={{ marginTop: 16 }}>Start Clinical Mode</ThemedText>
+        <ThemedText style={{ opacity: 0.6, textAlign: 'center', marginTop: 8, paddingHorizontal: 40 }}>
+          Begin an E-MOTIVE clinical session immediately.
+        </ThemedText>
+        
+        <TouchableOpacity style={[styles.primaryButton, { backgroundColor: tint, marginTop: 24 }]}>
+          <ThemedText style={styles.primaryButtonText}>Initialize Case</ThemedText>
         </TouchableOpacity>
       </View>
     </View>
@@ -133,7 +156,6 @@ export default function HomeScreen() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   const cardStyle = { backgroundColor: cardBg, borderColor: borderColor };
-
   const displayName = profile?.full_name || profile?.username || user?.email?.split('@')[0];
 
   useEffect(() => {
@@ -154,12 +176,8 @@ export default function HomeScreen() {
       if (error) throw error;
       const fr = new FileReader();
       fr.readAsDataURL(data);
-      fr.onload = () => {
-        setAvatarUrl(fr.result as string);
-      };
-    } catch (error) {
-      // Error handled
-    }
+      fr.onload = () => setAvatarUrl(fr.result as string);
+    } catch (error) {}
   }
 
   const renderDashboard = () => {
@@ -168,6 +186,10 @@ export default function HomeScreen() {
         return <AdminDashboard tint={tint} cardStyle={cardStyle} />;
       case 'supervisor':
         return <SupervisorDashboard tint={tint} cardStyle={cardStyle} />;
+      case 'midwife':
+      case 'nurse':
+      case 'student':
+        return <StaffDashboard tint={tint} cardStyle={cardStyle} />;
       default:
         return <UserDashboard tint={tint} cardStyle={cardStyle} />;
     }
@@ -175,10 +197,15 @@ export default function HomeScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View>
             <View style={styles.greetingRow}>
+              <Image 
+                source={require('@/assets/images/app-logo-small.png')} 
+                style={styles.smallLogo} 
+                resizeMode="contain"
+              />
               <ThemedText style={styles.greetingText}>{profile?.role?.toUpperCase() || 'USER'}</ThemedText>
               {isOffline && (
                 <View style={styles.offlineBadge}>
@@ -206,18 +233,20 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
+        <UnitSelector />
+
         {renderDashboard()}
 
         <View style={[styles.card, cardStyle, { marginTop: 24 }]}>
-          <ThemedText style={styles.cardLabel}>Account Information</ThemedText>
+          <ThemedText style={styles.cardLabel}>Identity Information</ThemedText>
           <View style={styles.infoRow}>
-            <IconSymbol size={20} name="envelope.fill" color={tint} />
+            <IconSymbol size={20} name="mail-outline" color={tint} />
             <ThemedText style={styles.infoValue}>{user?.email}</ThemedText>
           </View>
           <View style={styles.infoRow}>
-            <IconSymbol size={20} name="clock.fill" color={tint} />
+            <IconSymbol size={20} name="time-outline" color={tint} />
             <ThemedText style={styles.infoValue}>
-              Joined: {new Date(user?.created_at || '').toLocaleDateString()}
+              Joined {new Date(user?.created_at || '').toLocaleDateString()}
             </ThemedText>
           </View>
         </View>
@@ -233,6 +262,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 24,
     paddingTop: 60,
+    paddingBottom: 40,
   },
   header: {
     flexDirection: 'row',
@@ -241,7 +271,7 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   welcomeText: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '800',
   },
   greetingRow: {
@@ -250,24 +280,29 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   greetingText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '700',
     opacity: 0.5,
-    marginBottom: -4,
+    marginBottom: -2,
     letterSpacing: 1,
   },
+  smallLogo: {
+    width: 20,
+    height: 20,
+    marginRight: -4,
+  },
   offlineBadge: {
-    backgroundColor: '#FF3D0020',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
+    backgroundColor: 'rgba(255, 61, 0, 0.1)',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
     borderWidth: 1,
     borderColor: '#FF3D00',
   },
   offlineText: {
-    fontSize: 10,
+    fontSize: 8,
     color: '#FF3D00',
-    fontWeight: '800',
+    fontWeight: '900',
   },
   profileButton: {
     borderRadius: 25,
@@ -290,15 +325,19 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   card: {
-    backgroundColor: 'rgba(150, 150, 150, 0.05)',
     borderRadius: 24,
-    padding: 24,
+    padding: 20,
     borderWidth: 1,
-    borderColor: 'rgba(150, 150, 150, 0.1)',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   cardLabel: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '700',
     opacity: 0.5,
     marginBottom: 16,
     textTransform: 'uppercase',
@@ -311,47 +350,49 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   infoValue: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '500',
   },
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    gap: 12,
   },
   statBox: {
-    backgroundColor: 'rgba(150, 150, 150, 0.05)',
-    borderRadius: 20,
+    borderRadius: 18,
     padding: 16,
-    width: '48%',
+    flex: 1,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(150, 150, 150, 0.1)',
   },
   statNumber: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '800',
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 11,
     opacity: 0.6,
     marginTop: 4,
+    fontWeight: '600',
   },
   sectionTitle: {
-    marginTop: 24,
+    marginTop: 32,
     marginBottom: 16,
+    fontSize: 18,
+    fontWeight: '700',
   },
   actionsGrid: {
     flexDirection: 'row',
-    gap: 16,
+    gap: 12,
   },
   actionItem: {
     alignItems: 'center',
-    width: '30%',
+    flex: 1,
   },
   actionIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 18,
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
@@ -359,5 +400,87 @@ const styles = StyleSheet.create({
   actionLabel: {
     fontSize: 12,
     fontWeight: '600',
+    textAlign: 'center',
+  },
+  // Specific UI Elements
+  progressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  progressBarBase: {
+    flex: 1,
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  progressText: {
+    fontSize: 12,
+    fontWeight: '700',
+    width: 85,
+  },
+  trendBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  trendText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#4CAF50',
+  },
+  alertCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 214, 0, 0.08)',
+    padding: 16,
+    borderRadius: 20,
+    marginTop: 16,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 214, 0, 0.2)',
+  },
+  alertIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 214, 0, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  alertTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  alertSub: {
+    fontSize: 12,
+    opacity: 0.6,
+  },
+  largeIconCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  primaryButton: {
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 16,
+    width: '100%',
+    alignItems: 'center',
+  },
+  primaryButtonText: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

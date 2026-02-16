@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Image } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../../lib/supabase';
 import { Link, router } from 'expo-router';
@@ -8,6 +8,7 @@ import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useToast } from '@/context/toast';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
@@ -17,10 +18,15 @@ export default function ForgotPasswordScreen() {
   const [resendCount, setResendCount] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const { showToast } = useToast();
+  const colorScheme = useColorScheme();
   
   const textColor = useThemeColor({}, 'text');
   const borderColor = useThemeColor({ light: 'rgba(0,0,0,0.1)', dark: 'rgba(255,255,255,0.1)' }, 'icon');
   const tint = useThemeColor({}, 'tint');
+
+  const logo = colorScheme === 'dark' 
+    ? require('@/assets/images/motivaid-dark.png') 
+    : require('@/assets/images/motivaid-light.png');
 
   useEffect(() => {
     if (timer > 0) {
@@ -89,9 +95,11 @@ export default function ForgotPasswordScreen() {
         </TouchableOpacity>
 
         <View style={styles.header}>
-          <View style={styles.iconContainer}>
-            <IconSymbol size={60} name="lock.fill" color={tint} />
-          </View>
+          <Image 
+            source={logo} 
+            style={styles.logo} 
+            resizeMode="contain"
+          />
           <ThemedText type="title" style={styles.title}>Reset Password</ThemedText>
           <ThemedText style={styles.subtitle}>Enter your email to receive a reset link</ThemedText>
         </View>
@@ -177,14 +185,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 40,
   },
-  iconContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(0, 210, 255, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
+  logo: {
+    width: 216,
+    height: 144,
+    marginBottom: 5,
   },
   title: {
     fontSize: 28,

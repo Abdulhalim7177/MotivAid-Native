@@ -29,6 +29,8 @@ const MAPPING = {
   'moon.fill': 'moon-outline',
   'sun.max.fill': 'sunny-outline',
   'finger-print-outline': 'finger-print-outline',
+  'close': 'close-outline',
+  'checkmark': 'checkmark-outline',
 } as IconMapping;
 
 export function IconSymbol({
