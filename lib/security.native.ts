@@ -1,27 +1,36 @@
+import * as LocalAuthentication from 'expo-local-authentication';
+import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
 
 const OFFLINE_CRED_KEY = 'motivaid_offline_creds';
 
-// Biometrics are usually not handled via expo-local-authentication on standard web
-export const checkBiometrics = async () => false;
-export const authenticateBiometric = async () => false;
+export const checkBiometrics = async () => {
+  const hasHardware = await LocalAuthentication.hasHardwareAsync();
+  const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+  return hasHardware && isEnrolled;
+};
+
+export const authenticateBiometric = async () => {
+  const result = await LocalAuthentication.authenticateAsync({
+    promptMessage: 'Login to MotivAid',
+    fallbackLabel: 'Use Password',
+  });
+  return result.success;
+};
 
 export const saveOfflineCredentials = async (email: string, password: string) => {
-  if (typeof localStorage === 'undefined') return;
-  
+  // We store a hash of the password + email for offline verification
   const hash = await Crypto.digestStringAsync(
     Crypto.CryptoDigestAlgorithm.SHA256,
     email.toLowerCase() + password
   );
   
   const data = JSON.stringify({ email: email.toLowerCase(), hash });
-  localStorage.setItem(OFFLINE_CRED_KEY, data);
+  await SecureStore.setItemAsync(OFFLINE_CRED_KEY, data);
 };
 
 export const verifyOfflineCredentials = async (email: string, password: string) => {
-  if (typeof localStorage === 'undefined') return false;
-  
-  const stored = localStorage.getItem(OFFLINE_CRED_KEY);
+  const stored = await SecureStore.getItemAsync(OFFLINE_CRED_KEY);
   if (!stored) return false;
 
   const { email: storedEmail, hash: storedHash } = JSON.parse(stored);
@@ -35,13 +44,7 @@ export const verifyOfflineCredentials = async (email: string, password: string) 
 };
 
 export const getSavedEmail = async () => {
-  if (typeof localStorage === 'undefined') return null;
-  
-  const stored = localStorage.getItem(OFFLINE_CRED_KEY);
+  const stored = await SecureStore.getItemAsync(OFFLINE_CRED_KEY);
   if (!stored) return null;
-  try {
-    return JSON.parse(stored).email;
-  } catch (e) {
-    return null;
-  }
+  return JSON.parse(stored).email;
 };
