@@ -1,0 +1,361 @@
+SYSTEM DESCRIPTION PROMPT — MotivAid
+Product Name
+
+MotivAid
+
+Product Type
+
+Mobile health (mHealth) application built with Flutter (frontend) and Supabase (backend).
+
+Purpose
+
+MotivAid is a mobile clinical decision-support and training application designed to assist midwives and frontline maternal healthcare workers in the early detection, prevention, and management of postpartum hemorrhage (PPH) using the WHO-endorsed E-MOTIVE bundle.
+
+The app bridges the gap between clinical guidelines and real-time practice in low-resource and low-connectivity settings, with strong emphasis on offline usability, structured workflows, decision support, and auditability.
+
+Target Users
+
+Primary Users
+
+Midwives
+
+Nurses
+
+Community health workers (CHWs)
+
+Birth attendants
+
+Secondary Users
+
+Facility supervisors
+
+Maternal health program managers
+
+Researchers and evaluators (read-only / analytics access)
+
+System Administrators
+
+App administrators
+
+Health program implementers
+
+Core Problems Addressed
+
+Delayed recognition of postpartum hemorrhage
+
+Inconsistent application of the E-MOTIVE bundle
+
+Poor documentation of interventions and timelines
+
+Limited access to continuous training for midwives
+
+Weak monitoring and audit systems in maternal care
+
+Poor internet connectivity in rural facilities
+
+High-Level System Overview
+
+MotivAid consists of:
+
+A Flutter mobile application
+
+Runs on Android (primary)
+
+Offline-first architecture
+
+Local data persistence with sync to Supabase
+
+A Supabase backend
+
+Authentication
+
+Database
+
+Real-time sync
+
+Analytics and audit storage
+
+Role-based access control
+
+Application Modes
+1. Clinical Mode (Real-Time Use During Delivery)
+
+Used during labor and immediately after childbirth.
+
+Key Features:
+
+Step-by-step E-MOTIVE checklist
+
+Timed prompts and alerts
+
+Dosage calculators
+
+Escalation logic
+
+Automatic documentation
+
+2. Training & Simulation Mode
+
+Used outside clinical care for continuous learning.
+
+Key Features:
+
+Simulated PPH case scenarios
+
+Interactive decision trees
+
+Quizzes and assessments
+
+Performance scoring
+
+Knowledge tracking
+
+Functional Workflow (Clinical Mode)
+Step 1: Early Warning & Risk Assessment
+
+Midwife enters maternal details:
+
+Age
+
+Parity
+
+History of PPH
+
+Anemia status
+
+Multiple pregnancy
+
+App generates a PPH risk profile
+
+High-risk cases are flagged
+
+App recommends preparedness actions:
+
+IV access
+
+Uterotonics ready
+
+Monitoring frequency
+
+Step 2: Delivery Event Activation
+
+Midwife activates Clinical Mode
+
+App starts a PPH monitoring timer
+
+Blood loss estimation support (visual guides + thresholds)
+
+Step 3: E-MOTIVE Step-by-Step Guidance
+
+The app enforces structured progression through:
+
+Early Detection
+
+Blood loss thresholds
+
+Vital signs monitoring
+
+Uterine Massage
+
+Oxytocics
+
+Oxytocin dosing
+
+Alternatives if unavailable
+
+Tranexamic Acid
+
+Timing and dosage
+
+IV Fluids
+
+Volume and rate guidance
+
+Vital Signs & Shock Index
+
+Automatic calculation: HR ÷ SBP
+
+Escalation
+
+Referral triggers
+
+Emergency alerts
+
+Step 4: Alerts & Decision Support
+
+Automatic alerts when:
+
+Blood loss > 500ml
+
+Blood loss > 1000ml
+
+Shock index exceeds safe range
+
+Escalation suggestions:
+
+Activate emergency team
+
+Prepare referral
+
+Arrange blood products
+
+Step 5: Team Communication
+
+One-tap emergency notification
+
+SMS or in-app alerts to:
+
+Obstetrician
+
+Anesthetist
+
+Senior midwife
+
+Voice notes supported to reduce typing
+
+Step 6: Documentation & Audit
+
+Automatic logging of:
+
+Time of events
+
+Interventions performed
+
+Medications given
+
+Outcomes
+
+Generates a PPH case report
+
+Used for:
+
+Clinical audits
+
+Maternal death reviews
+
+Program monitoring
+
+Training & Simulation Mode Features
+
+Predefined PPH scenarios
+
+Interactive decision making
+
+Timed responses
+
+Multiple-choice and case-based questions
+
+Scoring and feedback
+
+Tracks:
+
+Knowledge improvement
+
+Adherence to E-MOTIVE
+
+Offline-First Design
+
+App works fully offline
+
+Local storage for:
+
+Patient cases
+
+Training data
+
+Logs
+
+Automatic sync with Supabase when internet is available
+
+Conflict resolution handled at backend level
+
+Supabase Backend Responsibilities
+Authentication
+
+Email/password or phone-based login
+
+Role-based access:
+
+Midwife
+
+Supervisor
+
+Admin
+
+Database (Core Tables)
+
+Users
+
+Facilities
+
+Maternal profiles
+
+PPH cases
+
+Interventions
+
+Medications
+
+Training sessions
+
+Assessments
+
+Audit logs
+
+Security
+
+Row-level security (RLS)
+
+Facility-based data isolation
+
+Encrypted sensitive fields
+
+Analytics & Reporting
+
+Adherence to E-MOTIVE steps
+
+Time-to-intervention metrics
+
+Outcome trends
+
+Training performance dashboards
+
+Key Non-Functional Requirements
+
+Simple, low-literacy UI
+
+Minimal text with icons and visuals
+
+Fast interaction under emergency conditions
+
+Battery-efficient
+
+Works on low-end Android devices
+
+Localization support (future)
+
+Expected Outcomes
+
+Improved early detection of PPH
+
+Increased adherence to E-MOTIVE
+
+Reduced delays in intervention
+
+Better documentation and accountability
+
+Improved maternal outcomes
+
+Scalable national and regional deployment
+
+Long-Term Vision
+
+MotivAid will evolve into a national maternal health decision-support platform, integrated into:
+
+Midwifery training curricula
+
+Facility audit systems
+
+Ministry of Health monitoring programs
+
+Donor-supported maternal health initiatives

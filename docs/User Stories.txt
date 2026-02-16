@@ -1,0 +1,247 @@
+# MotivAid
+
+## User Stories & Acceptance Criteria
+
+---
+
+## 1. Authentication & User Management
+
+### US-01: User Login
+
+**As a** midwife
+**I want** to securely log into the MotivAid app
+**So that** I can access clinical and training features relevant to my role.
+
+**Acceptance Criteria:**
+
+* User can log in using approved credentials.
+* Invalid credentials return a clear error message.
+* User role (midwife, supervisor, admin) is correctly assigned after login.
+
+---
+
+### US-02: Role-Based Access Control
+
+**As a** system administrator
+**I want** users to only see features permitted to their role
+**So that** data access and workflows remain secure.
+
+**Acceptance Criteria:**
+
+* Midwives cannot access admin-only screens.
+* Supervisors can view aggregated reports but not modify system settings.
+* Admins have full system access.
+
+---
+
+## 2. Maternal Risk Assessment
+
+### US-03: Capture Maternal Risk Factors
+
+**As a** midwife
+**I want** to enter maternal risk factors before delivery
+**So that** the app can assess PPH risk early.
+
+**Acceptance Criteria:**
+
+* Risk factor form includes parity, anemia, PPH history, and multiple pregnancy.
+* Required fields are validated before submission.
+* Data is saved locally if offline.
+
+---
+
+### US-04: Generate Risk Profile
+
+**As a** midwife
+**I want** the app to flag high-risk mothers
+**So that** I can prepare for potential PPH.
+
+**Acceptance Criteria:**
+
+* App calculates risk level automatically.
+* High-risk cases are clearly highlighted.
+* Preparedness recommendations are displayed.
+
+---
+
+## 3. Clinical Mode (E-MOTIVE Workflow)
+
+### US-05: Activate Clinical Mode
+
+**As a** midwife
+**I want** to activate clinical mode immediately after delivery
+**So that** I receive real-time PPH guidance.
+
+**Acceptance Criteria:**
+
+* Clinical mode can be activated with one action.
+* Timer starts automatically upon activation.
+* The E-MOTIVE checklist is displayed.
+
+---
+
+### US-06: Step-by-Step E-MOTIVE Guidance
+
+**As a** midwife
+**I want** structured step-by-step prompts
+**So that** I correctly apply the E-MOTIVE bundle.
+
+**Acceptance Criteria:**
+
+* Steps follow the E-MOTIVE sequence.
+* User cannot skip critical steps without acknowledgment.
+* Completed steps are visually marked.
+
+---
+
+### US-07: Shock Index Calculation
+
+**As a** midwife
+**I want** the app to calculate shock index automatically
+**So that** I can identify maternal deterioration early.
+
+**Acceptance Criteria:**
+
+* Shock index is calculated using HR and SBP.
+* Unsafe values trigger alerts.
+* Calculation works offline.
+
+---
+
+## 4. Alerts & Escalation
+
+### US-08: Clinical Alerts
+
+**As a** midwife
+**I want** to receive alerts when bleeding thresholds are exceeded
+**So that** I can escalate care promptly.
+
+**Acceptance Criteria:**
+
+* Alerts trigger at >500ml and >1000ml blood loss.
+* Alerts are visually and audibly distinct.
+* Alerts display recommended actions.
+
+---
+
+### US-09: Emergency Escalation
+
+**As a** midwife
+**I want** to notify the emergency team with one tap
+**So that** help is mobilized quickly.
+
+**Acceptance Criteria:**
+
+* Emergency button is always accessible in clinical mode.
+* Notifications are sent via SMS or in-app messaging.
+* Action is logged with timestamp.
+
+---
+
+## 5. Documentation & Audit
+
+### US-10: Automatic Case Documentation
+
+**As a** midwife
+**I want** the app to automatically record all interventions
+**So that** I do not lose critical data during emergencies.
+
+**Acceptance Criteria:**
+
+* All actions are timestamped automatically.
+* Data is stored locally when offline.
+* No manual duplication is required.
+
+---
+
+### US-11: Generate PPH Case Report
+
+**As a** supervisor
+**I want** to view standardized PPH case reports
+**So that** I can conduct audits and reviews.
+
+**Acceptance Criteria:**
+
+* Reports include interventions, timelines, and outcomes.
+* Reports are read-only for supervisors.
+* Data access is facility-restricted.
+
+---
+
+## 6. Training & Simulation Mode
+
+### US-12: Access Training Mode
+
+**As a** midwife
+**I want** to practice PPH scenarios
+**So that** I improve my clinical confidence.
+
+**Acceptance Criteria:**
+
+* Training mode is accessible outside clinical mode.
+* Scenarios simulate real PPH cases.
+* No clinical data is affected.
+
+---
+
+### US-13: Quizzes & Assessments
+
+**As a** midwife
+**I want** to take quizzes after training
+**So that** I can assess my understanding.
+
+**Acceptance Criteria:**
+
+* Quizzes are auto-scored.
+* Immediate feedback is provided.
+* Results are stored for performance tracking.
+
+---
+
+## 7. Offline & Sync
+
+### US-14: Offline Usage
+
+**As a** midwife
+**I want** the app to work without internet
+**So that** I can use it in low-connectivity settings.
+
+**Acceptance Criteria:**
+
+* All core features work offline.
+* User is informed of offline status.
+* No data loss occurs.
+
+---
+
+### US-15: Data Synchronization
+
+**As a** system administrator
+**I want** offline data to sync automatically
+**So that** records remain complete.
+
+**Acceptance Criteria:**
+
+* Sync occurs when connectivity is restored.
+* Conflicts are resolved safely.
+* User is notified of sync status.
+
+---
+
+## 8. Reporting & Analytics
+
+### US-16: View Adherence Metrics
+
+**As a** program manager
+**I want** to view E-MOTIVE adherence metrics
+**So that** I can evaluate program performance.
+
+**Acceptance Criteria:**
+
+* Metrics are aggregated by facility.
+* Individual patient data is anonymized.
+* Data updates reflect synced records.
+
+---
+
+**Document Status:** Ready for backlog creation, sprint planning, and development execution

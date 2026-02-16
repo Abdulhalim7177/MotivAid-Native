@@ -1,0 +1,253 @@
+# MotivAid
+
+## Product Requirements Document (PRD) & Software Requirements Specification (SRS) - React Native Version
+
+---
+
+## 1. Document Overview
+
+### 1.1 Purpose
+
+This document defines the **product requirements** and **software system specifications** for **MotivAid**, a mobile health (mHealth) application designed to support midwives and frontline healthcare workers in the early detection, prevention, and management of postpartum hemorrhage (PPH) using the **E‑MOTIVE** clinical approach.
+
+This PRD/SRS serves as a single source of truth for:
+
+* Product vision and scope
+* Functional and non‑functional requirements
+* System architecture expectations
+* Technical constraints for React Native Expo and Supabase implementation
+
+### 1.2 Intended Audience
+
+* Mobile developers (React Native Expo)
+* Backend developers (Supabase)
+* Product managers
+* Clinical advisors
+* Researchers and evaluators
+* Donors and implementation partners
+
+---
+
+## 2. Product Vision
+
+### 2.1 Problem Statement
+
+Postpartum hemorrhage remains the leading cause of maternal mortality in low‑resource settings. Despite the availability of evidence‑based interventions such as the E‑MOTIVE bundle, gaps persist due to:
+
+* Delayed recognition of PPH
+* Inconsistent clinical decision‑making
+* Limited access to continuous training
+* Poor documentation and audit systems
+* Weak connectivity and infrastructure
+
+### 2.2 Product Vision
+
+MotivAid aims to become a **trusted digital companion** for midwives, ensuring timely, standardized, and auditable application of the E‑MOTIVE approach at the point of care, even in offline and low‑resource environments.
+
+### 2.3 Goals and Objectives
+
+* Improve early detection of PPH
+* Increase adherence to E‑MOTIVE steps
+* Reduce delays in life‑saving interventions
+* Strengthen documentation and accountability
+* Support continuous training and capacity building
+
+---
+
+## 3. Target Users & Personas
+
+### 3.1 Primary Users
+
+* Midwives
+* Nurses
+* Community Health Workers (CHWs)
+
+### 3.2 Secondary Users
+
+* Facility supervisors
+* Maternal health program managers
+
+### 3.3 System Administrators
+
+* App administrators
+* Health program implementers
+
+---
+
+## 4. Scope Definition
+
+### 4.1 In‑Scope
+
+* Clinical decision support for PPH
+* Training and simulation
+* Offline‑first mobile usage
+* Automated documentation and audits
+* Supabase‑backed authentication and analytics
+
+### 4.2 Out‑of‑Scope (Initial Version)
+
+* Direct patient‑facing features
+* Billing or insurance systems
+* Hardware integrations (wearables, sensors)
+
+---
+
+## 5. Functional Requirements
+
+### 5.1 User Authentication & Roles
+
+**FR‑01**: The system shall allow users to authenticate using secure credentials.
+
+**FR‑02**: The system shall support role‑based access control:
+
+* Midwife
+* Supervisor
+* Administrator
+
+---
+
+### 5.2 Maternal Risk Assessment
+
+**FR‑03**: The system shall allow entry of maternal risk factors (parity, anemia, history of PPH, etc.).
+
+**FR‑04**: The system shall generate a PPH risk profile and flag high‑risk cases.
+
+---
+
+### 5.3 Clinical Mode (E‑MOTIVE Workflow)
+
+**FR‑05**: The system shall provide a step‑by‑step E‑MOTIVE checklist during delivery.
+
+**FR‑06**: The system shall display real‑time prompts for:
+
+* Uterine massage
+* Oxytocin and alternative uterotonics
+* Tranexamic acid
+* IV fluids
+
+**FR‑07**: The system shall calculate and display the shock index (HR ÷ SBP).
+
+**FR‑08**: The system shall trigger alerts when predefined clinical thresholds are exceeded.
+
+---
+
+### 5.4 Escalation & Communication
+
+**FR‑09**: The system shall provide one‑tap emergency escalation.
+
+**FR‑10**: The system shall support SMS or in‑app alerts to designated team members.
+
+---
+
+### 5.5 Documentation & Audit
+
+**FR‑11**: The system shall automatically log all interventions with timestamps.
+
+**FR‑12**: The system shall generate PPH case reports suitable for audits and maternal death reviews.
+
+---
+
+### 5.6 Training & Simulation Mode
+
+**FR‑13**: The system shall provide simulated PPH scenarios.
+
+**FR‑14**: The system shall include quizzes and case‑based assessments.
+
+**FR‑15**: The system shall track training performance over time.
+
+---
+
+## 6. Non‑Functional Requirements
+
+### 6.1 Performance
+
+* The app shall respond to user input within 300ms under normal conditions.
+* Critical alerts shall be displayed immediately.
+
+### 6.2 Offline Capability
+
+* The app shall function fully without internet connectivity.
+* Data shall sync automatically when connectivity is restored.
+
+### 6.3 Usability
+
+* UI shall be optimized for low literacy environments.
+* Large buttons and minimal text shall be used.
+
+### 6.4 Security & Privacy
+
+* All sensitive data shall be encrypted at rest and in transit.
+* Supabase Row‑Level Security (RLS) shall be enforced.
+
+---
+
+## 7. System Architecture
+
+### 7.1 Frontend
+
+* React Native Expo (Android/iOS)
+* Local persistence (AsyncStorage and SQLite)
+* State management using React Context and Zustand
+
+### 7.2 Backend
+
+* Supabase Authentication
+* Supabase PostgreSQL database
+* Supabase Storage (if needed)
+* Supabase Functions (for analytics and automation)
+
+---
+
+## 8. Data Model Overview (High‑Level)
+
+* Users
+* Facilities
+* Maternal Profiles
+* PPH Cases
+* Interventions
+* Medications
+* Training Sessions
+* Audit Logs
+
+---
+
+## 9. Compliance & Standards
+
+* WHO E‑MOTIVE clinical guidelines
+* National maternal health policies (Nigeria‑specific initially)
+* Ethical research and data protection standards
+
+---
+
+## 10. Risks & Assumptions
+
+### Risks
+
+* Resistance to digital tools
+* Device availability
+* Training adoption
+
+### Assumptions
+
+* Users have basic smartphone literacy
+* Health authorities support pilot deployment
+
+---
+
+## 11. Success Metrics
+
+* Increase in E‑MOTIVE adherence rates
+* Reduction in time‑to‑intervention
+* Improvement in maternal outcomes
+* Training completion and performance scores
+
+---
+
+## 12. Future Enhancements
+
+* Multi‑language support
+* National EMR integration
+* Advanced analytics dashboards
+* AI‑assisted risk prediction
+
+---
