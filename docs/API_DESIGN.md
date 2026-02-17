@@ -1,95 +1,332 @@
-# MotivAid - API Design (React Native Expo)
+# MotivAid - API Design
 
 ## Overview
 
-MotivAid uses **Supabase** as the backend, leveraging its auto-generated REST API and real-time subscriptions. The React Native Expo frontend communicates with Supabase using the JavaScript client library.
+MotivAid uses **Supabase** as the backend, leveraging its auto-generated REST API and real-time subscriptions. The React Native Expo frontend communicates with Supabase using the `@supabase/supabase-js` client library with a custom SecureStore adapter for encrypted token storage.
+
+---
+
+## Supabase Client Setup
+
+```typescript
+// lib/supabase.ts
+import 'react-native-url-polyfill/auto';
+import * as SecureStore from 'expo-secure-store';
+import { createClient } from '@supabase/supabase-js';
+import { Platform } from 'react-native';
+
+const ExpoSecureStoreAdapter = {
+  getItem: (key: string) => {
+    if (Platform.OS === 'web') {
+      return Promise.resolve(localStorage.getItem(key));
+    }
+    return SecureStore.getItemAsync(key);
+  },
+  setItem: (key: string, value: string) => {
+    if (Platform.OS === 'web') {
+      localStorage.setItem(key, value);
+      return;
+    }
+    SecureStore.setItemAsync(key, value);
+  },
+  removeItem: (key: string) => {
+    if (Platform.OS === 'web') {
+      localStorage.removeItem(key);
+      return;
+    }
+    SecureStore.deleteItemAsync(key);
+  },
+};
+
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    storage: ExpoSecureStoreAdapter,
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false,
+  },
+});
+```
 
 ---
 
 ## Authentication API
 
-### Login
-```javascript
-import { createClient } from '@supabase/supabase-js';
+### Sign In (Online)
 
-const supabase = createClient('https://<project-ref>.supabase.co', '<anon-key>');
-
+```typescript
 const { data, error } = await supabase.auth.signInWithPassword({
   email: 'midwife@facility.com',
-  password: 'securePassword123'
+  password: 'securePassword123',
 });
 ```
 
-**Response:**
+### Sign Up (Registration)
+
+```typescript
+const { error } = await supabase.auth.signUp({
+  email,
+  password,
+  options: {
+    data: {
+      full_name: 'Jane Doe',
+      role: 'midwife',                    // Sent for UI reference
+      registration_code: 'ABC123',        // Used by trigger for role assignment
+    },
+  },
+});
+```
+
+### Sign Out
+
+```typescript
+await supabase.auth.signOut();
+```
+
+### Session Management
+
+```typescript
+// Get current session
+const { data: { session } } = await supabase.auth.getSession();
+
+// Listen for auth state changes
+const { data: { subscription } } = supabase.auth.onAuthStateChange(
+  (_event, session) => {
+    // Handle session changes
+  }
+);
+```
+
+### Password Recovery
+
+```typescript
+const { error } = await supabase.auth.resetPasswordForEmail(email);
+```
+
+---
+
+## Profiles API
+
+### Fetch Profile
+
+```typescript
+const { data, error } = await supabase
+  .from('profiles')
+  .select('*')
+  .eq('id', userId);
+```
+
+### Update Profile
+
+```typescript
+const { error } = await supabase.from('profiles').upsert({
+  id: user.id,
+  username: 'jane_doe',
+  full_name: 'Jane Doe',
+  website: 'https://example.com',
+  avatar_url: 'path/to/avatar.jpg',
+  updated_at: new Date().toISOString(),
+});
+```
+
+---
+
+## Facilities API
+
+### List All Facilities
+
+```typescript
+const { data, error } = await supabase
+  .from('facilities')
+  .select('*');
+```
+
+---
+
+## Units API
+
+### List Units with Facility Names
+
+```typescript
+const { data, error } = await supabase
+  .from('units')
+  .select('id, name, facility_id, facilities(name)');
+```
+
+### List Units for a Staff Member
+
+```typescript
+// 1. Get approved membership unit IDs
+const { data: memberships } = await supabase
+  .from('unit_memberships')
+  .select('unit_id')
+  .eq('profile_id', userId)
+  .eq('status', 'approved');
+
+const unitIds = memberships?.map(m => m.unit_id) || [];
+
+// 2. Fetch those units
+const { data, error } = await supabase
+  .from('units')
+  .select('id, name, facility_id, facilities(name)')
+  .in('id', unitIds);
+```
+
+---
+
+## Unit Memberships API
+
+### Fetch Pending Memberships (Supervisor)
+
+```typescript
+const { data, error } = await supabase
+  .from('unit_memberships')
+  .select(`
+    id,
+    status,
+    unit_id,
+    profiles(full_name, avatar_url, role),
+    units(name)
+  `)
+  .eq('status', 'pending');
+```
+
+### Approve / Reject Membership
+
+```typescript
+const { error } = await supabase
+  .from('unit_memberships')
+  .update({ status: 'approved' })  // or 'rejected'
+  .eq('id', membershipId);
+```
+
+---
+
+## Facility Codes API
+
+### Validate Registration Code
+
+```typescript
+const { data, error } = await supabase
+  .from('facility_codes')
+  .select('role, facilities(name)')
+  .eq('code', 'ABC123')
+  .maybeSingle();
+```
+
+**Response shape:**
 ```json
 {
-  "data": {
-    "user": {
-      "id": "uuid",
-      "email": "midwife@facility.com",
-      "role": "midwife"
-    },
-    "session": {
-      "access_token": "eyJ...",
-      "refresh_token": "eyJ...",
-      "expires_in": 3600
-    }
-  },
-  "error": null
+  "role": "midwife",
+  "facilities": { "name": "General Hospital" }
 }
 ```
 
-### Logout
-```javascript
-const { error } = await supabase.auth.signOut();
-```
-
-### Refresh Token
-Handled automatically by the Supabase client library.
-
 ---
 
-## Data API (REST)
+## Storage API (Avatars)
 
-All data endpoints follow the Supabase PostgREST pattern using the JavaScript client.
+### Download Avatar
 
-### Initialize Supabase Client
-```javascript
-// services/api/supabaseClient.js
-import { createClient } from '@supabase/supabase-js';
+```typescript
+const { data, error } = await supabase.storage
+  .from('avatars')
+  .download(profile.avatar_url);
 
-const supabaseUrl = 'https://<project-ref>.supabase.co';
-const supabaseAnonKey = '<anon-key>';
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Convert blob to data URI for Image component
+const fr = new FileReader();
+fr.readAsDataURL(data);
+fr.onload = () => setAvatarUrl(fr.result as string);
 ```
 
----
+### Upload Avatar
 
-## Facilities
+```typescript
+import { decode } from 'base64-arraybuffer';
 
-### Get User's Facility
-```javascript
-const { data, error } = await supabase
-  .from('facilities')
-  .select('*')
-  .eq('id', facilityId);
-```
-
-### List All Facilities (Admin Only)
-```javascript
-const { data, error } = await supabase
-  .from('facilities')
-  .select('*')
-  .eq('is_active', true);
+const { error } = await supabase.storage
+  .from('avatars')
+  .upload(filePath, decode(base64Data), {
+    contentType: 'image/jpeg',
+    upsert: true,
+  });
 ```
 
 ---
 
-## Maternal Profiles
+## Offline Authentication
 
-### Create Profile
-```javascript
+### Save Credentials for Offline Use
+
+```typescript
+// lib/security.native.ts
+import * as Crypto from 'expo-crypto';
+import * as SecureStore from 'expo-secure-store';
+
+const hash = await Crypto.digestStringAsync(
+  Crypto.CryptoDigestAlgorithm.SHA256,
+  email.toLowerCase() + password
+);
+
+await SecureStore.setItemAsync('motivaid_offline_creds', JSON.stringify({
+  email: email.toLowerCase(),
+  hash,
+}));
+```
+
+### Verify Offline Credentials
+
+```typescript
+const stored = await SecureStore.getItemAsync('motivaid_offline_creds');
+const { email: storedEmail, hash: storedHash } = JSON.parse(stored);
+
+const currentHash = await Crypto.digestStringAsync(
+  Crypto.CryptoDigestAlgorithm.SHA256,
+  email.toLowerCase() + password
+);
+
+const isValid = email.toLowerCase() === storedEmail && currentHash === storedHash;
+```
+
+---
+
+## SQLite Cache API (Native Only)
+
+### Cache Profile
+
+```typescript
+// lib/db.native.ts
+const db = await SQLite.openDatabaseAsync('motivaid_offline_v2.db');
+
+await db.runAsync(
+  'INSERT OR REPLACE INTO profile_cache (id, profile_data, user_data, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)',
+  [userId, JSON.stringify(profileData), JSON.stringify(userData)]
+);
+```
+
+### Get Cached Profile
+
+```typescript
+const result = await db.getFirstAsync<{ profile_data: string; user_data: string }>(
+  'SELECT profile_data, user_data FROM profile_cache WHERE id = ?',
+  [userId]
+);
+
+const profile = JSON.parse(result.profile_data);
+const user = result.user_data ? JSON.parse(result.user_data) : null;
+```
+
+---
+
+## Planned APIs (Future Phases)
+
+### Maternal Profiles (Phase 3)
+
+```typescript
+// Create maternal profile
 const { data, error } = await supabase
   .from('maternal_profiles')
   .insert([{
@@ -98,119 +335,42 @@ const { data, error } = await supabase
     parity: 2,
     has_anemia: false,
     has_pph_history: true,
-    has_multiple_pregnancy: false
+    has_multiple_pregnancy: false,
   }])
   .select();
 ```
 
-### Get Profile
-```javascript
-const { data, error } = await supabase
-  .from('maternal_profiles')
-  .select('*')
-  .eq('id', profileId);
-```
+### PPH Cases (Phase 4)
 
-### Calculate Risk Level (Edge Function)
-```javascript
-const { data, error } = await supabase.functions.invoke('calculate-risk', {
-  body: {
-    age: 28,
-    parity: 2,
-    has_anemia: true,
-    has_pph_history: true,
-    has_multiple_pregnancy: false
-  }
-});
-```
-
-**Response:**
-```json
-{
-  "data": {
-    "risk_level": "high",
-    "risk_factors": ["anemia", "pph_history"],
-    "recommendations": [
-      "Prepare IV access",
-      "Have uterotonics ready",
-      "Increase monitoring frequency"
-    ]
-  }
-}
-```
-
----
-
-## PPH Cases
-
-### Create Case
-```javascript
+```typescript
+// Create case
 const { data, error } = await supabase
   .from('pph_cases')
   .insert([{
     facility_id: 'uuid',
     maternal_profile_id: 'uuid',
     midwife_id: 'uuid',
-    delivery_time: '2026-01-26T10:30:00Z',
-    status: 'active'
+    delivery_time: new Date().toISOString(),
+    status: 'active',
   }])
   .select();
-```
 
-### Update Case
-```javascript
-const { data, error } = await supabase
-  .from('pph_cases')
-  .update({ 
-    blood_loss_ml: 750,
-    shock_index: 1.2,
-    status: 'active' 
-  })
-  .eq('id', caseId);
-```
-
-### Get Case with Relations
-```javascript
+// Get case with relations
 const { data, error } = await supabase
   .from('pph_cases')
   .select(`
     *,
     maternal_profile:maternal_profiles(*),
-    midwife:profiles(full_name,phone),
+    midwife:profiles(full_name, phone),
     interventions(*),
     vital_signs(*)
   `)
   .eq('id', caseId);
 ```
 
-### List Facility Cases
-```javascript
-const { data, error } = await supabase
-  .from('pph_cases')
-  .select('*')
-  .eq('facility_id', facilityId)
-  .order('started_at', { ascending: false })
-  .limit(20);
-```
+### Interventions (Phase 4)
 
-### Close Case
-```javascript
-const { data, error } = await supabase
-  .from('pph_cases')
-  .update({ 
-    status: 'resolved',
-    outcome: 'resolved',
-    ended_at: '2026-01-26T12:00:00Z'
-  })
-  .eq('id', caseId);
-```
-
----
-
-## Interventions
-
-### Log Intervention
-```javascript
+```typescript
 const { data, error } = await supabase
   .from('interventions')
   .insert([{
@@ -220,26 +380,14 @@ const { data, error } = await supabase
     performed_by: 'uuid',
     dosage: '10 IU',
     route: 'IM',
-    is_completed: true
+    is_completed: true,
   }])
   .select();
 ```
 
-### Get Case Interventions
-```javascript
-const { data, error } = await supabase
-  .from('interventions')
-  .select('*')
-  .eq('pph_case_id', caseId)
-  .order('performed_at', { ascending: true });
-```
+### Vital Signs (Phase 3)
 
----
-
-## Vital Signs
-
-### Record Vital Signs
-```javascript
+```typescript
 const { data, error } = await supabase
   .from('vital_signs')
   .insert([{
@@ -247,193 +395,74 @@ const { data, error } = await supabase
     heart_rate: 110,
     systolic_bp: 90,
     diastolic_bp: 60,
-    recorded_by: 'uuid'
+    recorded_by: 'uuid',
   }])
   .select();
 ```
 
-### Get Case Vital Signs History
-```javascript
-const { data, error } = await supabase
-  .from('vital_signs')
-  .select('*')
-  .eq('pph_case_id', caseId)
-  .order('recorded_at', { ascending: true });
-```
-
 ---
 
-## Training
+## Error Handling Pattern
 
-### Start Training Session
-```javascript
-const { data, error } = await supabase
-  .from('training_sessions')
-  .insert([{
-    profile_id: 'uuid',  // Changed from user_id to profile_id to match schema
-    scenario_id: 'scenario_001'
-  }])
-  .select();
-```
-
-### Complete Session
-```javascript
-const { data, error } = await supabase
-  .from('training_sessions')
-  .update({
-    completed_at: '2026-01-26T11:00:00Z',
-    score: 85.5,
-    time_taken_seconds: 1200,
-    is_passed: true
-  })
-  .eq('id', sessionId);
-```
-
-### Record Quiz Answer
-```javascript
-const { data, error } = await supabase
-  .from('quiz_results')
-  .insert([{
-    training_session_id: 'uuid',
-    question_id: 'q_001',
-    answer_given: 'B',
-    is_correct: true,
-    time_taken_seconds: 30
-  }])
-  .select();
-```
-
-### Get User Training History
-```javascript
-const { data, error } = await supabase
-  .from('training_sessions')
-  .select('*, quiz_results(*)')
-  .eq('profile_id', userId)  // Changed from user_id to profile_id
-  .order('started_at', { ascending: false });
-```
-
----
-
-## Real-time Subscriptions
-
-### Subscribe to Case Updates
-```javascript
-import { supabase } from '../services/api/supabaseClient';
-
-const subscription = supabase
-  .channel('pph_case_updates')
-  .on(
-    'postgres_changes',
-    {
-      event: 'UPDATE',
-      schema: 'public',
-      table: 'pph_cases',
-      filter: `id=eq.${caseId}`,
-    },
-    (payload) => {
-      console.log('Change received!', payload);
-      // Handle real-time update
-    }
-  )
-  .subscribe();
-
-// To unsubscribe
-// supabase.removeChannel(subscription);
-```
-
----
-
-## Edge Functions
-
-### 1. calculate-risk
-Calculates PPH risk level based on maternal factors.
-
-### 2. generate-case-report
-Generates PDF case report for audits.
-
-### 3. send-escalation-alert
-Sends SMS/push notifications for emergencies.
-
-### 4. sync-offline-data
-Handles conflict resolution for offline sync.
-
----
-
-## Error Handling in React Native
-
-```javascript
-// Example error handling
+```typescript
 const { data, error } = await supabase.from('table').select('*');
 
 if (error) {
-  console.error('API Error:', error.message);
-  
-  // Handle specific error codes
-  switch(error.code) {
-    case '401':
-      // Redirect to login
-      break;
-    case '403':
-      // Show permission denied message
-      break;
-    default:
-      // Show generic error message
-      break;
+  // Show user-facing error
+  showToast(error.message, 'error');
+
+  // Haptic feedback
+  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+
+  // For forms, set field-specific errors
+  if (error.message.includes('Invalid credentials')) {
+    setPasswordError('Incorrect email or password');
   }
 }
 ```
 
 ---
 
-## Offline Sync Strategy
+## Network-Aware Operations
+
+```typescript
+import NetInfo from '@react-native-community/netinfo';
+
+const netState = await NetInfo.fetch();
+
+if (netState.isConnected) {
+  // Online: call Supabase directly
+  const { data } = await supabase.from('profiles').select('*').eq('id', userId);
+} else {
+  // Offline: use SQLite cache
+  const cached = await getCachedProfile(userId);
+}
+```
+
+---
+
+## Planned: Offline Sync Strategy
 
 ```mermaid
 sequenceDiagram
     participant App
-    participant LocalDB
+    participant SQLite
     participant SyncQueue
     participant Supabase
 
-    App->>LocalDB: Save data locally to SQLite
-    LocalDB->>SyncQueue: Add to sync queue
+    App->>SQLite: Save data locally
+    SQLite->>SyncQueue: Add to sync queue
 
     alt Online
-        SyncQueue->>Supabase: POST/PATCH data via API
+        SyncQueue->>Supabase: POST/PATCH data
         Supabase->>SyncQueue: Success response
-        SyncQueue->>LocalDB: Mark as synced, remove from queue
+        SyncQueue->>SQLite: Mark as synced
     else Offline
-        SyncQueue->>SyncQueue: Retry periodically
+        SyncQueue->>SyncQueue: Retry when online
     end
 ```
 
-### Conflict Resolution
+### Conflict Resolution (Planned)
 1. **Last-write-wins** for simple fields
 2. **Merge** for array fields (interventions)
-3. **Server-priority** for critical fields (status)
-
-### React Native Specific Implementation
-```javascript
-// Example of offline-capable data operations
-import { supabase } from '../services/api/supabaseClient';
-import { saveToLocalStorage, getFromLocalStorage } from '../services/storage/localStorage';
-
-export const createPphCase = async (caseData) => {
-  try {
-    // Try to create directly with Supabase
-    const { data, error } = await supabase
-      .from('pph_cases')
-      .insert([caseData])
-      .select();
-
-    if (error) {
-      throw error;
-    }
-
-    return { success: true, data };
-  } catch (error) {
-    // If online request fails, save to local storage for later sync
-    await saveToLocalStorage('pending_cases', caseData);
-    return { success: false, error: 'Saved locally, will sync when online' };
-  }
-};
-```
+3. **Server-priority** for critical fields (case status)

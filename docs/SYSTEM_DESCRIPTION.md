@@ -1,8 +1,8 @@
-# MotivAid - System Description (React Native Expo)
+# MotivAid - System Description
 
 ## System Overview
 
-**MotivAid** is a mobile health application designed to support midwives and frontline healthcare workers in the early detection, prevention, and management of postpartum hemorrhage (PPH) using the WHO-endorsed E-MOTIVE clinical bundle. The system is organized around **facilities** and **units**, enabling hierarchical management and oversight.
+**MotivAid** is a mobile health application built with **React Native** (Expo SDK 54) designed to support midwives and frontline healthcare workers in the early detection, prevention, and management of postpartum hemorrhage (PPH) using the WHO-endorsed E-MOTIVE clinical bundle. The system is organized around **facilities** and **units**, enabling hierarchical management and oversight.
 
 ---
 
@@ -15,9 +15,9 @@ graph TD
     F --> U3[Unit C]
 
     U1 --> M1[Midwife 1]
-    U1 --> M2[Midwife 2]
-    U2 --> M3[Midwife 3]
-    U2 --> M4[Midwife 4]
+    U1 --> M2[Nurse 1]
+    U2 --> M3[Midwife 2]
+    U2 --> M4[Student 1]
 
     S1[Supervisor 1] -.manages.-> U1
     S1 -.manages.-> U2
@@ -40,47 +40,40 @@ graph TD
 |---------|-------------|
 | **Facility** | A healthcare institution (e.g., General Hospital, Primary Health Center) |
 | **Unit** | A subdivision within a facility (e.g., Maternity Ward A, Emergency Delivery Unit) |
-| **User Roles** | Midwife, Supervisor, Administrator |
-| **Membership** | Users can belong to multiple units within the same facility |
-| **Supervision** | Supervisors can manage multiple units across facilities |
+| **User Roles** | Admin, Supervisor, Midwife, Nurse, Student, User |
+| **Membership** | Users can belong to multiple units; memberships require supervisor approval |
+| **Facility Codes** | Role-specific 6-character codes used during registration to assign roles |
 
 ---
 
 ## User Roles & Responsibilities
 
-### 1. Midwife (Frontline User)
+### 1. Midwife / Nurse / Student (Frontline Staff)
 
 **Primary Function:** Direct patient care and PPH management
 
 **Capabilities:**
-- ✅ Register and manage their profile
-- ✅ Join units within their facility (requires supervisor approval)
-- ✅ Access clinical mode for PPH management
-- ✅ Complete E-MOTIVE checklists during deliveries
-- ✅ Record vital signs and interventions
-- ✅ Trigger emergency escalations
-- ✅ Access training and simulation modules
-- ✅ View their own case history
-- ✅ Switch between units (if member of multiple)
+- Register with a facility access code to get role assignment
+- Join units within their facility (requires supervisor approval)
+- Access role-based staff dashboard with shift overview
+- Access clinical mode for PPH management (planned)
+- Complete E-MOTIVE checklists during deliveries (planned)
+- Access training and simulation modules (planned)
+- Switch between units if member of multiple
 
-**Workflow:**
+**Current Workflow:**
 ```mermaid
 sequenceDiagram
-    participant M as Midwife
+    participant S as Staff
     participant App as MotivAid App
-    participant DB as Database
-    participant S as Supervisor
+    participant DB as Supabase
 
-    M->>App: Self-register
-    App->>DB: Create pending profile
-    App->>S: Notify supervisor
-    S->>App: Approve & assign to unit
-    App->>DB: Activate profile
-    M->>App: Login
-    App->>M: Show dashboard
-    M->>App: Select active unit
-    M->>App: Start clinical case
-    App->>DB: Record case data
+    S->>App: Register with facility code
+    App->>DB: Create auth user + profile (via trigger)
+    S->>App: Login (online/offline/biometric)
+    App->>S: Show staff dashboard
+    S->>App: Select active unit
+    S->>App: Navigate to profile, settings
 ```
 
 ---
@@ -90,44 +83,25 @@ sequenceDiagram
 **Primary Function:** Unit oversight, quality assurance, and team management
 
 **Capabilities:**
-- ✅ Manage multiple units
-- ✅ Create and rename units
-- ✅ Approve/reject user registration requests
-- ✅ Add/remove users from their units
-- ✅ View all cases within their units
-- ✅ View cases across their facility
-- ✅ Access aggregate reports for their units
-- ✅ Compare performance across units they manage
-- ✅ Configure unit settings and metadata
-- ✅ Manage emergency contacts for their units
-- ✅ Access training modules
+- All staff capabilities
+- View unit adherence metrics on supervisor dashboard
+- Approve or reject pending unit membership requests
+- Manage team members across their units
+- Access analytics and unit-level reports (planned)
 
-**Dashboard Features:**
-- Unit selection dropdown (if managing multiple)
-- Active cases in selected unit
-- E-MOTIVE adherence metrics
-- Team performance statistics
-- Pending user approvals
-- Recent alerts and escalations
-
-**Workflow:**
+**Current Workflow:**
 ```mermaid
 sequenceDiagram
     participant S as Supervisor
     participant App as MotivAid App
-    participant DB as Database
+    participant DB as Supabase
 
     S->>App: Login
-    App->>S: Show unit selector
-    S->>App: Select Unit A
-    App->>DB: Fetch Unit A data
-    App->>S: Display dashboard
+    App->>S: Show supervisor dashboard
     S->>App: View pending approvals
-    S->>App: Approve new midwife
-    App->>DB: Add midwife to unit
-    S->>App: View unit reports
-    App->>DB: Generate analytics
-    App->>S: Show metrics
+    S->>App: Approve/reject membership
+    App->>DB: Update unit_memberships status
+    S->>App: Switch units via selector
 ```
 
 ---
@@ -137,137 +111,122 @@ sequenceDiagram
 **Primary Function:** System-wide configuration and cross-facility management
 
 **Capabilities:**
-- ✅ Create and manage facilities
-- ✅ Create and manage units across all facilities
-- ✅ Create user accounts (all roles)
-- ✅ Assign users to units and facilities
-- ✅ View all data across all facilities
-- ✅ Generate system-wide reports
-- ✅ Configure system settings
-- ✅ Access audit logs
-- ✅ Manage emergency contacts globally
-- ✅ Export data for research/analysis
+- Global statistics view on admin dashboard
+- System administration actions (security, config, audit logs)
+- Access to all facilities and units (planned via Next.js web panel)
 
-> [!IMPORTANT]
 > Administrator panel will be implemented separately using Next.js for web-based management.
 
 ---
 
 ## Core Workflows
 
-### Workflow 1: User Onboarding (Self-Registration)
+### Workflow 1: User Registration
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│ STEP 1: Registration                                         │
-├─────────────────────────────────────────────────────────────┤
-│ • Midwife downloads app                                      │
-│ • Fills registration form:                                   │
-│   - Email, password                                          │
-│   - Full name, phone                                         │
-│   - Select facility from dropdown                            │
-│   - Request to join specific unit(s)                         │
-│   - Upload avatar (optional)                                 │
-│   - Add bio, certifications                                  │
-│ • Submit registration                                        │
-└─────────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────────┐
-│ STEP 2: Supervisor Approval                                  │
-├─────────────────────────────────────────────────────────────┤
-│ • Supervisor receives notification                           │
-│ • Reviews profile and credentials                            │
-│ • Approves or rejects request                                │
-│ • If approved: Assigns to requested unit(s)                  │
-└─────────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────────┐
-│ STEP 3: Account Activation                                   │
-├─────────────────────────────────────────────────────────────┤
-│ • User receives approval notification                        │
-│ • Can now login to the app                                   │
-│ • Default unit is pre-selected                               │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│ STEP 1: Registration                                      │
+├──────────────────────────────────────────────────────────┤
+│ User fills out:                                           │
+│   - Full name, email, password                            │
+│   - Optionally toggles "Medical Staff" mode               │
+│     - Selects role: Midwife / Nurse / Student / Supervisor│
+│     - Enters 6-character facility access code             │
+│     - Code validated in real-time against facility_codes  │
+│ Submits registration via supabase.auth.signUp()           │
+└──────────────────────────────────────────────────────────┘
+                        ↓
+┌──────────────────────────────────────────────────────────┐
+│ STEP 2: Profile Creation (Automatic)                      │
+├──────────────────────────────────────────────────────────┤
+│ Database trigger handle_new_user() fires:                 │
+│   - Reads registration_code from user metadata            │
+│   - Looks up code in facility_codes table                 │
+│   - Assigns matching role (or defaults to 'user')         │
+│   - Creates profiles row with id, full_name, role         │
+└──────────────────────────────────────────────────────────┘
+                        ↓
+┌──────────────────────────────────────────────────────────┐
+│ STEP 3: Unit Membership (Post-Login)                      │
+├──────────────────────────────────────────────────────────┤
+│ Staff can request to join units within their facility     │
+│ Creates unit_memberships row with status = 'pending'      │
+│ Supervisor reviews and approves/rejects                   │
+└──────────────────────────────────────────────────────────┘
 ```
 
----
-
-### Workflow 2: Clinical Mode (PPH Management)
+### Workflow 2: Authentication
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│ STEP 1: Pre-Delivery Preparation                            │
-├─────────────────────────────────────────────────────────────┤
-│ • Midwife logs in                                            │
-│ • Selects active unit from dropdown                          │
-│ • Navigates to Clinical Mode                                 │
-│ • Enters maternal risk factors:                              │
-│   - Age, parity, gestational age                             │
-│   - Medical history (anemia, previous PPH, etc.)             │
-│ • System calculates risk profile                             │
-│ • Displays preparedness recommendations                      │
-└─────────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────────┐
-│ STEP 2: Delivery & Monitoring                                │
-├─────────────────────────────────────────────────────────────┤
-│ • Record delivery time                                       │
-│ • Monitoring timer starts (1 hour PPH watch)                 │
-│ • Record initial vital signs                                 │
-│ • Estimate blood loss                                        │
-└─────────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────────┐
-│ STEP 3: E-MOTIVE Checklist (If PPH Detected)                │
-├─────────────────────────────────────────────────────────────┤
-│ ☐ Early Detection                                            │
-│   └─ Blood loss >500ml OR clinical signs                     │
-│ ☐ Massage (Uterine massage)                                 │
-│ ☐ Oxytocics (Oxytocin/Misoprostol)                          │
-│ ☐ Tranexamic Acid (within 3 hours)                          │
-│ ☐ IV Fluids                                                  │
-│ ☐ Examination (source identification)                        │
-│ ☐ Escalation (if not improving)                             │
-└─────────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────────┐
-│ STEP 4: Documentation & Case Closure                         │
-├─────────────────────────────────────────────────────────────┤
-│ • System automatically logs all interventions                │
-│ • Record final outcome (resolved/referred/death)             │
-│ • Add clinical notes                                         │
-│ • Close case                                                 │
-│ • Case report generated for audit                            │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│ PATH A: Online Sign-In                                    │
+├──────────────────────────────────────────────────────────┤
+│ 1. Check network via NetInfo                              │
+│ 2. supabase.auth.signInWithPassword(email, password)     │
+│ 3. Save SHA-256(email + password) hash to SecureStore    │
+│ 4. Fetch profile from Supabase, cache to SQLite          │
+│ 5. Set isOfflineAuthenticated = true                      │
+└──────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────┐
+│ PATH B: Offline Sign-In                                   │
+├──────────────────────────────────────────────────────────┤
+│ 1. Hash entered credentials with SHA-256                  │
+│ 2. Compare against hash stored in SecureStore            │
+│ 3. Load cached profile from SQLite                        │
+│ 4. Set isOfflineAuthenticated = true                      │
+└──────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────┐
+│ PATH C: Biometric Sign-In                                 │
+├──────────────────────────────────────────────────────────┤
+│ 1. expo-local-authentication prompt                       │
+│ 2. On success, load most recent cached profile from SQLite│
+│ 3. Set isOfflineAuthenticated = true                      │
+└──────────────────────────────────────────────────────────┘
 ```
 
----
-
-### Workflow 3: Supervisor Unit Management
+### Workflow 3: Clinical Mode (Planned — Phase 3-4)
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│ Daily Supervision Flow                                       │
-├─────────────────────────────────────────────────────────────┤
-│ 1. Login → Select unit from dropdown                         │
-│ 2. View dashboard metrics:                                   │
-│    • Active cases today                                      │
-│    • E-MOTIVE adherence rate                                 │
-│    • Average response time                                   │
-│    • Team members on duty                                    │
-│                                                              │
-│ 3. Review pending approvals (new user requests)              │
-│                                                              │
-│ 4. Check recent cases in unit:                               │
-│    • Case outcomes                                           │
-│    • Interventions performed                                 │
-│    • Quality indicators                                      │
-│                                                              │
-│ 5. Compare across units (if managing multiple):              │
-│    • Switch unit from dropdown                               │
-│    • View aggregate reports                                  │
-│    • Identify training needs                                 │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│ STEP 1: Pre-Delivery Preparation                          │
+├──────────────────────────────────────────────────────────┤
+│ Midwife selects active unit                               │
+│ Navigates to Clinical Mode                                │
+│ Enters maternal risk factors (age, parity, history)       │
+│ System calculates risk profile                            │
+│ Displays preparedness recommendations                     │
+└──────────────────────────────────────────────────────────┘
+                        ↓
+┌──────────────────────────────────────────────────────────┐
+│ STEP 2: Delivery & Monitoring                             │
+├──────────────────────────────────────────────────────────┤
+│ Record delivery time                                      │
+│ PPH monitoring timer starts (1 hour)                      │
+│ Record initial vital signs                                │
+│ Estimate blood loss                                       │
+└──────────────────────────────────────────────────────────┘
+                        ↓
+┌──────────────────────────────────────────────────────────┐
+│ STEP 3: E-MOTIVE Checklist (If PPH Detected)             │
+├──────────────────────────────────────────────────────────┤
+│ [ ] Early Detection (blood loss >500ml OR clinical signs) │
+│ [ ] Massage (uterine massage)                             │
+│ [ ] Oxytocics (Oxytocin/Misoprostol)                     │
+│ [ ] Tranexamic Acid (within 3 hours)                      │
+│ [ ] IV Fluids                                             │
+│ [ ] Examination (source identification)                   │
+│ [ ] Escalation (if not improving)                         │
+└──────────────────────────────────────────────────────────┘
+                        ↓
+┌──────────────────────────────────────────────────────────┐
+│ STEP 4: Documentation & Case Closure                      │
+├──────────────────────────────────────────────────────────┤
+│ System automatically logs all interventions               │
+│ Record final outcome (resolved/referred/death)            │
+│ Case report generated for audit                           │
+└──────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -275,304 +234,120 @@ sequenceDiagram
 ## Data Flow & Architecture
 
 ### System Architecture
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                   React Native Expo App                      │
-│                  (Offline-First Design)                      │
+│                React Native Expo App                         │
+│               (Offline-First Design)                         │
 ├─────────────────────────────────────────────────────────────┤
-│  UI Layer          │ React Context + Zustand                │
-│  Business Logic    │ Custom Hooks & Services                │
-│  Data Layer        │ API Services & Local Storage           │
-│  Local Storage     │ SQLite + AsyncStorage                  │
+│  UI Layer          │ Expo Router v6 (file-based routing)    │
+│  State Layer       │ React Context (4 providers)            │
+│  Service Layer     │ lib/ (platform-specific modules)       │
+│  Local Storage     │ SQLite + SecureStore + AsyncStorage    │
 └─────────────────────────────────────────────────────────────┘
                           ↕ (Sync when online)
 ┌─────────────────────────────────────────────────────────────┐
 │                     Supabase Backend                         │
 │                      (PostgreSQL)                            │
 ├─────────────────────────────────────────────────────────────┤
-│  Authentication    │ Supabase Auth (JWT)                    │
+│  Authentication    │ Supabase Auth (JWT + SecureStore)      │
 │  Database          │ PostgreSQL with RLS                    │
-│  Real-time         │ WebSocket subscriptions                │
-│  Storage           │ File storage (avatars, PDFs)           │
-│  Edge Functions    │ Business logic (risk calc, reports)    │
+│  Storage           │ File storage (avatars)                 │
+│  Edge Functions    │ Planned (risk calc, reports)           │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ### Multi-Unit Data Isolation
 
 **Row-Level Security (RLS) ensures:**
-- Midwives only see data from their assigned units
-- Supervisors see data from units they manage + facility-wide view
+- Staff only see data from their assigned units (via approved `unit_memberships`)
+- Supervisors see data from units they manage
 - Administrators have unrestricted access
-- Emergency contacts are scoped to units/facilities
+- Facility and unit metadata is publicly readable
+- Facility codes are publicly readable for registration validation
 
 ---
 
-## Key Features by User Role
-
-### Midwife Interface
-
-#### Dashboard
-```
-┌─────────────────────────────────────────────────┐
-│ 👋 Welcome, Jane Doe                            │
-│ 📍 General Hospital                             │
-│ 🏥 Active Unit: ▼ Maternity Ward A             │
-├─────────────────────────────────────────────────┤
-│  ┌──────────────┐  ┌──────────────┐            │
-│  │  Clinical    │  │  Training    │            │
-│  │    Mode      │  │    Mode      │            │
-│  └──────────────┘  └──────────────┘            │
-│                                                 │
-│  📊 My Recent Cases                             │
-│  ├─ Case #MW-001 - Today - Resolved            │
-│  ├─ Case #MW-002 - Yesterday - Resolved        │
-│  └─ Case #MW-003 - 2 days ago - Referred       │
-│                                                 │
-│  📝 My Units                                    │
-│  ├─ Maternity Ward A (Active)                  │
-│  └─ Emergency Unit (Backup)                    │
-└─────────────────────────────────────────────────┘
-```
-
-#### Profile Management
-- Edit personal information
-- Upload/update avatar
-- Add bio and certifications
-- Request to join additional units
-- Manage emergency contact preferences
-
----
-
-### Supervisor Interface
-
-#### Dashboard
-```
-┌─────────────────────────────────────────────────┐
-│ 👋 Supervisor: Dr. Smith                        │
-│ 📍 General Hospital                             │
-│ 🏥 Managing Unit: ▼ Maternity Ward A           │
-├─────────────────────────────────────────────────┤
-│  📈 This Week - Maternity Ward A                │
-│  ├─ Active Cases: 3                             │
-│  ├─ Total Cases: 15                             │
-│  ├─ E-MOTIVE Adherence: 92%                     │
-│  ├─ Avg Response Time: 3.8 min                  │
-│  └─ Team Members: 8 midwives                    │
-│                                                 │
-│  🔔 Pending Approvals (2)                       │
-│  ├─ Sarah Johnson - Maternity Ward A           │
-│  └─ Mary Williams - Emergency Unit              │
-│                                                 │
-│  ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐              │
-│  │Cases│ │Team │ │Stats│ │Units│              │
-│  └─────┘ └─────┘ └─────┘ └─────┘              │
-│                                                 │
-│  📊 All My Units                                │
-│  ├─ Maternity Ward A (15 cases this week)      │
-│  ├─ Maternity Ward B (12 cases this week)      │
-│  └─ Emergency Unit (8 cases this week)         │
-└─────────────────────────────────────────────────┘
-```
-
-#### Unit Management Features
-- Create new units
-- Rename existing units
-- Configure unit metadata (location, capacity, specialization)
-- Add/remove team members
-- Set emergency contacts for unit
-- Export unit reports
-
----
-
-## Emergency Escalation System
+## Emergency Escalation System (Planned — Phase 5)
 
 ### Escalation Hierarchy
+
 ```
 ┌─────────────────────────────────────────────────┐
 │ LEVEL 1: Unit Emergency Contacts                │
-│ • Senior midwife on duty                        │
-│ • Unit supervisor                               │
+│ - Senior midwife on duty                        │
+│ - Unit supervisor                               │
 └─────────────────────────────────────────────────┘
                     ↓ (if no response)
 ┌─────────────────────────────────────────────────┐
 │ LEVEL 2: Facility Emergency Contacts            │
-│ • Obstetrician on call                          │
-│ • Anesthetist                                   │
-│ • Facility administrator                        │
+│ - Obstetrician on call                          │
+│ - Anesthetist                                   │
+│ - Facility administrator                        │
 └─────────────────────────────────────────────────┘
                     ↓ (if critical)
 ┌─────────────────────────────────────────────────┐
 │ LEVEL 3: External Referral                      │
-│ • Referral hospital contacts                    │
-│ • Ambulance services                            │
+│ - Referral hospital contacts                    │
+│ - Ambulance services                            │
 └─────────────────────────────────────────────────┘
 ```
 
-**Trigger Mechanisms:**
+**Trigger Mechanisms (Planned):**
 - One-tap emergency button in clinical mode
-- Automatic alerts based on thresholds:
-  - Blood loss >1000ml
-  - Shock index >1.4
-  - No improvement after 2 E-MOTIVE steps
+- Automatic alerts based on thresholds (blood loss >1000ml, shock index >1.4)
 - Manual escalation by midwife/supervisor
 
 ---
 
 ## Offline Capability
 
-> [!IMPORTANT]
 > MotivAid works fully offline to ensure reliability in low-connectivity environments.
 
-### Offline Features
-- ✅ Complete clinical workflow (data saved locally)
-- ✅ E-MOTIVE checklist and vital signs entry
-- ✅ Case creation and management
-- ✅ Training modules
-- ✅ Profile viewing
+### Current Offline Features
+- Offline sign-in (credential hash verification)
+- Biometric sign-in (no network needed)
+- Cached profile display from SQLite
+- Theme and unit selection persistence via AsyncStorage
 
-### Sync Strategy
-- **Automatic:** Syncs when internet connection detected
-- **Manual:** User can trigger sync from settings
-- **Conflict Resolution:** Last-write-wins for most fields, server priority for critical data
-- **Queue System:** All offline actions queued and synced in order
-
----
-
-## Reporting & Analytics
-
-### Midwife Reports
-- Personal case history
-- E-MOTIVE completion rate
-- Training progress and scores
-
-### Supervisor Reports
-- **Unit-Level:**
-  - Cases per week/month
-  - E-MOTIVE adherence trends
-  - Average response times
-  - Outcome distribution (resolved/referred/death)
-  - Blood loss statistics
-  - Team performance metrics
-
-- **Cross-Unit Comparison:**
-  - Side-by-side unit performance
-  - Best practices identification
-  - Training effectiveness
-
-- **Facility-Wide:**
-  - Aggregate metrics across all units
-  - Facility-level outcomes
-  - Resource utilization
-
-### Administrator Reports
-- System-wide analytics
-- Cross-facility comparisons
-- Audit trails
-- Compliance reports for WHO guidelines
+### Planned Offline Features
+- Complete clinical workflow (data saved to SQLite)
+- E-MOTIVE checklist and vital signs entry
+- Case creation and management
+- Training modules
+- Automatic sync queue when connectivity restores
 
 ---
 
 ## Security & Privacy
 
 ### Data Protection
+
 | Layer | Mechanism |
 |-------|-----------|
 | Transport | TLS 1.3 (HTTPS) |
-| Storage | AES-256 encryption (local) |
+| Auth Tokens | SecureStore encryption (native) |
+| Credentials | SHA-256 hashed, never stored in plain text |
 | Authentication | Supabase Auth + JWT tokens |
 | Authorization | Row-Level Security (RLS) policies |
-| Audit | Complete action logging |
+| Session | Auto-refresh tokens via Supabase client |
 
 ### Privacy Principles
-- Patient data is anonymized (optional patient IDs)
-- User data is facility/unit-scoped
+- Patient data will be anonymized (optional patient IDs)
+- User data is facility/unit-scoped via RLS
 - Supervisors cannot access other supervisors' units (unless explicitly assigned)
-- Administrators have full access but all actions are audited
+- All actions are tracked for audit purposes (planned)
 
 ---
 
 ## Technical Requirements
 
 ### Minimum Device Specifications
-- **OS:** Android 8.0+ (iOS support future)
+- **OS:** Android 8.0+ / iOS 15+
 - **RAM:** 2GB minimum
 - **Storage:** 500MB available
-- **Network:** Works offline, syncs when available
 
-### Backend Setup
-- **Supabase:** Local development using `npx supabase`
-- **Database:** PostgreSQL 14+
-- **Authentication:** Supabase Auth
-- **Storage:** Supabase Storage for avatars and reports
-
-### Frontend Dependencies
-- **Framework:** React Native Expo
-- **Navigation:** React Navigation
-- **State Management:** React Context + Zustand
-- **Local Storage:** SQLite + AsyncStorage
-- **HTTP Client:** Axios/Fetch API
-- **UI Components:** NativeBase or similar
-
----
-
-## Success Metrics
-
-| Metric | Target |
-|--------|--------|
-| Time to PPH detection | <15 minutes post-delivery |
-| E-MOTIVE adherence | >90% |
-| Time to first uterotonic | <5 minutes |
-| User registration approval time | <24 hours |
-| App response time | <300ms |
-| Offline functionality | 100% clinical features |
-| User adoption rate | >80% of facility staff |
-
----
-
-## Future Enhancements
-
-### Phase 2 (Post-MVP)
-- Multi-language support (Hausa, Yoruba, Igbo)
-- SMS notifications for offline users
-- Advanced analytics with AI/ML predictions
-- Integration with national health information systems
-- Real-time video consultation for emergencies
-
-### Phase 3
-- Patient-facing features (education, appointment reminders)
-- Integration with medical equipment (automated vital signs)
-- Blockchain-based audit trails
-- Research data export for clinical studies
-
----
-
-## Support & Training
-
-### User Onboarding
-1. **Self-guided tutorial** on first login
-2. **Training mode** with simulated cases
-3. **Help documentation** within app
-4. **Video tutorials** for key workflows
-
-### Ongoing Support
-- In-app support chat (future)
-- FAQ section
-- Supervisor-led training sessions
-- Administrator helpdesk
-
----
-
-## Compliance
-
-MotivAid adheres to:
-- ✅ WHO E-MOTIVE guidelines
-- ✅ Nigeria national maternal health policies
-- ✅ Data protection regulations
-- ✅ Ethical research standards (if used in studies)
-
----
-
-**Document Version:** 2.0
-**Last Updated:** 2026-01-26
-**Author:** MotivAid Development Team
+### Supported Platforms
+- **Android** — Primary target
+- **iOS** — Supported via Expo managed workflow
+- **Web** — Supported with localStorage fallbacks (no SQLite, no biometrics)

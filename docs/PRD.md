@@ -4,7 +4,6 @@
 
 **MotivAid** is a mobile health (mHealth) application designed to support midwives and frontline healthcare workers in the early detection, prevention, and management of postpartum hemorrhage (PPH) using the WHO-endorsed **E-MOTIVE** clinical bundle.
 
-> [!IMPORTANT]
 > PPH is the leading cause of maternal mortality in low-resource settings. This app aims to reduce maternal deaths through timely intervention and standardized care.
 
 ---
@@ -43,18 +42,18 @@ A **trusted digital companion** for midwives ensuring timely, standardized, and 
 
 ### In-Scope (MVP)
 
-- ✅ Clinical decision support for PPH
-- ✅ Training and simulation mode
-- ✅ Offline-first mobile usage
-- ✅ Automated documentation and audits
-- ✅ Supabase authentication and analytics
+- Clinical decision support for PPH
+- Training and simulation mode
+- Offline-first mobile usage
+- Automated documentation and audits
+- Supabase authentication and analytics
 
 ### Out-of-Scope (Future)
 
-- ❌ Patient-facing features
-- ❌ Billing/insurance systems
-- ❌ Hardware integrations (wearables)
-- ❌ Multi-language support (post-MVP)
+- Patient-facing features
+- Billing/insurance systems
+- Hardware integrations (wearables)
+- Multi-language support (post-MVP)
 
 ---
 
@@ -62,8 +61,8 @@ A **trusted digital companion** for midwives ensuring timely, standardized, and 
 
 | ID | Feature | Priority |
 |----|---------|----------|
-| FR-01 | Secure authentication | P0 |
-| FR-02 | Role-based access control | P0 |
+| FR-01 | Secure authentication (online, offline, biometric) | P0 |
+| FR-02 | Role-based access control (6 roles) | P0 |
 | FR-03 | Maternal risk factor entry | P0 |
 | FR-04 | PPH risk profile generation | P0 |
 | FR-05 | E-MOTIVE step-by-step checklist | P0 |
@@ -87,27 +86,46 @@ A **trusted digital companion** for midwives ensuring timely, standardized, and 
 | Performance | < 300ms response time |
 | Offline | Full functionality without internet |
 | Usability | Low-literacy optimized UI |
-| Security | AES-256 encryption, Supabase RLS |
-| Device Support | Android 8.0+, low-end devices |
+| Security | SHA-256 credential hashing, Supabase RLS, SecureStore encryption |
+| Device Support | Android 8.0+, iOS 15+, low-end devices |
 
 ---
 
 ## Technical Stack
 
 ```
-┌─────────────────────────────────────────────┐
-│                 FRONTEND                     │
-│ # add current implementation here           │
-│  Local: SQLite/Hive • State:    │
-└─────────────────────────────────────────────┘
-                      │
-                      ▼
-┌─────────────────────────────────────────────┐
-│                 BACKEND                      │
-│  Supabase Auth • PostgreSQL • RLS           │
-│  Edge Functions • Real-time Sync            │
-└─────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                       FRONTEND                               │
+│  React Native 0.81 via Expo SDK 54 (managed workflow)       │
+│  React 19 (experimental React Compiler)                      │
+│  TypeScript 5.9 (strict mode)                                │
+│  Expo Router v6 (file-based routing, typed routes)          │
+│  State: React Context (4 providers)                          │
+│  Local: SQLite (expo-sqlite) + SecureStore + AsyncStorage   │
+└─────────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│                       BACKEND                                │
+│  Supabase Auth (JWT + session management)                   │
+│  PostgreSQL with Row-Level Security                         │
+│  Supabase Storage (avatar uploads)                          │
+│  Edge Functions (planned: risk calc, reports)               │
+└─────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## User Roles
+
+| Role | Code | Access | Typical Users |
+|------|------|--------|---------------|
+| Admin | `admin` | Full system access | App administrators, IT staff |
+| Supervisor | `supervisor` | Unit management, approvals, analytics | Senior midwives, health coordinators |
+| Midwife | `midwife` | Clinical mode, training | Midwives |
+| Nurse | `nurse` | Clinical mode, training | Nurses |
+| Student | `student` | Clinical mode, training | Nursing/midwifery students |
+| User | `user` | Basic access (default) | Unverified registrations |
 
 ---
 
@@ -124,3 +142,4 @@ A **trusted digital companion** for midwives ensuring timely, standardized, and 
 | Version | Date | Author |
 |---------|------|--------|
 | 1.0 | 2026-01-26 | MotivAid Team |
+| 2.0 | 2026-02-17 | Updated to reflect actual implementation |

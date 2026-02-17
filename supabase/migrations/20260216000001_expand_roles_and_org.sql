@@ -5,6 +5,7 @@
 
 ALTER TYPE public.user_role ADD VALUE IF NOT EXISTS 'student';
 ALTER TYPE public.user_role ADD VALUE IF NOT EXISTS 'nurse';
+ALTER TYPE public.user_role ADD VALUE IF NOT EXISTS 'midwife';
 
 -- 2. Create Facilities Table
 CREATE TABLE IF NOT EXISTS public.facilities (

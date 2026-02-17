@@ -6,223 +6,223 @@
 graph TD
     A[Administrator] --> S[Supervisor]
     S --> M[Midwife]
-    
+    S --> N[Nurse]
+    S --> ST[Student]
+    M -.default.-> U[User]
+
     style A fill:#e74c3c
     style S fill:#f39c12
     style M fill:#27ae60
+    style N fill:#27ae60
+    style ST fill:#27ae60
+    style U fill:#95a5a6
 ```
 
 ---
 
 ## Role Definitions
 
-### 1. Midwife (Primary User)
+### 1. User (Default)
+> Unverified users who registered without a facility access code
+
+| Attribute | Value |
+|-----------|-------|
+| Role Code | `user` |
+| Access Level | Basic |
+| Assigned When | No registration code provided |
+
+---
+
+### 2. Midwife (Primary Staff)
 > Frontline healthcare worker using the app during deliveries
 
 | Attribute | Value |
 |-----------|-------|
 | Role Code | `midwife` |
 | Access Level | Standard |
-| Facility Scope | Own facility only |
-
-**Typical Users:**
-- Midwives
-- Nurses
-- Community Health Workers (CHWs)
-- Birth attendants
+| Assigned When | Registered with a `midwife` facility code |
 
 ---
 
-### 2. Supervisor (Secondary User)
+### 3. Nurse (Staff)
+> Clinical nurse supporting maternal care
+
+| Attribute | Value |
+|-----------|-------|
+| Role Code | `nurse` |
+| Access Level | Standard |
+| Assigned When | Registered with a `nurse` facility code |
+
+---
+
+### 4. Student (Staff)
+> Nursing or midwifery student in training
+
+| Attribute | Value |
+|-----------|-------|
+| Role Code | `student` |
+| Access Level | Standard |
+| Assigned When | Registered with a `student` facility code |
+
+---
+
+### 5. Supervisor (Manager)
 > Facility-level oversight and quality assurance
 
 | Attribute | Value |
 |-----------|-------|
 | Role Code | `supervisor` |
 | Access Level | Elevated |
-| Facility Scope | Own facility only |
-
-**Typical Users:**
-- Facility supervisors
-- Senior midwives
-- Maternal health coordinators
+| Assigned When | Registered with a `supervisor` facility code |
 
 ---
 
-### 3. Administrator (System User)
+### 6. Administrator (System)
 > Program-level management and configuration
 
 | Attribute | Value |
 |-----------|-------|
 | Role Code | `admin` |
 | Access Level | Full |
-| Facility Scope | All facilities |
-
-**Typical Users:**
-- App administrators
-- Health program implementers
-- IT support staff
+| Assigned When | Registered with an `admin` facility code |
 
 ---
 
 ## Permissions Matrix
 
-| Feature | Midwife | Supervisor | Admin |
-|---------|:-------:|:----------:|:-----:|
+| Feature | User | Midwife | Nurse | Student | Supervisor | Admin |
+|---------|:----:|:-------:|:-----:|:-------:|:----------:|:-----:|
 | **Authentication** |
-| Login/Logout | ✅ | ✅ | ✅ |
-| Reset own password | ✅ | ✅ | ✅ |
-| Reset other passwords | ❌ | ❌ | ✅ |
-| **Clinical Mode** |
-| Activate clinical mode | ✅ | ✅ | ❌ |
-| Enter maternal data | ✅ | ✅ | ❌ |
-| Complete E-MOTIVE steps | ✅ | ✅ | ❌ |
-| Trigger escalation | ✅ | ✅ | ❌ |
-| View own cases | ✅ | ✅ | ❌ |
-| **Training Mode** |
-| Access training | ✅ | ✅ | ✅ |
-| Take quizzes | ✅ | ✅ | ✅ |
-| View own progress | ✅ | ✅ | ✅ |
-| **Reports** |
-| View own case reports | ✅ | ✅ | ❌ |
-| View facility reports | ❌ | ✅ | ✅ |
-| View all facilities | ❌ | ❌ | ✅ |
-| Export reports | ❌ | ✅ | ✅ |
-| **User Management** |
-| View users | ❌ | ✅ | ✅ |
-| Create users | ❌ | ❌ | ✅ |
-| Edit users | ❌ | ❌ | ✅ |
-| Assign roles | ❌ | ❌ | ✅ |
+| Login (online/offline/biometric) | yes | yes | yes | yes | yes | yes |
+| Reset own password | yes | yes | yes | yes | yes | yes |
+| **Dashboard** |
+| View basic dashboard | yes | - | - | - | - | - |
+| View staff dashboard | - | yes | yes | yes | - | - |
+| View supervisor dashboard | - | - | - | - | yes | - |
+| View admin dashboard | - | - | - | - | - | yes |
+| **Unit Management** |
+| Switch active unit | - | yes | yes | yes | yes | yes |
+| Request unit membership | - | yes | yes | yes | yes | - |
+| Approve/reject memberships | - | - | - | - | yes | yes |
+| **Profile** |
+| View own profile | yes | yes | yes | yes | yes | yes |
+| Edit own profile | yes | yes | yes | yes | yes | yes |
+| Upload avatar | yes | yes | yes | yes | yes | yes |
+| **Clinical Mode** (Planned) |
+| Activate clinical mode | - | yes | yes | yes | yes | - |
+| Enter maternal data | - | yes | yes | yes | yes | - |
+| Complete E-MOTIVE steps | - | yes | yes | yes | yes | - |
+| Trigger escalation | - | yes | yes | yes | yes | - |
+| View own cases | - | yes | yes | yes | yes | - |
+| **Training Mode** (Planned) |
+| Access training | - | yes | yes | yes | yes | yes |
+| Take quizzes | - | yes | yes | yes | yes | yes |
+| View own progress | - | yes | yes | yes | yes | yes |
+| **Reports** (Planned) |
+| View own case reports | - | yes | yes | yes | yes | - |
+| View unit reports | - | - | - | - | yes | yes |
+| View all facilities | - | - | - | - | - | yes |
+| Export reports | - | - | - | - | yes | yes |
 | **Settings** |
-| Edit own profile | ✅ | ✅ | ✅ |
-| Manage emergency contacts | ✅ | ✅ | ✅ |
-| Configure facility | ❌ | ✅ | ✅ |
-| System settings | ❌ | ❌ | ✅ |
+| Theme selection | yes | yes | yes | yes | yes | yes |
+| Sign out | yes | yes | yes | yes | yes | yes |
 
 ---
 
-## Role-Based Features
+## Role-Based Dashboard Rendering
 
-### Midwife Dashboard
-```
-┌─────────────────────────────────────────────┐
-│  👋 Welcome, [Name]                         │
-│  📍 [Facility Name]                         │
-├─────────────────────────────────────────────┤
-│  ┌─────────────┐  ┌─────────────┐          │
-│  │  Clinical   │  │  Training   │          │
-│  │    Mode     │  │    Mode     │          │
-│  └─────────────┘  └─────────────┘          │
-│                                              │
-│  📊 Recent Cases                            │
-│  ├─ Case #1234 - Today                      │
-│  ├─ Case #1233 - Yesterday                  │
-│  └─ Case #1232 - 2 days ago                 │
-└─────────────────────────────────────────────┘
-```
+The Home screen (`app/(app)/(tabs)/index.tsx`) renders different components based on `profile.role`:
 
-### Supervisor Dashboard
-```
-┌─────────────────────────────────────────────┐
-│  👋 Welcome, [Name] (Supervisor)            │
-│  📍 [Facility Name]                         │
-├─────────────────────────────────────────────┤
-│  ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐          │
-│  │Cases│ │Staff│ │Audit│ │Train│          │
-│  └─────┘ └─────┘ └─────┘ └─────┘          │
-│                                              │
-│  📈 This Week                               │
-│  ├─ Cases: 15                               │
-│  ├─ E-MOTIVE Adherence: 87%                 │
-│  └─ Avg Response Time: 4.2 min              │
-└─────────────────────────────────────────────┘
-```
-
-### Admin Dashboard
-```
-┌─────────────────────────────────────────────┐
-│  👋 Administrator Panel                     │
-├─────────────────────────────────────────────┤
-│  ┌───────┐ ┌───────┐ ┌───────┐            │
-│  │Users  │ │Facilit│ │Reports│            │
-│  └───────┘ └───────┘ └───────┘            │
-│  ┌───────┐ ┌───────┐ ┌───────┐            │
-│  │Config │ │Logs   │ │Support│            │
-│  └───────┘ └───────┘ └───────┘            │
-│                                              │
-│  🏥 Facilities: 24                          │
-│  👥 Active Users: 156                       │
-│  📋 Total Cases: 1,234                      │
-└─────────────────────────────────────────────┘
+```typescript
+const renderDashboard = () => {
+  switch (profile?.role) {
+    case 'admin':
+      return <AdminDashboard />;
+    case 'supervisor':
+      return <SupervisorDashboard />;
+    case 'midwife':
+    case 'nurse':
+    case 'student':
+      return <StaffDashboard />;
+    default:
+      return <UserDashboard />;
+  }
+};
 ```
 
 ---
 
 ## Database Implementation
 
-### Users Table (Supabase)
+### Role Enum
+
 ```sql
-CREATE TABLE users (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  email TEXT UNIQUE NOT NULL,
-  role TEXT NOT NULL CHECK (role IN ('midwife', 'supervisor', 'admin')),
-  facility_id UUID REFERENCES facilities(id),
-  full_name TEXT NOT NULL,
-  phone TEXT,
-  is_active BOOLEAN DEFAULT true,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
+CREATE TYPE public.user_role AS ENUM (
+  'admin',
+  'user',
+  'supervisor',
+  'midwife',
+  'nurse',
+  'student'
+);
+```
+
+### TypeScript Type
+
+```typescript
+type Profile = {
+  id: string;
+  username: string | null;
+  full_name: string | null;
+  avatar_url: string | null;
+  website: string | null;
+  role: 'admin' | 'user' | 'supervisor' | 'midwife' | 'student' | 'nurse';
+};
+```
+
+### Role Assignment Flow
+
+1. User registers with `supabase.auth.signUp()` passing `registration_code` in metadata
+2. PostgreSQL trigger `handle_new_user()` fires on `auth.users` INSERT
+3. Trigger looks up the code in `facility_codes` table
+4. If found, assigns the code's role to the new profile
+5. If not found or no code provided, defaults to `'user'`
+
+### Facility Codes Table
+
+Each facility has one unique code per role:
+
+```sql
+CREATE TABLE public.facility_codes (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id UUID REFERENCES public.facilities(id) ON DELETE CASCADE,
+  role        public.user_role NOT NULL,
+  code        TEXT NOT NULL,
+
+  UNIQUE(facility_id, role),  -- One code per role per facility
+  UNIQUE(code)                -- Codes are globally unique
 );
 ```
 
 ### RLS Policies
+
 ```sql
--- Midwives see only their own data
-CREATE POLICY "midwife_own_data" ON users
-  FOR SELECT USING (auth.uid() = id);
+-- Profiles: public read, self-write
+CREATE POLICY "Public profiles are viewable by everyone."
+  ON public.profiles FOR SELECT USING (true);
 
--- Supervisors see users in their facility
-CREATE POLICY "supervisor_facility_users" ON users
-  FOR SELECT USING (
+CREATE POLICY "Users can update their own profile."
+  ON public.profiles FOR UPDATE USING (auth.uid() = id);
+
+-- Unit Memberships: self-read, supervisor full access
+CREATE POLICY "Users can view their own memberships"
+  ON public.unit_memberships FOR SELECT USING (auth.uid() = profile_id);
+
+CREATE POLICY "Supervisors can manage memberships"
+  ON public.unit_memberships FOR ALL USING (
     EXISTS (
-      SELECT 1 FROM users u 
-      WHERE u.id = auth.uid() 
-      AND u.role = 'supervisor' 
-      AND u.facility_id = users.facility_id
+      SELECT 1 FROM public.profiles
+      WHERE id = auth.uid() AND role = 'supervisor'
     )
   );
-
--- Admins see all users
-CREATE POLICY "admin_all_access" ON users
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin'
-    )
-  );
-```
-
----
-
-## Flutter Implementation
-
-### Role Enum
-```dart
-enum UserRole {
-  midwife,
-  supervisor,
-  admin;
-
-  bool get canAccessClinical => this == midwife || this == supervisor;
-  bool get canViewFacilityReports => this == supervisor || this == admin;
-  bool get canManageUsers => this == admin;
-}
-```
-
-### Permission Check
-```dart
-extension RolePermissions on UserRole {
-  bool hasPermission(Permission permission) {
-    return _permissions[this]?.contains(permission) ?? false;
-  }
-}
 ```

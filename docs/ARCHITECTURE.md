@@ -1,210 +1,304 @@
-# MotivAid - System Architecture (React Native Expo)
+# MotivAid - Architecture
 
 ## Overview
 
-MotivAid uses a **component-based architecture** pattern with offline-first design, ensuring the app works reliably in low-connectivity environments.
+MotivAid is built with **React Native** via **Expo SDK 54** (managed workflow) using **TypeScript 5.9** in strict mode. It follows an offline-first, context-driven architecture optimized for low-connectivity clinical environments.
 
 ---
 
-## High-Level Architecture
+## Tech Stack
 
-```mermaid
-graph TB
-    subgraph "Mobile App (React Native Expo)"
-        UI[Presentation Layer]
-        BL[Business Logic Layer]
-        DATA[Data Layer]
-        LOCAL[(Local Storage)]
-    end
+| Layer | Technology |
+|-------|------------|
+| Framework | React Native 0.81, React 19 (experimental React Compiler) |
+| Routing | Expo Router v6 (file-based, typed routes) |
+| State | React Context (4 providers) |
+| Backend | Supabase (Auth, PostgreSQL, Storage) |
+| Local DB | SQLite via `expo-sqlite` |
+| Secure Storage | `expo-secure-store` (native), `localStorage` (web) |
+| Biometrics | `expo-local-authentication` |
+| Styling | React Native StyleSheet, platform-specific shadows |
+| New Architecture | Enabled (`newArchEnabled: true`) |
 
-    subgraph "Backend (Supabase)"
-        AUTH[Authentication]
-        DB[(PostgreSQL)]
-        STORAGE[File Storage]
-        FUNC[Edge Functions]
-    end
+---
 
-    UI --> BL
-    BL --> DATA
-    DATA --> LOCAL
-    DATA <-->|Sync| AUTH
-    DATA <-->|Sync| DB
-    DATA <-->|Sync| STORAGE
-    DB --> FUNC
+## Project Structure
+
+```
+MotivAid/
+├── app/                          # Expo Router file-based routes
+│   ├── _layout.tsx               # Root layout, provider hierarchy, route protection
+│   ├── index.tsx                  # Splash screen, auto-redirects
+│   ├── (auth)/                   # Unauthenticated screens
+│   │   ├── _layout.tsx
+│   │   ├── login.tsx             # Email/password + biometric login
+│   │   ├── register.tsx          # Self-registration with facility codes
+│   │   ├── forgot-password.tsx
+│   │   └── reset-password.tsx
+│   └── (app)/                    # Authenticated screens
+│       ├── _layout.tsx
+│       ├── profile.tsx           # Profile editing with avatar upload
+│       ├── approvals.tsx         # Supervisor membership approval
+│       ├── modal.tsx
+│       └── (tabs)/               # Bottom tab navigation
+│           ├── _layout.tsx
+│           ├── index.tsx         # Role-based dashboard (Home)
+│           └── settings.tsx      # Theme, account, sign-out
+├── context/                      # React Context providers
+│   ├── auth.tsx                  # Session, profile, sign-in/out, biometric
+│   ├── theme.tsx                 # Light/dark/system theme
+│   ├── toast.tsx                 # Animated toast notifications
+│   └── unit.tsx                  # Active unit selection
+├── lib/                          # Core services (platform-split)
+│   ├── supabase.ts               # Supabase client with SecureStore adapter
+│   ├── db.native.ts              # SQLite profile caching (native)
+│   ├── db.ts                     # No-op web fallback
+│   ├── security.native.ts        # Biometrics + SecureStore credentials (native)
+│   └── security.ts               # localStorage fallback (web)
+├── components/                   # Shared UI components
+│   ├── themed-text.tsx
+│   ├── themed-view.tsx
+│   ├── avatar.tsx                # Avatar with upload capability
+│   ├── unit-selector.tsx         # Global unit switcher modal
+│   ├── haptic-tab.tsx
+│   └── ui/
+│       ├── icon-symbol.tsx
+│       ├── icon-symbol.ios.tsx
+│       └── collapsible.tsx
+├── hooks/                        # Custom hooks
+│   ├── use-color-scheme.ts       # Native color scheme detection
+│   ├── use-color-scheme.web.ts   # Web color scheme detection
+│   └── use-theme-color.ts        # Themed color lookup
+├── constants/
+│   └── theme.ts                  # Color palette (light/dark) and font stacks
+├── supabase/
+│   └── migrations/               # PostgreSQL migrations (3 files)
+└── assets/                       # Images, fonts, app icons
 ```
 
 ---
 
-## Layer Breakdown
+## Provider Hierarchy
 
-### 1. Presentation Layer
-| Component | Responsibility |
-|-----------|----------------|
-| Screens | Full-page views (Login, Dashboard, Clinical Mode) |
-| Components | Reusable UI components |
-| Hooks | Screen-level state management |
+Defined in `app/_layout.tsx`. The nesting order is significant:
 
-### 2. Business Logic Layer
-| Component | Responsibility |
-|-----------|----------------|
-| Custom Hooks | Business logic encapsulation |
-| Services | Cross-cutting concerns (sync, notifications) |
-| Validators | Input validation and clinical rules |
+```
+AppThemeProvider        ← Theme preference (light/dark/system)
+  └── ToastProvider     ← Animated toast notifications
+    └── AuthProvider    ← Session, user profile, sign-in/out
+      └── UnitProvider  ← Active facility unit selection
+        └── RootLayoutNav  ← Route protection + navigation
+```
 
-### 3. Data Layer
-| Component | Responsibility |
-|-----------|----------------|
-| API Services | Supabase API calls |
-| Local Storage | AsyncStorage/SQLite operations |
-| Sync Engine | Offline/online synchronization |
+Each provider exposes a hook for consumption:
+
+| Provider | Hook | Key Exports |
+|----------|------|-------------|
+| `ThemeProvider` | `useAppTheme()` | `theme`, `preference`, `setThemePreference` |
+| `ToastProvider` | `useToast()` | `showToast(message, type)` |
+| `AuthProvider` | `useAuth()` | `session`, `user`, `profile`, `signIn`, `signOut`, `signInBiometric` |
+| `UnitProvider` | `useUnits()` | `activeUnit`, `availableUnits`, `setActiveUnit`, `refreshUnits` |
 
 ---
 
-## Offline-First Architecture
+## Routing & Navigation
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant App
-    participant LocalDB
-    participant SyncEngine
-    participant Supabase
+### File-Based Routing (Expo Router v6)
 
-    User->>App: Create PPH Case
-    App->>LocalDB: Save locally
-    App->>User: Confirm saved
+Routes map directly to the `app/` directory structure. The path alias `@/*` maps to the project root.
 
-    alt Online
-        SyncEngine->>Supabase: Push changes
-        Supabase->>SyncEngine: Confirm sync
-        SyncEngine->>LocalDB: Mark synced
-    else Offline
-        SyncEngine->>LocalDB: Queue for sync
-        Note over SyncEngine: Retry when online
-    end
-```
+### Route Groups
+
+| Group | Purpose | Auth Required |
+|-------|---------|---------------|
+| `(auth)` | Login, register, password recovery | No |
+| `(app)` | All authenticated screens | Yes |
+| `(app)/(tabs)` | Bottom tab navigation (Home + Settings) | Yes |
+
+### Route Protection
+
+Lives in `app/_layout.tsx` inside the `RootLayoutNav` component:
+
+- Unauthenticated users accessing `(app)` routes are redirected to `/(auth)/login`
+- Authenticated users accessing `(auth)` routes are redirected to `/(app)/(tabs)`
+- The splash screen (`index.tsx`) is excluded from redirect logic
 
 ---
 
-## State Management (React Context + Zustand)
+## Authentication Architecture
+
+### Three Sign-In Paths
+
+All authentication logic lives in `context/auth.tsx`.
 
 ```
-┌─────────────────────────────────────────────┐
-│              Context Hierarchy              │
-├─────────────────────────────────────────────┤
-│  AuthContext         → User authentication  │
-│  ├── UserContext     → Current user data    │
-│  └── RoleContext     → Role permissions     │
-│                                              │
-│  ClinicalContext     → Clinical mode state  │
-│  ├── TimerStore      → PPH monitoring timer │
-│  ├── ChecklistStore  → E-MOTIVE steps       │
-│  └── AlertStore      → Clinical alerts      │
-│                                              │
-│  SyncContext         → Sync status          │
-│  └── QueueStore      → Pending operations   │
-└─────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│ ONLINE (internet available)                                     │
+│ 1. supabase.auth.signInWithPassword(email, password)            │
+│ 2. Save SHA-256 credential hash → SecureStore                   │
+│ 3. Fetch profile from Supabase → cache to SQLite               │
+│ 4. Set isOfflineAuthenticated = true                            │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│ OFFLINE (no internet)                                           │
+│ 1. Hash entered credentials with SHA-256                        │
+│ 2. Compare against stored hash in SecureStore                   │
+│ 3. Load cached profile from SQLite                              │
+│ 4. Set isOfflineAuthenticated = true                            │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│ BIOMETRIC (fingerprint / Face ID)                               │
+│ 1. expo-local-authentication prompt                             │
+│ 2. On success, load most recent cached profile from SQLite      │
+│ 3. Set isOfflineAuthenticated = true                            │
+└─────────────────────────────────────────────────────────────────┘
 ```
+
+### Network Detection
+
+Uses `@react-native-community/netinfo` to detect connectivity and choose the online or offline sign-in path dynamically.
 
 ---
 
-## Security Architecture
+## Platform-Specific Architecture
 
-| Layer | Security Measure |
-|-------|------------------|
-| Transport | TLS 1.3 (HTTPS) |
-| Storage | AES-256 encryption |
-| Authentication | Supabase Auth + JWT |
-| Authorization | Row-Level Security (RLS) |
-| Data Isolation | Facility-based segmentation |
+The project uses file extension conventions for platform branching:
 
-### RLS Policy Example
-```sql
--- Users can only see cases from their facility
-CREATE POLICY "Facility isolation" ON pph_cases
-  FOR SELECT USING (
-    facility_id = (
-      SELECT facility_id FROM users WHERE id = auth.uid()
-    )
-  );
-```
+| Extension | Platform | Purpose |
+|-----------|----------|---------|
+| `.native.ts` | iOS + Android | SQLite, SecureStore, biometrics |
+| `.ts` / `.web.ts` | Web | localStorage fallbacks, no-ops |
+| `.ios.tsx` | iOS only | SF Symbol icon rendering |
+
+### Key Platform Pairs
+
+| Native | Web |
+|--------|-----|
+| `lib/db.native.ts` (SQLite caching) | `lib/db.ts` (no-op stubs) |
+| `lib/security.native.ts` (SecureStore + biometrics) | `lib/security.ts` (localStorage) |
+| `hooks/use-color-scheme.ts` | `hooks/use-color-scheme.web.ts` |
+| `components/ui/icon-symbol.ios.tsx` | `components/ui/icon-symbol.tsx` |
 
 ---
 
-## Directory Structure
+## Role-Based Dashboard System
 
-```
-src/
-├── App.js
-├── app.json
-│
-├── components/              # Reusable UI components
-│   ├── ui/                  # Basic UI elements
-│   ├── common/              # Common components
-│   └── forms/               # Form components
-│
-├── screens/                 # Feature screens
-│   ├── auth/                # Authentication screens
-│   ├── dashboard/           # Main dashboard screens
-│   ├── clinical/            # Clinical mode screens
-│   ├── training/            # Training mode screens
-│   ├── reports/             # Reports & audits screens
-│   └── settings/            # App settings screens
-│
-├── contexts/                # React Context providers
-│   ├── AuthContext.js
-│   ├── UserContext.js
-│   └── ClinicalContext.js
-│
-├── hooks/                   # Custom React hooks
-│   ├── useAuth.js
-│   ├── useClinical.js
-│   └── useSync.js
-│
-├── services/                # Business logic services
-│   ├── api/
-│   │   ├── authService.js
-│   │   ├── clinicalService.js
-│   │   └── syncService.js
-│   ├── storage/
-│   │   ├── localStorage.js
-│   │   └── sqliteService.js
-│   └── utils/
-│       ├── validators.js
-│       └── helpers.js
-│
-├── store/                   # Zustand stores
-│   ├── authStore.js
-│   ├── clinicalStore.js
-│   └── syncStore.js
-│
-├── navigation/              # React Navigation setup
-│   └── AppNavigator.js
-│
-├── constants/               # App constants
-│   ├── apiConstants.js
-│   ├── routes.js
-│   └── theme.js
-│
-├── utils/                   # Utility functions
-│   ├── formatters.js
-│   ├── calculators.js
-│   └── validators.js
-│
-└── assets/                  # Static assets
-    ├── images/
-    └── icons/
-```
+The Home screen (`app/(app)/(tabs)/index.tsx`) renders a different dashboard component based on the user's `profile.role`:
+
+| Role | Component | Features |
+|------|-----------|----------|
+| `admin` | `AdminDashboard` | Global statistics, system administration actions |
+| `supervisor` | `SupervisorDashboard` | Unit adherence metrics, pending approvals, team management |
+| `midwife` / `nurse` / `student` | `StaffDashboard` | Shift overview, clinical mode entry, training progress |
+| `user` (default) | `UserDashboard` | Simplified clinical mode entry |
+
+Roles are defined by the `user_role` PostgreSQL enum: `admin`, `user`, `supervisor`, `midwife`, `nurse`, `student`.
 
 ---
 
-## Technology Decisions
+## Offline Data Layer
 
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| Framework | React Native Expo | Cross-platform, single codebase, managed workflow |
-| State Management | React Context + Zustand | Flexible, scalable, good for complex state |
-| Local DB | SQLite + AsyncStorage | Fast offline, complex queries, simple key-value storage |
-| Navigation | React Navigation | Standard for React Native, flexible routing |
-| Backend | Supabase | Auth, DB, real-time, free tier |
-| Sync Strategy | Custom queue-based | Reliable offline handling |
+### SQLite (Native Only)
+
+Database: `motivaid_offline_v2.db`
+
+| Table | Schema | Purpose |
+|-------|--------|---------|
+| `profile_cache` | `id TEXT PK, profile_data TEXT, user_data TEXT, updated_at DATETIME` | Caches user profile and auth user for offline access |
+
+### SecureStore (Native) / localStorage (Web)
+
+| Key | Contents |
+|-----|----------|
+| `motivaid_offline_creds` | `{ email, hash }` — SHA-256 hash for offline credential verification |
+| Supabase session keys | Managed by Supabase client via `ExpoSecureStoreAdapter` |
+
+### AsyncStorage
+
+| Key | Contents |
+|-----|----------|
+| `motivaid_theme_preference` | `'light'` / `'dark'` / `'system'` |
+| `motivaid_active_unit_id` | UUID of the currently selected unit |
+
+---
+
+## Theming
+
+### Color System
+
+Defined in `constants/theme.ts` with light and dark variants:
+
+| Token | Light | Dark |
+|-------|-------|------|
+| `text` | `#1A1C1E` | `#F8F9FA` |
+| `background` | `#F8F9FA` | `#0F1113` |
+| `tint` | `#00D2FF` | `#00D2FF` |
+| `icon` | `#49454F` | `#9BA1A6` |
+| `card` | `rgba(0,0,0,0.03)` | `rgba(255,255,255,0.04)` |
+| `border` | `rgba(0,0,0,0.08)` | `rgba(255,255,255,0.1)` |
+
+### Font Stacks
+
+Platform-specific via `Platform.select()`: system fonts on iOS, default fonts on Android, web-safe stacks on web.
+
+### Theme Persistence
+
+The `ThemeContext` persists the user's preference (`light`/`dark`/`system`) to AsyncStorage and resolves the active theme by combining preference with device color scheme.
+
+---
+
+## Supabase Client
+
+`lib/supabase.ts` creates the client with a custom `ExpoSecureStoreAdapter`:
+
+- **Native**: Uses `expo-secure-store` for encrypted token storage
+- **Web**: Falls back to `localStorage`
+- Auto-refresh tokens are enabled
+- Session persistence is enabled
+- URL session detection is disabled (not applicable to mobile)
+
+### Environment Variables
+
+| Variable | Purpose |
+|----------|---------|
+| `EXPO_PUBLIC_SUPABASE_URL` | Supabase API endpoint |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous/publishable key |
+
+These are embedded at build time via the `EXPO_PUBLIC_` prefix convention.
+
+---
+
+## Registration Flow
+
+1. User fills registration form (full name, email, password)
+2. Optionally toggles "medical staff" mode:
+   - Selects role (`midwife`, `nurse`, `student`, `supervisor`)
+   - Enters 6-character facility access code
+   - Code is validated against the `facility_codes` table in real-time
+3. `supabase.auth.signUp()` is called with role and code in `raw_user_meta_data`
+4. The `handle_new_user()` database trigger:
+   - Looks up the registration code in `facility_codes`
+   - Maps it to the correct role
+   - Creates a `profiles` row with that role
+5. Non-staff users default to the `user` role
+
+---
+
+## Current Implementation Status
+
+**Phase 1 (Complete):** Security & Identity
+- Supabase Auth with online/offline/biometric sign-in
+- SecureStore credential hashing
+- SQLite profile caching
+- Dark/light theme system
+- Animated toast notifications
+
+**Phase 2 (Current):** Facility & Unit Hierarchy
+- Facilities and units database tables
+- Unit memberships with approval workflow
+- Role-specific facility access codes
+- Unit selector component
+- Supervisor approval screen
+- Role-based dashboards
