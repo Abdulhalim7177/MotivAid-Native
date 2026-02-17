@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, FlatList, TouchableOpacity, Alert, ActivityIndicator, Image } from 'react-native';
+import { StyleSheet, View, FlatList } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/context/auth';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { SkeletonCard } from '@/components/ui/skeleton';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useToast } from '@/context/toast';
 import { Stack } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import { Spacing, Radius } from '@/constants/theme';
 
 type PendingMember = {
   id: string;
@@ -25,17 +29,12 @@ type PendingMember = {
 };
 
 export default function ApprovalsScreen() {
-  const { user } = useAuth();
   const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [pendingMembers, setPendingMembers] = useState<PendingMember[]>([]);
 
   const tint = useThemeColor({}, 'tint');
   const textColor = useThemeColor({}, 'text');
-  const cardBg = useThemeColor({}, 'card');
-  const borderColor = useThemeColor({}, 'border');
-  const errorColor = useThemeColor({}, 'error');
-  const buttonTextColor = useThemeColor({}, 'buttonText');
 
   const fetchPending = async () => {
     setLoading(true);
@@ -82,39 +81,44 @@ export default function ApprovalsScreen() {
     }
   };
 
-  const renderItem = ({ item }: { item: PendingMember }) => (
-    <View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
-      <View style={styles.memberInfo}>
-        <View style={[styles.avatar, { backgroundColor: tint + '20' }]}>
-          <ThemedText style={[styles.avatarText, { color: tint }]}>
-            {item.profiles.full_name?.charAt(0).toUpperCase() || '?'}
-          </ThemedText>
-        </View>
-        <View style={{ flex: 1 }}>
-          <ThemedText style={styles.memberName}>{item.profiles.full_name || 'Anonymous User'}</ThemedText>
-          <ThemedText style={styles.memberRole}>{item.profiles.role.toUpperCase()}</ThemedText>
-          <View style={styles.unitBadge}>
-            <IconSymbol name="home-outline" size={12} color={textColor} style={{ opacity: 0.5 }} />
-            <ThemedText style={styles.unitText}>{item.units.name}</ThemedText>
+  const renderItem = ({ item, index }: { item: PendingMember; index: number }) => (
+    <Animated.View entering={FadeInDown.delay(index * 100).springify()}>
+      <Card style={styles.card}>
+        <View style={styles.memberInfo}>
+          <View style={[styles.avatar, { backgroundColor: tint + '20' }]}>
+            <ThemedText style={[styles.avatarText, { color: tint }]}>
+              {item.profiles.full_name?.charAt(0).toUpperCase() || '?'}
+            </ThemedText>
+          </View>
+          <View style={{ flex: 1 }}>
+            <ThemedText type="labelLg">{item.profiles.full_name || 'Anonymous User'}</ThemedText>
+            <ThemedText type="overline">{item.profiles.role.toUpperCase()}</ThemedText>
+            <View style={styles.unitBadge}>
+              <IconSymbol name="home-outline" size={12} color={textColor} style={{ opacity: 0.5 }} />
+              <ThemedText type="caption" color="secondary">{item.units.name}</ThemedText>
+            </View>
           </View>
         </View>
-      </View>
 
-      <View style={styles.actionRow}>
-        <TouchableOpacity
-          style={[styles.button, styles.rejectButton, { backgroundColor: errorColor + '15', borderColor: errorColor + '30' }]}
-          onPress={() => handleAction(item.id, 'rejected')}
-        >
-          <ThemedText style={[styles.rejectText, { color: errorColor }]}>Reject</ThemedText>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.button, { backgroundColor: tint }]}
-          onPress={() => handleAction(item.id, 'approved')}
-        >
-          <ThemedText style={[styles.approveText, { color: buttonTextColor }]}>Approve</ThemedText>
-        </TouchableOpacity>
-      </View>
-    </View>
+        <View style={styles.actionRow}>
+          <View style={{ flex: 1 }}>
+            <Button
+              title="Reject"
+              variant="outline"
+              size="md"
+              onPress={() => handleAction(item.id, 'rejected')}
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Button
+              title="Approve"
+              size="md"
+              onPress={() => handleAction(item.id, 'approved')}
+            />
+          </View>
+        </View>
+      </Card>
+    </Animated.View>
   );
 
   return (
@@ -127,8 +131,10 @@ export default function ApprovalsScreen() {
       }} />
 
       {loading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={tint} />
+        <View style={styles.listContent}>
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
         </View>
       ) : (
         <FlatList
@@ -139,8 +145,8 @@ export default function ApprovalsScreen() {
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <IconSymbol name="shield-checkmark-outline" size={64} color={tint} style={{ opacity: 0.3 }} />
-              <ThemedText style={styles.emptyTitle}>All caught up!</ThemedText>
-              <ThemedText style={styles.emptySub}>No pending membership requests.</ThemedText>
+              <ThemedText type="headingSm" style={styles.emptyTitle}>All caught up!</ThemedText>
+              <ThemedText color="secondary">No pending membership requests.</ThemedText>
             </View>
           }
           refreshing={loading}
@@ -155,30 +161,22 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   listContent: {
-    padding: 24,
+    padding: Spacing.lg,
     paddingTop: 100,
   },
   card: {
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
-    borderWidth: 1,
+    marginBottom: Spacing.md,
   },
   memberInfo: {
     flexDirection: 'row',
-    gap: 16,
-    marginBottom: 20,
+    gap: Spacing.md,
+    marginBottom: Spacing.mdl,
   },
   avatar: {
     width: 50,
     height: 50,
-    borderRadius: 25,
+    borderRadius: Radius.full,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -186,59 +184,22 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
   },
-  memberName: {
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  memberRole: {
-    fontSize: 12,
-    fontWeight: '800',
-    opacity: 0.5,
-    letterSpacing: 1,
-    marginTop: 2,
-  },
   unitBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 6,
-  },
-  unitText: {
-    fontSize: 13,
-    opacity: 0.6,
+    gap: Spacing.xs,
+    marginTop: Spacing.xs,
   },
   actionRow: {
     flexDirection: 'row',
-    gap: 12,
-  },
-  button: {
-    flex: 1,
-    height: 44,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  rejectButton: {
-    borderWidth: 1,
-  },
-  rejectText: {
-    fontWeight: '700',
-  },
-  approveText: {
-    fontWeight: '700',
+    gap: Spacing.smd,
   },
   emptyState: {
     alignItems: 'center',
     marginTop: 100,
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    marginTop: 20,
-  },
-  emptySub: {
-    fontSize: 14,
-    opacity: 0.5,
-    marginTop: 8,
+    marginTop: Spacing.mdl,
+    marginBottom: Spacing.sm,
   },
 });

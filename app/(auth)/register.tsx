@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { View, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native';
+import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { Image } from 'expo-image';
 import { supabase } from '../../lib/supabase';
 import { Link, router } from 'expo-router';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useToast } from '@/context/toast';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Spacing, Radius, Typography } from '@/constants/theme';
 
 export default function RegisterScreen() {
   const { showToast } = useToast();
@@ -27,16 +31,10 @@ export default function RegisterScreen() {
   const [isValidatingCode, setIsValidatingCode] = useState(false);
   const [codeVerified, setCodeVerified] = useState(false);
 
-  const textColor = useThemeColor({}, 'text');
   const tint = useThemeColor({}, 'tint');
-  const inputBg = useThemeColor({}, 'inputBackground');
-  const inputBorder = useThemeColor({}, 'inputBorder');
-  const errorColor = useThemeColor({}, 'error');
-  const successColor = useThemeColor({}, 'success');
-  const placeholderColor = useThemeColor({}, 'placeholder');
-  const buttonTextColor = useThemeColor({}, 'buttonText');
-  const shadowColor = useThemeColor({}, 'shadow');
   const borderColor = useThemeColor({}, 'border');
+  const successColor = useThemeColor({}, 'success');
+  const buttonTextColor = useThemeColor({}, 'buttonText');
   const cardColor = useThemeColor({}, 'card');
 
   const logo = colorScheme === 'dark'
@@ -137,7 +135,7 @@ export default function RegisterScreen() {
       if (error.message.includes('User already registered')) {
         setEmailError('This email is already taken');
       } else {
-        Alert.alert('Registration Failed', error.message);
+        setEmailError(error.message);
       }
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -148,10 +146,10 @@ export default function RegisterScreen() {
   }
 
   const RoleButton = ({ role, label }: { role: typeof selectedRole, label: string }) => (
-    <TouchableOpacity
+    <Pressable
       style={[
         styles.roleButton,
-        { borderColor: borderColor },
+        { borderColor },
         selectedRole === role && { backgroundColor: tint, borderColor: tint }
       ]}
       onPress={() => {
@@ -159,10 +157,10 @@ export default function RegisterScreen() {
         setSelectedRole(role);
       }}
     >
-      <ThemedText style={[styles.roleButtonText, selectedRole === role && { color: buttonTextColor }]}>
+      <ThemedText style={[Typography.labelMd, selectedRole === role && { color: buttonTextColor }]}>
         {label}
       </ThemedText>
-    </TouchableOpacity>
+    </Pressable>
   );
 
   return (
@@ -176,67 +174,52 @@ export default function RegisterScreen() {
             <Image
               source={logo}
               style={styles.logo}
-              resizeMode="contain"
+              contentFit="contain"
+              transition={300}
             />
-            <ThemedText type="title" style={styles.title}>Join MotivAid</ThemedText>
-            <ThemedText style={styles.subtitle}>Create an account to start your journey</ThemedText>
+            <ThemedText type="displaySm">Join MotivAid</ThemedText>
+            <ThemedText color="secondary" style={styles.subtitle}>
+              Create an account to start your journey
+            </ThemedText>
           </View>
 
           <View style={styles.form}>
-            <View style={styles.inputContainer}>
-              <ThemedText style={styles.label}>Full Name</ThemedText>
-              <TextInput
-                onChangeText={setFullName}
-                value={fullName}
-                placeholder="Enter your full name"
-                placeholderTextColor={placeholderColor}
-                style={[styles.input, { color: textColor, backgroundColor: inputBg, borderColor: inputBorder }]}
-              />
-            </View>
+            <Input
+              label="Full Name"
+              value={fullName}
+              onChangeText={setFullName}
+              placeholder="Enter your full name"
+            />
 
-            <View style={styles.inputContainer}>
-              <ThemedText style={styles.label}>Email</ThemedText>
-              <TextInput
-                onChangeText={(text) => {
-                  setEmail(text);
-                  if (emailError) setEmailError('');
-                }}
-                value={email}
-                placeholder="Enter your email"
-                placeholderTextColor={placeholderColor}
-                autoCapitalize={'none'}
-                style={[
-                  styles.input,
-                  { color: textColor, backgroundColor: inputBg, borderColor: emailError ? errorColor : inputBorder }
-                ]}
-                keyboardType="email-address"
-              />
-              {emailError ? <ThemedText style={[styles.errorText, { color: errorColor }]}>{emailError}</ThemedText> : null}
-            </View>
+            <Input
+              label="Email"
+              value={email}
+              onChangeText={(text) => {
+                setEmail(text);
+                if (emailError) setEmailError('');
+              }}
+              error={emailError}
+              placeholder="Enter your email"
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
 
-            <View style={styles.inputContainer}>
-              <ThemedText style={styles.label}>Password</ThemedText>
-              <TextInput
-                onChangeText={(text) => {
-                  setPassword(text);
-                  if (passwordError) setPasswordError('');
-                }}
-                value={password}
-                secureTextEntry={true}
-                placeholder="Create a password"
-                placeholderTextColor={placeholderColor}
-                autoCapitalize={'none'}
-                style={[
-                  styles.input,
-                  { color: textColor, backgroundColor: inputBg, borderColor: passwordError ? errorColor : inputBorder }
-                ]}
-              />
-              {passwordError ? <ThemedText style={[styles.errorText, { color: errorColor }]}>{passwordError}</ThemedText> : null}
-            </View>
+            <Input
+              label="Password"
+              value={password}
+              onChangeText={(text) => {
+                setPassword(text);
+                if (passwordError) setPasswordError('');
+              }}
+              error={passwordError}
+              placeholder="Create a password"
+              secureTextEntry
+              autoCapitalize="none"
+            />
 
             <View style={[styles.staffToggleContainer, { borderBottomColor: borderColor }]}>
-              <ThemedText style={styles.staffToggleLabel}>Are you medical staff?</ThemedText>
-              <TouchableOpacity
+              <ThemedText type="defaultSemiBold">Are you medical staff?</ThemedText>
+              <Pressable
                 style={[styles.toggleBackground, { backgroundColor: isStaff ? tint : borderColor }]}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -244,37 +227,29 @@ export default function RegisterScreen() {
                 }}
               >
                 <View style={[styles.toggleCircle, { backgroundColor: cardColor }, isStaff && { transform: [{ translateX: 24 }] }]} />
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
             {isStaff && (
               <View style={styles.staffSection}>
-                <View style={styles.inputContainer}>
-                  <View style={styles.labelRow}>
-                    <ThemedText style={styles.label}>Facility Access Code</ThemedText>
-                    {isValidatingCode && <ActivityIndicator size="small" color={tint} />}
-                    {codeVerified && <IconSymbol name="shield-checkmark-outline" size={16} color={successColor} />}
-                  </View>
-                  <TextInput
-                    onChangeText={(text) => setAccessCode(text.toUpperCase())}
-                    value={accessCode}
-                    placeholder="ENTER 6-DIGIT CODE"
-                    placeholderTextColor={placeholderColor}
-                    autoCapitalize={'characters'}
-                    maxLength={6}
-                    style={[
-                      styles.input,
-                      {
-                        color: textColor,
-                        backgroundColor: inputBg,
-                        borderColor: codeError ? errorColor : codeVerified ? successColor : inputBorder
-                      }
-                    ]}
-                  />
-                  {codeError ? <ThemedText style={[styles.errorText, { color: errorColor }]}>{codeError}</ThemedText> : null}
-                </View>
+                <Input
+                  label="Facility Access Code"
+                  value={accessCode}
+                  onChangeText={(text) => setAccessCode(text.toUpperCase())}
+                  error={codeError}
+                  placeholder="ENTER 6-DIGIT CODE"
+                  autoCapitalize="characters"
+                  maxLength={6}
+                  rightIcon={
+                    isValidatingCode ? (
+                      <ActivityIndicator size="small" color={tint} />
+                    ) : codeVerified ? (
+                      <IconSymbol name="shield-checkmark-outline" size={16} color={successColor} />
+                    ) : null
+                  }
+                />
 
-                <ThemedText style={styles.label}>Select Your Role</ThemedText>
+                <ThemedText style={[Typography.labelMd, styles.roleLabel]}>Select Your Role</ThemedText>
                 <View style={styles.roleGrid}>
                   <RoleButton role="midwife" label="Midwife" />
                   <RoleButton role="nurse" label="Nurse" />
@@ -284,34 +259,20 @@ export default function RegisterScreen() {
               </View>
             )}
 
-            <TouchableOpacity
-              style={[
-                styles.registerButton,
-                {
-                  backgroundColor: tint,
-                  ...Platform.select({
-                    ios: { shadowColor },
-                    web: { boxShadow: `0px 4px 12px ${shadowColor}40` },
-                  }),
-                }
-              ]}
+            <Button
+              title="Register"
               onPress={signUpWithEmail}
+              loading={loading}
               disabled={loading || (isStaff && !codeVerified)}
-            >
-              {loading ? (
-                <ActivityIndicator color={buttonTextColor} />
-              ) : (
-                <ThemedText style={[styles.registerButtonText, { color: buttonTextColor }]}>Register</ThemedText>
-              )}
-            </TouchableOpacity>
+            />
           </View>
 
           <View style={styles.footer}>
-            <ThemedText>Already have an account? </ThemedText>
+            <ThemedText type="bodyMd">Already have an account? </ThemedText>
             <Link href="/(auth)/login" asChild>
-              <TouchableOpacity>
-                <ThemedText style={[styles.link, { color: tint }]}>Sign In</ThemedText>
-              </TouchableOpacity>
+              <Pressable>
+                <ThemedText style={[Typography.labelMd, { color: tint }]}>Sign In</ThemedText>
+              </Pressable>
             </Link>
           </View>
         </ScrollView>
@@ -328,67 +289,33 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 24,
+    padding: Spacing.lg,
     paddingTop: 80,
-    paddingBottom: 40,
+    paddingBottom: Spacing.xxl,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: Spacing.xl,
   },
   logo: {
     width: 216,
     height: 144,
-    marginBottom: 4,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '800',
+    marginBottom: Spacing.xs,
   },
   subtitle: {
-    fontSize: 16,
-    opacity: 0.6,
-    marginTop: 8,
+    marginTop: Spacing.sm,
     textAlign: 'center',
   },
   form: {
-    gap: 16,
-  },
-  inputContainer: {
-    gap: 6,
-  },
-  labelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 4,
-  },
-  input: {
-    height: 52,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    borderWidth: 1,
-  },
-  errorText: {
-    fontSize: 12,
-    marginLeft: 4,
+    gap: Spacing.md,
   },
   staffToggleContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: Spacing.sm,
     borderBottomWidth: 1,
-    marginBottom: 8,
-  },
-  staffToggleLabel: {
-    fontSize: 16,
-    fontWeight: '600',
+    marginBottom: Spacing.sm,
   },
   toggleBackground: {
     width: 52,
@@ -402,51 +329,26 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   staffSection: {
-    gap: 16,
-    paddingVertical: 10,
+    gap: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  roleLabel: {
+    marginLeft: Spacing.xs,
   },
   roleGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: Spacing.sm,
   },
   roleButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.xl,
     borderWidth: 1,
-  },
-  roleButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  registerButton: {
-    height: 56,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 10,
-    ...Platform.select({
-      ios: {
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
-  },
-  registerButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
   },
   footer: {
     flexDirection: 'row',
-    marginTop: 24,
+    marginTop: Spacing.lg,
     justifyContent: 'center',
-  },
-  link: {
-    fontWeight: '700',
   },
 });

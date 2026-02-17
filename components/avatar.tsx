@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { StyleSheet, View, Alert, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, Alert, Pressable, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import { decode } from 'base64-arraybuffer';
 import { IconSymbol } from './ui/icon-symbol';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { Radius } from '@/constants/theme';
 
 interface Props {
   size: number;
@@ -94,7 +96,8 @@ export default function Avatar({ url, size = 150, onUpload }: Props) {
           source={{ uri: avatarUrl }}
           accessibilityLabel="Avatar"
           style={[avatarSize, styles.avatar, styles.image, { borderColor: tintColor + '40' }]}
-          resizeMode="cover"
+          contentFit="cover"
+          transition={300}
         />
       ) : (
         <View style={[avatarSize, styles.avatar, { backgroundColor: inputBgColor, borderColor }]}>
@@ -102,7 +105,7 @@ export default function Avatar({ url, size = 150, onUpload }: Props) {
         </View>
       )}
       <View style={styles.uploadButtonContainer}>
-        <TouchableOpacity
+        <Pressable
           onPress={uploadAvatar}
           disabled={uploading}
           style={[styles.uploadButton, { backgroundColor: tintColor, borderColor: bgColor }]}
@@ -112,7 +115,7 @@ export default function Avatar({ url, size = 150, onUpload }: Props) {
           ) : (
             <IconSymbol size={20} name="camera.fill" color={buttonTextColor} />
           )}
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </View>
   );
@@ -124,7 +127,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   avatar: {
-    borderRadius: 100,
+    borderRadius: Radius.full,
     overflow: 'hidden',
     borderWidth: 2,
     justifyContent: 'center',
@@ -139,7 +142,7 @@ const styles = StyleSheet.create({
   uploadButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: Radius.full,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,

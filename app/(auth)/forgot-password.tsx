@@ -1,14 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Image } from 'react-native';
+import { View, StyleSheet, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { Image } from 'expo-image';
 import { supabase } from '../../lib/supabase';
-import { Link, router } from 'expo-router';
+import { router } from 'expo-router';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useToast } from '@/context/toast';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Spacing, Radius, Typography } from '@/constants/theme';
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
@@ -20,15 +24,8 @@ export default function ForgotPasswordScreen() {
   const { showToast } = useToast();
   const colorScheme = useColorScheme();
 
-  const textColor = useThemeColor({}, 'text');
   const tint = useThemeColor({}, 'tint');
-  const inputBg = useThemeColor({}, 'inputBackground');
-  const inputBorder = useThemeColor({}, 'inputBorder');
-  const errorColor = useThemeColor({}, 'error');
-  const placeholderColor = useThemeColor({}, 'placeholder');
-  const buttonTextColor = useThemeColor({}, 'buttonText');
-  const shadowColor = useThemeColor({}, 'shadow');
-  const borderColor = useThemeColor({}, 'border');
+  const textColor = useThemeColor({}, 'text');
 
   const logo = colorScheme === 'dark'
     ? require('@/assets/images/motivaid-dark.png')
@@ -58,9 +55,7 @@ export default function ForgotPasswordScreen() {
     return true;
   };
 
-  const getNextInterval = () => {
-    return 60; // Standard Supabase rate limit is 60 seconds
-  };
+  const getNextInterval = () => 60;
 
   async function handleResetPassword() {
     if (!validate()) return;
@@ -74,9 +69,9 @@ export default function ForgotPasswordScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       if (error.message.includes('rate limit')) {
         showToast('Too many requests. Please wait.', 'error');
-        setTimer(getNextInterval()); // Force start timer on rate limit
+        setTimer(getNextInterval());
       } else {
-        Alert.alert('Error', error.message);
+        showToast(error.message, 'error');
       }
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -93,84 +88,61 @@ export default function ForgotPasswordScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <TouchableOpacity
+        <Pressable
           style={styles.backButton}
           onPress={() => router.back()}
         >
           <IconSymbol name="chevron.right" size={24} color={textColor} style={{ transform: [{ rotate: '180deg' }] }} />
-        </TouchableOpacity>
+        </Pressable>
 
         <View style={styles.header}>
           <Image
             source={logo}
             style={styles.logo}
-            resizeMode="contain"
+            contentFit="contain"
+            transition={300}
           />
-          <ThemedText type="title" style={styles.title}>Reset Password</ThemedText>
-          <ThemedText style={styles.subtitle}>Enter your email to receive a reset link</ThemedText>
+          <ThemedText type="displaySm">Reset Password</ThemedText>
+          <ThemedText color="secondary" style={styles.subtitle}>
+            Enter your email to receive a reset link
+          </ThemedText>
         </View>
 
         <View style={styles.form}>
-          <View style={styles.inputContainer}>
-            <ThemedText style={styles.label}>Email</ThemedText>
-            <TextInput
-              onChangeText={(text) => {
-                setEmail(text);
-                if (emailError) setEmailError('');
-              }}
-              value={email}
-              placeholder="Enter your email"
-              placeholderTextColor={placeholderColor}
-              autoCapitalize={'none'}
-              style={[
-                styles.input,
-                { color: textColor, backgroundColor: inputBg, borderColor: emailError ? errorColor : inputBorder }
-              ]}
-              keyboardType="email-address"
-              editable={timer === 0}
-            />
-            {emailError ? <ThemedText style={[styles.errorText, { color: errorColor }]}>{emailError}</ThemedText> : null}
-          </View>
+          <Input
+            label="Email"
+            value={email}
+            onChangeText={(text) => {
+              setEmail(text);
+              if (emailError) setEmailError('');
+            }}
+            error={emailError}
+            placeholder="Enter your email"
+            autoCapitalize="none"
+            keyboardType="email-address"
+            editable={timer === 0}
+          />
 
           {timer > 0 && (
             <View style={[styles.timerContainer, { backgroundColor: tint + '0D' }]}>
               <IconSymbol name="time-outline" size={20} color={tint} />
-              <ThemedText style={[styles.timerText, { color: tint }]}>
+              <ThemedText style={[Typography.labelMd, { color: tint }]}>
                 Wait {Math.floor(timer / 60)}:{(timer % 60).toString().padStart(2, '0')} before resending
               </ThemedText>
             </View>
           )}
 
-          <TouchableOpacity
-            style={[
-              styles.resetButton,
-              {
-                backgroundColor: timer > 0 ? inputBg : tint,
-                ...Platform.select({
-                  ios: { shadowColor: timer > 0 ? 'transparent' : shadowColor },
-                  web: { boxShadow: timer > 0 ? 'none' : `0px 4px 12px ${shadowColor}40` },
-                }),
-              }
-            ]}
+          <Button
+            title={resendCount > 0 ? 'Resend Link' : 'Send Reset Link'}
             onPress={handleResetPassword}
+            loading={loading}
             disabled={loading || timer > 0}
-          >
-            {loading ? (
-              <ActivityIndicator color={buttonTextColor} />
-            ) : (
-              <ThemedText style={[
-                styles.resetButtonText,
-                { color: timer > 0 ? textColor : buttonTextColor },
-                timer > 0 && { opacity: 0.5 }
-              ]}>
-                {resendCount > 0 ? 'Resend Link' : 'Send Reset Link'}
-              </ThemedText>
-            )}
-          </TouchableOpacity>
+            variant={timer > 0 ? 'secondary' : 'primary'}
+          />
 
           {resendCount > 0 && timer === 0 && (
-            <ThemedText style={styles.infoText}>
-              Didn't receive the email? Check your spam folder or try resending.
+            <ThemedText color="secondary" style={styles.infoText}>
+              Didn&apos;t receive the email? Check your spam folder or try resending.
             </ThemedText>
           )}
         </View>
@@ -185,95 +157,41 @@ const styles = StyleSheet.create({
   },
   keyboardView: {
     flex: 1,
-    padding: 24,
+    padding: Spacing.lg,
     justifyContent: 'center',
   },
   backButton: {
     position: 'absolute',
     top: 60,
-    left: 20,
-    padding: 8,
+    left: Spacing.mdl,
+    padding: Spacing.sm,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: Spacing.xxl,
   },
   logo: {
     width: 216,
     height: 144,
-    marginBottom: 5,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '800',
+    marginBottom: Spacing.xs,
   },
   subtitle: {
-    fontSize: 16,
-    opacity: 0.6,
-    marginTop: 8,
+    marginTop: Spacing.sm,
     textAlign: 'center',
   },
   form: {
-    gap: 20,
-  },
-  inputContainer: {
-    gap: 8,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 4,
-  },
-  errorText: {
-    fontSize: 12,
-    marginLeft: 4,
-    marginTop: 2,
+    gap: Spacing.mdl,
   },
   timerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    marginBottom: 10,
-    padding: 12,
-    borderRadius: 12,
-  },
-  timerText: {
-    fontSize: 14,
-    fontWeight: '600',
+    gap: Spacing.sm,
+    padding: Spacing.smd,
+    borderRadius: Radius.md,
   },
   infoText: {
-    fontSize: 13,
-    opacity: 0.5,
     textAlign: 'center',
-    marginTop: 10,
-  },
-  input: {
-    height: 56,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    borderWidth: 1,
-  },
-  resetButton: {
-    height: 56,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 10,
-    ...Platform.select({
-      ios: {
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
-  },
-  resetButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
+    marginTop: Spacing.sm,
   },
 });

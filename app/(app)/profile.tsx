@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Platform } from 'react-native';
+import { StyleSheet, View, Alert } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/context/auth';
 import { supabase } from '@/lib/supabase';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import Avatar from '@/components/avatar';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { ScreenContainer } from '@/components/ui/screen-container';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useToast } from '@/context/toast';
 import { Stack } from 'expo-router';
+import { Spacing } from '@/constants/theme';
 
 export default function ProfileScreen() {
   const { showToast } = useToast();
@@ -21,12 +25,6 @@ export default function ProfileScreen() {
 
   const textColor = useThemeColor({}, 'text');
   const backgroundColor = useThemeColor({}, 'background');
-  const tint = useThemeColor({}, 'tint');
-  const inputBg = useThemeColor({}, 'inputBackground');
-  const inputBorder = useThemeColor({}, 'inputBorder');
-  const placeholderColor = useThemeColor({}, 'placeholder');
-  const buttonTextColor = useThemeColor({}, 'buttonText');
-  const shadowColor = useThemeColor({}, 'shadow');
 
   useEffect(() => {
     if (profile) {
@@ -79,7 +77,7 @@ export default function ProfileScreen() {
         headerTintColor: textColor
       }} />
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScreenContainer edges={['bottom']} contentContainerStyle={styles.scrollContent}>
         <View style={styles.avatarSection}>
           <Avatar
             size={120}
@@ -89,65 +87,39 @@ export default function ProfileScreen() {
               updateProfile(url);
             }}
           />
-          <ThemedText style={styles.emailLabel}>{user?.email}</ThemedText>
+          <ThemedText color="secondary" style={styles.emailLabel}>{user?.email}</ThemedText>
         </View>
 
         <View style={styles.form}>
-          <View style={styles.inputContainer}>
-            <ThemedText style={styles.label}>Username</ThemedText>
-            <TextInput
-              value={username}
-              onChangeText={setUsername}
-              placeholder="Your username"
-              placeholderTextColor={placeholderColor}
-              style={[styles.input, { color: textColor, backgroundColor: inputBg, borderColor: inputBorder }]}
-            />
-          </View>
+          <Input
+            label="Username"
+            value={username}
+            onChangeText={setUsername}
+            placeholder="Your username"
+          />
 
-          <View style={styles.inputContainer}>
-            <ThemedText style={styles.label}>Full Name</ThemedText>
-            <TextInput
-              value={fullName}
-              onChangeText={setFullName}
-              placeholder="Your full name"
-              placeholderTextColor={placeholderColor}
-              style={[styles.input, { color: textColor, backgroundColor: inputBg, borderColor: inputBorder }]}
-            />
-          </View>
+          <Input
+            label="Full Name"
+            value={fullName}
+            onChangeText={setFullName}
+            placeholder="Your full name"
+          />
 
-          <View style={styles.inputContainer}>
-            <ThemedText style={styles.label}>Website</ThemedText>
-            <TextInput
-              value={website}
-              onChangeText={setWebsite}
-              placeholder="https://yourwebsite.com"
-              placeholderTextColor={placeholderColor}
-              style={[styles.input, { color: textColor, backgroundColor: inputBg, borderColor: inputBorder }]}
-            />
-          </View>
+          <Input
+            label="Website"
+            value={website}
+            onChangeText={setWebsite}
+            placeholder="https://yourwebsite.com"
+          />
 
-          <TouchableOpacity
-            style={[
-              styles.saveButton,
-              {
-                backgroundColor: tint,
-                ...Platform.select({
-                  ios: { shadowColor },
-                  web: { boxShadow: `0px 4px 12px ${shadowColor}40` },
-                }),
-              }
-            ]}
+          <Button
+            title="Save Changes"
             onPress={() => updateProfile()}
+            loading={loading}
             disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color={buttonTextColor} />
-            ) : (
-              <ThemedText style={[styles.saveButtonText, { color: buttonTextColor }]}>Save Changes</ThemedText>
-            )}
-          </TouchableOpacity>
+          />
         </View>
-      </ScrollView>
+      </ScreenContainer>
     </ThemedView>
   );
 }
@@ -157,54 +129,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 24,
     paddingTop: 100,
   },
   avatarSection: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: Spacing.xxl,
   },
   emailLabel: {
-    opacity: 0.6,
-    fontSize: 16,
+    marginTop: Spacing.sm,
   },
   form: {
-    gap: 20,
-  },
-  inputContainer: {
-    gap: 8,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 4,
-  },
-  input: {
-    height: 56,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    borderWidth: 1,
-  },
-  saveButton: {
-    height: 56,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 20,
-    ...Platform.select({
-      ios: {
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
-  },
-  saveButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
+    gap: Spacing.mdl,
   },
 });

@@ -1,8 +1,17 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import { StyleSheet, View, Animated, Dimensions, Platform } from 'react-native';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { StyleSheet, View, Dimensions, Platform } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  withSequence,
+  runOnJS,
+} from 'react-native-reanimated';
 import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { Spacing, Radius, Shadows } from '@/constants/theme';
 
 type ToastType = 'success' | 'error' | 'info';
 
@@ -16,52 +25,44 @@ export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
   const [message, setMessage] = useState('');
   const [type, setType] = useState<ToastType>('success');
   const [visible, setVisible] = useState(false);
-  const translateY = useState(new Animated.Value(-100))[0];
-  const opacity = useState(new Animated.Value(0))[0];
+
+  const translateY = useSharedValue(-100);
+  const opacity = useSharedValue(0);
+  const scale = useSharedValue(0.95);
 
   const tintColor = useThemeColor({}, 'tint');
   const backgroundColor = useThemeColor({}, 'card');
-  const textColor = useThemeColor({}, 'text');
   const successColor = useThemeColor({}, 'success');
   const errorColor = useThemeColor({}, 'error');
   const shadowColor = useThemeColor({}, 'shadow');
+
+  const hideToast = useCallback(() => {
+    translateY.value = withSpring(-100, { damping: 15, stiffness: 120 });
+    opacity.value = withTiming(0, { duration: 250 });
+    scale.value = withTiming(0.95, { duration: 250 });
+    setTimeout(() => {
+      runOnJS(setVisible)(false);
+    }, 300);
+  }, []);
 
   const showToast = useCallback((msg: string, toastType: ToastType = 'success') => {
     setMessage(msg);
     setType(toastType);
     setVisible(true);
 
-    Animated.parallel([
-      Animated.spring(translateY, {
-        toValue: Platform.OS === 'web' ? 20 : 60,
-        useNativeDriver: true,
-        friction: 8,
-      }),
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    const targetY = Platform.OS === 'web' ? 20 : 60;
+
+    translateY.value = withSpring(targetY, { damping: 14, stiffness: 120 });
+    opacity.value = withTiming(1, { duration: 250 });
+    scale.value = withSequence(
+      withSpring(1.02, { damping: 12, stiffness: 200 }),
+      withSpring(1, { damping: 14, stiffness: 160 })
+    );
 
     setTimeout(() => {
       hideToast();
     }, 3000);
-  }, [translateY, opacity]);
-
-  const hideToast = useCallback(() => {
-    Animated.parallel([
-      Animated.spring(translateY, {
-        toValue: -100,
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacity, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-    ]).start(() => setVisible(false));
-  }, [translateY, opacity]);
+  }, [hideToast]);
 
   const getIcon = () => {
     switch (type) {
@@ -79,29 +80,36 @@ export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: translateY.value },
+      { scale: scale.value },
+    ],
+    opacity: opacity.value,
+  }));
+
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
       {visible && (
-        <Animated.View 
+        <Animated.View
           style={[
-            styles.toastContainer, 
-            { 
-              transform: [{ translateY }], 
-              opacity,
+            styles.toastContainer,
+            animatedStyle,
+            {
               backgroundColor,
               borderColor: getIconColor(),
               ...Platform.select({
-                ios: { shadowColor: shadowColor, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 10 },
+                ios: { shadowColor, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 10 },
                 android: { elevation: 6 },
-                web: { boxShadow: '0px 8px 16px rgba(0,0,0,0.1)' }
-              })
-            }
+                web: { boxShadow: `0px 8px 16px ${shadowColor}` } as any,
+              }),
+            },
           ]}
         >
           <View style={styles.content}>
             <IconSymbol size={24} name={getIcon() as any} color={getIconColor()} />
-            <ThemedText style={styles.text}>{message}</ThemedText>
+            <ThemedText type="defaultSemiBold">{message}</ThemedText>
           </View>
         </Animated.View>
       )}
@@ -121,8 +129,8 @@ const styles = StyleSheet.create({
     top: 0,
     left: '10%',
     right: '10%',
-    padding: 16,
-    borderRadius: 20,
+    padding: Spacing.md,
+    borderRadius: Radius.xl,
     borderWidth: 1,
     zIndex: 9999,
     flexDirection: 'row',
@@ -132,10 +140,6 @@ const styles = StyleSheet.create({
   content: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-  },
-  text: {
-    fontSize: 16,
-    fontWeight: '600',
+    gap: Spacing.smd,
   },
 });

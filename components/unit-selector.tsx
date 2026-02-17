@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, TouchableOpacity, Modal, FlatList } from 'react-native';
+import { StyleSheet, View, Pressable, Modal, FlatList } from 'react-native';
 import { useUnits } from '@/context/unit';
 import { ThemedText } from './themed-text';
 import { IconSymbol } from './ui/icon-symbol';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import * as Haptics from 'expo-haptics';
+import { Spacing, Radius } from '@/constants/theme';
 
 export default function UnitSelector() {
   const { activeUnit, availableUnits, setActiveUnit } = useUnits();
@@ -13,13 +14,14 @@ export default function UnitSelector() {
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const borderColor = useThemeColor({}, 'border');
+  const overlayColor = useThemeColor({}, 'overlay');
 
   if (!activeUnit) return null;
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity 
-        style={[styles.selector, { borderColor }]} 
+      <Pressable
+        style={[styles.selector, { borderColor }]}
         onPress={() => {
           if (availableUnits.length > 1) {
             setModalVisible(true);
@@ -29,13 +31,13 @@ export default function UnitSelector() {
       >
         <IconSymbol name="home-outline" size={16} color={tint} />
         <View style={styles.textContainer}>
-          <ThemedText style={styles.facilityName}>{activeUnit.facilities.name}</ThemedText>
-          <ThemedText style={styles.unitName}>{activeUnit.name}</ThemedText>
+          <ThemedText type="overline">{activeUnit.facilities.name}</ThemedText>
+          <ThemedText type="labelLg">{activeUnit.name}</ThemedText>
         </View>
         {availableUnits.length > 1 && (
           <IconSymbol name="chevron-forward-outline" size={14} color={textColor} style={{ transform: [{ rotate: '90deg' }] }} />
         )}
-      </TouchableOpacity>
+      </Pressable>
 
       <Modal
         animationType="slide"
@@ -43,22 +45,22 @@ export default function UnitSelector() {
         visible={modalVisible}
         onRequestClose={() => setModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
+        <View style={[styles.modalOverlay, { backgroundColor: overlayColor }]}>
           <View style={[styles.modalContent, { backgroundColor }]}>
             <View style={styles.modalHeader}>
-              <ThemedText type="subtitle">Select Unit</ThemedText>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
+              <ThemedText type="headingSm">Select Unit</ThemedText>
+              <Pressable onPress={() => setModalVisible(false)}>
                 <IconSymbol name="close" size={24} color={textColor} />
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
             <FlatList
               data={availableUnits}
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
-                <TouchableOpacity 
+                <Pressable
                   style={[
-                    styles.unitItem, 
+                    styles.unitItem,
                     { borderColor },
                     activeUnit.id === item.id && { backgroundColor: tint + '10', borderColor: tint }
                   ]}
@@ -69,13 +71,13 @@ export default function UnitSelector() {
                   }}
                 >
                   <View>
-                    <ThemedText style={styles.itemUnitName}>{item.name}</ThemedText>
-                    <ThemedText style={styles.itemFacilityName}>{item.facilities.name}</ThemedText>
+                    <ThemedText type="labelLg">{item.name}</ThemedText>
+                    <ThemedText type="caption" color="secondary">{item.facilities.name}</ThemedText>
                   </View>
                   {activeUnit.id === item.id && (
                     <IconSymbol name="checkmark" size={20} color={tint} />
                   )}
-                </TouchableOpacity>
+                </Pressable>
               )}
             />
           </View>
@@ -87,62 +89,42 @@ export default function UnitSelector() {
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 20,
+    marginBottom: Spacing.mdl,
   },
   selector: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 16,
+    padding: Spacing.smd,
+    borderRadius: Radius.lg,
     borderWidth: 1,
-    gap: 12,
+    gap: Spacing.smd,
   },
   textContainer: {
     flex: 1,
   },
-  facilityName: {
-    fontSize: 10,
-    fontWeight: '700',
-    opacity: 0.5,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  unitName: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15,23,42,0.5)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    padding: 24,
+    borderTopLeftRadius: Radius.xxl,
+    borderTopRightRadius: Radius.xxl,
+    padding: Spacing.lg,
     maxHeight: '80%',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: Spacing.lg,
   },
   unitItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
-    borderRadius: 16,
+    padding: Spacing.md,
+    borderRadius: Radius.lg,
     borderWidth: 1,
-    marginBottom: 12,
-  },
-  itemUnitName: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  itemFacilityName: {
-    fontSize: 12,
-    opacity: 0.6,
+    marginBottom: Spacing.smd,
   },
 });
