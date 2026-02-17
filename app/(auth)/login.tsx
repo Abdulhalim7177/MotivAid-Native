@@ -15,27 +15,34 @@ export default function LoginScreen() {
   const { showToast } = useToast();
   const { signIn, signInBiometric, isOfflineAuthenticated } = useAuth();
   const colorScheme = useColorScheme();
-  
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [hasBiometrics, setHasBiometrics] = useState(false);
-  
-  const textColor = useThemeColor({}, 'text');
-  const borderColor = useThemeColor({ light: 'rgba(0,0,0,0.1)', dark: 'rgba(255,255,255,0.1)' }, 'icon');
-  const tint = useThemeColor({}, 'tint');
 
-  const logo = colorScheme === 'dark' 
-    ? require('@/assets/images/motivaid-dark.png') 
+  const textColor = useThemeColor({}, 'text');
+  const tint = useThemeColor({}, 'tint');
+  const inputBg = useThemeColor({}, 'inputBackground');
+  const inputBorder = useThemeColor({}, 'inputBorder');
+  const errorColor = useThemeColor({}, 'error');
+  const placeholderColor = useThemeColor({}, 'placeholder');
+  const buttonTextColor = useThemeColor({}, 'buttonText');
+  const shadowColor = useThemeColor({}, 'shadow');
+  const cardColor = useThemeColor({}, 'card');
+  const borderColor = useThemeColor({}, 'border');
+
+  const logo = colorScheme === 'dark'
+    ? require('@/assets/images/motivaid-dark.png')
     : require('@/assets/images/motivaid-light.png');
 
   useEffect(() => {
     async function init() {
       const bioAvailable = await checkBiometrics();
       setHasBiometrics(bioAvailable);
-      
+
       const savedEmail = await getSavedEmail();
       if (savedEmail) setEmail(savedEmail);
     }
@@ -68,7 +75,7 @@ export default function LoginScreen() {
 
   async function handleLogin() {
     if (!validate()) return;
-    
+
     setLoading(true);
     const { error } = await signIn(email, password);
 
@@ -98,14 +105,14 @@ export default function LoginScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
         <View style={styles.header}>
-          <Image 
-            source={logo} 
-            style={styles.logo} 
+          <Image
+            source={logo}
+            style={styles.logo}
             resizeMode="contain"
           />
           <ThemedText type="title" style={styles.title}>Welcome Back</ThemedText>
@@ -122,15 +129,15 @@ export default function LoginScreen() {
               }}
               value={email}
               placeholder="Enter your email"
-              placeholderTextColor="#888"
+              placeholderTextColor={placeholderColor}
               autoCapitalize={'none'}
               style={[
-                styles.input, 
-                { color: textColor, borderColor: emailError ? '#ff4444' : borderColor }
+                styles.input,
+                { color: textColor, backgroundColor: inputBg, borderColor: emailError ? errorColor : inputBorder }
               ]}
               keyboardType="email-address"
             />
-            {emailError ? <ThemedText style={styles.errorText}>{emailError}</ThemedText> : null}
+            {emailError ? <ThemedText style={[styles.errorText, { color: errorColor }]}>{emailError}</ThemedText> : null}
           </View>
 
           <View style={styles.inputContainer}>
@@ -143,38 +150,48 @@ export default function LoginScreen() {
               value={password}
               secureTextEntry={true}
               placeholder="Enter your password"
-              placeholderTextColor="#888"
+              placeholderTextColor={placeholderColor}
               autoCapitalize={'none'}
               style={[
-                styles.input, 
-                { color: textColor, borderColor: passwordError ? '#ff4444' : borderColor }
+                styles.input,
+                { color: textColor, backgroundColor: inputBg, borderColor: passwordError ? errorColor : inputBorder }
               ]}
             />
-            {passwordError ? <ThemedText style={styles.errorText}>{passwordError}</ThemedText> : null}
+            {passwordError ? <ThemedText style={[styles.errorText, { color: errorColor }]}>{passwordError}</ThemedText> : null}
           </View>
 
           <Link href="/(auth)/forgot-password" asChild>
             <TouchableOpacity style={styles.forgotPasswordContainer}>
-              <ThemedText style={styles.forgotPasswordText}>Forgot Password?</ThemedText>
+              <ThemedText style={[styles.forgotPasswordText, { color: tint }]}>Forgot Password?</ThemedText>
             </TouchableOpacity>
           </Link>
 
           <View style={styles.buttonRow}>
-            <TouchableOpacity 
-              style={[styles.loginButton, { flex: 1 }]} 
+            <TouchableOpacity
+              style={[
+                styles.loginButton,
+                {
+                  flex: 1,
+                  backgroundColor: tint,
+                  ...Platform.select({
+                    ios: { shadowColor },
+                    web: { boxShadow: `0px 4px 12px ${shadowColor}40` },
+                  }),
+                }
+              ]}
               onPress={handleLogin}
               disabled={loading}
             >
               {loading ? (
-                <ActivityIndicator color="#000" />
+                <ActivityIndicator color={buttonTextColor} />
               ) : (
-                <ThemedText style={styles.loginButtonText}>Sign In</ThemedText>
+                <ThemedText style={[styles.loginButtonText, { color: buttonTextColor }]}>Sign In</ThemedText>
               )}
             </TouchableOpacity>
 
             {hasBiometrics && (
-              <TouchableOpacity 
-                style={styles.bioButton} 
+              <TouchableOpacity
+                style={[styles.bioButton, { backgroundColor: tint + '15', borderColor: tint + '30' }]}
                 onPress={handleBiometric}
               >
                 <IconSymbol name="finger-print-outline" size={32} color={tint} />
@@ -187,7 +204,7 @@ export default function LoginScreen() {
           <ThemedText>New here? </ThemedText>
           <Link href="/(auth)/register" asChild>
             <TouchableOpacity>
-              <ThemedText style={styles.link}>Create Account</ThemedText>
+              <ThemedText style={[styles.link, { color: tint }]}>Create Account</ThemedText>
             </TouchableOpacity>
           </Link>
         </View>
@@ -214,15 +231,6 @@ const styles = StyleSheet.create({
     height: 144,
     marginBottom: 5,
   },
-  iconContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(0, 210, 255, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
   title: {
     fontSize: 28,
     fontWeight: '800',
@@ -244,7 +252,6 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   errorText: {
-    color: '#ff4444',
     fontSize: 12,
     marginLeft: 4,
     marginTop: 2,
@@ -255,19 +262,15 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   forgotPasswordText: {
-    color: '#00D2FF',
     fontSize: 14,
     fontWeight: '600',
   },
   input: {
     height: 56,
-    backgroundColor: 'rgba(150, 150, 150, 0.05)',
     borderRadius: 16,
     paddingHorizontal: 16,
     fontSize: 16,
-    color: 'inherit',
     borderWidth: 1,
-    borderColor: 'rgba(150, 150, 150, 0.1)',
   },
   buttonRow: {
     flexDirection: 'row',
@@ -276,13 +279,11 @@ const styles = StyleSheet.create({
   },
   loginButton: {
     height: 56,
-    backgroundColor: '#00D2FF',
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     ...Platform.select({
       ios: {
-        shadowColor: '#00D2FF',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
@@ -290,23 +291,17 @@ const styles = StyleSheet.create({
       android: {
         elevation: 4,
       },
-      web: {
-        boxShadow: '0px 4px 8px rgba(0, 210, 255, 0.3)',
-      },
     }),
   },
   bioButton: {
     width: 56,
     height: 56,
     borderRadius: 16,
-    backgroundColor: 'rgba(0, 210, 255, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(0, 210, 255, 0.2)',
   },
   loginButtonText: {
-    color: '#000',
     fontSize: 16,
     fontWeight: '700',
   },
@@ -316,7 +311,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   link: {
-    color: '#00D2FF',
     fontWeight: '700',
   },
 });

@@ -41,7 +41,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
 
     // On web, update the body background color to match the theme
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      const bgColor = activeTheme === 'dark' ? '#0F1113' : '#F8F9FA';
+      const bgColor = activeTheme === 'dark' ? '#0F172A' : '#F8FAFC';
       document.body.style.backgroundColor = bgColor;
     }
   }, [preference, deviceColorScheme]);

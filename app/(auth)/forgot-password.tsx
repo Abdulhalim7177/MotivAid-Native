@@ -19,13 +19,19 @@ export default function ForgotPasswordScreen() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const { showToast } = useToast();
   const colorScheme = useColorScheme();
-  
-  const textColor = useThemeColor({}, 'text');
-  const borderColor = useThemeColor({ light: 'rgba(0,0,0,0.1)', dark: 'rgba(255,255,255,0.1)' }, 'icon');
-  const tint = useThemeColor({}, 'tint');
 
-  const logo = colorScheme === 'dark' 
-    ? require('@/assets/images/motivaid-dark.png') 
+  const textColor = useThemeColor({}, 'text');
+  const tint = useThemeColor({}, 'tint');
+  const inputBg = useThemeColor({}, 'inputBackground');
+  const inputBorder = useThemeColor({}, 'inputBorder');
+  const errorColor = useThemeColor({}, 'error');
+  const placeholderColor = useThemeColor({}, 'placeholder');
+  const buttonTextColor = useThemeColor({}, 'buttonText');
+  const shadowColor = useThemeColor({}, 'shadow');
+  const borderColor = useThemeColor({}, 'border');
+
+  const logo = colorScheme === 'dark'
+    ? require('@/assets/images/motivaid-dark.png')
     : require('@/assets/images/motivaid-light.png');
 
   useEffect(() => {
@@ -58,7 +64,7 @@ export default function ForgotPasswordScreen() {
 
   async function handleResetPassword() {
     if (!validate()) return;
-    
+
     setLoading(true);
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: 'motivaid://reset-password',
@@ -83,21 +89,21 @@ export default function ForgotPasswordScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <TouchableOpacity 
-          style={styles.backButton} 
+        <TouchableOpacity
+          style={styles.backButton}
           onPress={() => router.back()}
         >
           <IconSymbol name="chevron.right" size={24} color={textColor} style={{ transform: [{ rotate: '180deg' }] }} />
         </TouchableOpacity>
 
         <View style={styles.header}>
-          <Image 
-            source={logo} 
-            style={styles.logo} 
+          <Image
+            source={logo}
+            style={styles.logo}
             resizeMode="contain"
           />
           <ThemedText type="title" style={styles.title}>Reset Password</ThemedText>
@@ -114,20 +120,20 @@ export default function ForgotPasswordScreen() {
               }}
               value={email}
               placeholder="Enter your email"
-              placeholderTextColor="#888"
+              placeholderTextColor={placeholderColor}
               autoCapitalize={'none'}
               style={[
-                styles.input, 
-                { color: textColor, borderColor: emailError ? '#ff4444' : borderColor }
+                styles.input,
+                { color: textColor, backgroundColor: inputBg, borderColor: emailError ? errorColor : inputBorder }
               ]}
               keyboardType="email-address"
               editable={timer === 0}
             />
-            {emailError ? <ThemedText style={styles.errorText}>{emailError}</ThemedText> : null}
+            {emailError ? <ThemedText style={[styles.errorText, { color: errorColor }]}>{emailError}</ThemedText> : null}
           </View>
 
           {timer > 0 && (
-            <View style={styles.timerContainer}>
+            <View style={[styles.timerContainer, { backgroundColor: tint + '0D' }]}>
               <IconSymbol name="time-outline" size={20} color={tint} />
               <ThemedText style={[styles.timerText, { color: tint }]}>
                 Wait {Math.floor(timer / 60)}:{(timer % 60).toString().padStart(2, '0')} before resending
@@ -135,20 +141,27 @@ export default function ForgotPasswordScreen() {
             </View>
           )}
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[
-              styles.resetButton, 
-              { backgroundColor: timer > 0 ? 'rgba(150, 150, 150, 0.1)' : tint }
-            ]} 
+              styles.resetButton,
+              {
+                backgroundColor: timer > 0 ? inputBg : tint,
+                ...Platform.select({
+                  ios: { shadowColor: timer > 0 ? 'transparent' : shadowColor },
+                  web: { boxShadow: timer > 0 ? 'none' : `0px 4px 12px ${shadowColor}40` },
+                }),
+              }
+            ]}
             onPress={handleResetPassword}
             disabled={loading || timer > 0}
           >
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={buttonTextColor} />
             ) : (
               <ThemedText style={[
                 styles.resetButtonText,
-                timer > 0 && { color: textColor, opacity: 0.5 }
+                { color: timer > 0 ? textColor : buttonTextColor },
+                timer > 0 && { opacity: 0.5 }
               ]}>
                 {resendCount > 0 ? 'Resend Link' : 'Send Reset Link'}
               </ThemedText>
@@ -212,7 +225,6 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   errorText: {
-    color: '#ff4444',
     fontSize: 12,
     marginLeft: 4,
     marginTop: 2,
@@ -223,7 +235,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     marginBottom: 10,
-    backgroundColor: 'rgba(0, 210, 255, 0.05)',
     padding: 12,
     borderRadius: 12,
   },
@@ -239,7 +250,6 @@ const styles = StyleSheet.create({
   },
   input: {
     height: 56,
-    backgroundColor: 'rgba(150, 150, 150, 0.05)',
     borderRadius: 16,
     paddingHorizontal: 16,
     fontSize: 16,
@@ -253,7 +263,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
     ...Platform.select({
       ios: {
-        shadowColor: '#00D2FF',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
@@ -261,13 +270,9 @@ const styles = StyleSheet.create({
       android: {
         elevation: 4,
       },
-      web: {
-        boxShadow: '0px 4px 8px rgba(0, 210, 255, 0.3)',
-      },
     }),
   },
   resetButtonText: {
-    color: '#000',
     fontSize: 16,
     fontWeight: '700',
   },

@@ -16,7 +16,8 @@ export default function SettingsScreen() {
   const { profile, signOut } = useAuth();
   const tint = useThemeColor({}, 'tint');
   const textColor = useThemeColor({}, 'text');
-  const borderColor = useThemeColor({ light: 'rgba(0,0,0,0.05)', dark: 'rgba(255,255,255,0.05)' }, 'icon');
+  const borderColor = useThemeColor({}, 'border');
+  const dangerColor = useThemeColor({}, 'danger');
 
   const handleSignOut = async () => {
     try {
@@ -30,9 +31,9 @@ export default function SettingsScreen() {
 
   const ThemeOption = ({ label, value, icon }: { label: string, value: 'light' | 'dark' | 'system', icon: any }) => {
     const isActive = preference === value;
-    
+
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[styles.settingRow, { borderColor }]}
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -58,7 +59,7 @@ export default function SettingsScreen() {
 
         <View style={styles.section}>
           <ThemedText style={styles.sectionTitle}>Account</ThemedText>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.settingRow, { borderColor }]}
             onPress={() => router.push('/(app)/profile')}
           >
@@ -79,13 +80,13 @@ export default function SettingsScreen() {
 
         <View style={styles.section}>
           <ThemedText style={styles.sectionTitle}>Danger Zone</ThemedText>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.settingRow, { borderColor }]}
             onPress={handleSignOut}
           >
             <View style={styles.settingLabelContainer}>
-              <IconSymbol name="paperplane.fill" size={22} color="#FF4444" />
-              <ThemedText style={[styles.settingLabel, { color: '#FF4444' }]}>Sign Out</ThemedText>
+              <IconSymbol name="paperplane.fill" size={22} color={dangerColor} />
+              <ThemedText style={[styles.settingLabel, { color: dangerColor }]}>Sign Out</ThemedText>
             </View>
           </TouchableOpacity>
         </View>

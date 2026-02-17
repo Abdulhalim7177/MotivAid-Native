@@ -15,10 +15,15 @@ export default function ResetPasswordScreen() {
   const [loading, setLoading] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const { showToast } = useToast();
-  
+
   const textColor = useThemeColor({}, 'text');
-  const borderColor = useThemeColor({ light: 'rgba(0,0,0,0.1)', dark: 'rgba(255,255,255,0.1)' }, 'icon');
   const tint = useThemeColor({}, 'tint');
+  const inputBg = useThemeColor({}, 'inputBackground');
+  const inputBorder = useThemeColor({}, 'inputBorder');
+  const errorColor = useThemeColor({}, 'error');
+  const placeholderColor = useThemeColor({}, 'placeholder');
+  const buttonTextColor = useThemeColor({}, 'buttonText');
+  const shadowColor = useThemeColor({}, 'shadow');
 
   const validate = () => {
     let valid = true;
@@ -40,7 +45,7 @@ export default function ResetPasswordScreen() {
 
   async function handleUpdatePassword() {
     if (!validate()) return;
-    
+
     setLoading(true);
     const { error } = await supabase.auth.updateUser({
       password: password
@@ -59,12 +64,12 @@ export default function ResetPasswordScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
         <View style={styles.header}>
-          <View style={styles.iconContainer}>
+          <View style={[styles.iconContainer, { backgroundColor: tint + '15' }]}>
             <IconSymbol size={60} name="lock-closed-outline" color={tint} />
           </View>
           <ThemedText type="title" style={styles.title}>New Password</ThemedText>
@@ -82,11 +87,11 @@ export default function ResetPasswordScreen() {
               value={password}
               secureTextEntry={true}
               placeholder="Min 6 characters"
-              placeholderTextColor="#888"
+              placeholderTextColor={placeholderColor}
               autoCapitalize={'none'}
               style={[
-                styles.input, 
-                { color: textColor, borderColor: passwordError ? '#ff4444' : borderColor }
+                styles.input,
+                { color: textColor, backgroundColor: inputBg, borderColor: passwordError ? errorColor : inputBorder }
               ]}
             />
           </View>
@@ -101,25 +106,34 @@ export default function ResetPasswordScreen() {
               value={confirmPassword}
               secureTextEntry={true}
               placeholder="Confirm new password"
-              placeholderTextColor="#888"
+              placeholderTextColor={placeholderColor}
               autoCapitalize={'none'}
               style={[
-                styles.input, 
-                { color: textColor, borderColor: passwordError ? '#ff4444' : borderColor }
+                styles.input,
+                { color: textColor, backgroundColor: inputBg, borderColor: passwordError ? errorColor : inputBorder }
               ]}
             />
-            {passwordError ? <ThemedText style={styles.errorText}>{passwordError}</ThemedText> : null}
+            {passwordError ? <ThemedText style={[styles.errorText, { color: errorColor }]}>{passwordError}</ThemedText> : null}
           </View>
 
-          <TouchableOpacity 
-            style={[styles.resetButton, { backgroundColor: tint }]} 
+          <TouchableOpacity
+            style={[
+              styles.resetButton,
+              {
+                backgroundColor: tint,
+                ...Platform.select({
+                  ios: { shadowColor },
+                  web: { boxShadow: `0px 4px 12px ${shadowColor}40` },
+                }),
+              }
+            ]}
             onPress={handleUpdatePassword}
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color="#000" />
+              <ActivityIndicator color={buttonTextColor} />
             ) : (
-              <ThemedText style={styles.resetButtonText}>Update Password</ThemedText>
+              <ThemedText style={[styles.resetButtonText, { color: buttonTextColor }]}>Update Password</ThemedText>
             )}
           </TouchableOpacity>
         </View>
@@ -145,7 +159,6 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: 'rgba(0, 210, 255, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
@@ -172,14 +185,12 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   errorText: {
-    color: '#ff4444',
     fontSize: 12,
     marginLeft: 4,
     marginTop: 2,
   },
   input: {
     height: 56,
-    backgroundColor: 'rgba(150, 150, 150, 0.05)',
     borderRadius: 16,
     paddingHorizontal: 16,
     fontSize: 16,
@@ -193,7 +204,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
     ...Platform.select({
       ios: {
-        shadowColor: '#00D2FF',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
@@ -201,13 +211,9 @@ const styles = StyleSheet.create({
       android: {
         elevation: 4,
       },
-      web: {
-        boxShadow: '0px 4px 8px rgba(0, 210, 255, 0.3)',
-      },
     }),
   },
   resetButtonText: {
-    color: '#000',
     fontSize: 16,
     fontWeight: '700',
   },

@@ -40,7 +40,7 @@ function StaffDashboard({ tint, cardStyle }: { tint: string, cardStyle: any }) {
           <StatBox label="Success Rate" value="100%" tint={tint} cardStyle={cardStyle} />
         </View>
       </View>
-      
+
       <ThemedText type="subtitle" style={styles.sectionTitle}>Main Workflow</ThemedText>
       <View style={styles.actionsGrid}>
         <ActionItem label="Clinical Mode" icon="plus" tint={tint} />
@@ -62,15 +62,17 @@ function StaffDashboard({ tint, cardStyle }: { tint: string, cardStyle: any }) {
 }
 
 // --- Supervisor Dashboard ---
-function SupervisorDashboard({ tint, cardStyle }: { tint: string, cardStyle: any }) {
+function SupervisorDashboard({ tint, cardStyle, successColor, warningColor, textSecondaryColor }: {
+  tint: string, cardStyle: any, successColor: string, warningColor: string, textSecondaryColor: string
+}) {
   return (
     <View>
       <View style={[styles.card, cardStyle]}>
         <View style={styles.cardHeader}>
           <ThemedText style={styles.cardLabel}>Unit Adherence</ThemedText>
-          <View style={styles.trendBadge}>
-            <IconSymbol name="chevron.right" size={12} color="#4CAF50" style={{ transform: [{ rotate: '-90deg' }] }} />
-            <ThemedText style={styles.trendText}>+4%</ThemedText>
+          <View style={[styles.trendBadge, { backgroundColor: successColor + '15' }]}>
+            <IconSymbol name="chevron.right" size={12} color={successColor} style={{ transform: [{ rotate: '-90deg' }] }} />
+            <ThemedText style={[styles.trendText, { color: successColor }]}>+4%</ThemedText>
           </View>
         </View>
         <View style={styles.statsContainer}>
@@ -79,18 +81,18 @@ function SupervisorDashboard({ tint, cardStyle }: { tint: string, cardStyle: any
         </View>
       </View>
 
-      <TouchableOpacity 
-        style={styles.alertCard}
+      <TouchableOpacity
+        style={[styles.alertCard, { backgroundColor: warningColor + '0D', borderColor: warningColor + '30' }]}
         onPress={() => router.push('/(app)/approvals')}
       >
-        <View style={styles.alertIcon}>
-          <IconSymbol name="person-add-outline" size={20} color="#FFD600" />
+        <View style={[styles.alertIcon, { backgroundColor: warningColor + '20' }]}>
+          <IconSymbol name="person-add-outline" size={20} color={warningColor} />
         </View>
         <View style={{ flex: 1 }}>
           <ThemedText style={styles.alertTitle}>Pending Approvals</ThemedText>
           <ThemedText style={styles.alertSub}>Midwives awaiting unit assignment</ThemedText>
         </View>
-        <IconSymbol name="chevron.right" size={20} color="#888" />
+        <IconSymbol name="chevron.right" size={20} color={textSecondaryColor} />
       </TouchableOpacity>
 
       <ThemedText type="subtitle" style={styles.sectionTitle}>Management</ThemedText>
@@ -126,7 +128,7 @@ function AdminDashboard({ tint, cardStyle }: { tint: string, cardStyle: any }) {
 }
 
 // --- Basic User Dashboard ---
-function UserDashboard({ tint, cardStyle }: { tint: string, cardStyle: any }) {
+function UserDashboard({ tint, cardStyle, buttonTextColor }: { tint: string, cardStyle: any, buttonTextColor: string }) {
   return (
     <View style={{ gap: 24 }}>
       <View style={[styles.card, cardStyle, { paddingVertical: 40, alignItems: 'center' }]}>
@@ -137,9 +139,9 @@ function UserDashboard({ tint, cardStyle }: { tint: string, cardStyle: any }) {
         <ThemedText style={{ opacity: 0.6, textAlign: 'center', marginTop: 8, paddingHorizontal: 40 }}>
           Begin an E-MOTIVE clinical session immediately.
         </ThemedText>
-        
+
         <TouchableOpacity style={[styles.primaryButton, { backgroundColor: tint, marginTop: 24 }]}>
-          <ThemedText style={styles.primaryButtonText}>Initialize Case</ThemedText>
+          <ThemedText style={[styles.primaryButtonText, { color: buttonTextColor }]}>Initialize Case</ThemedText>
         </TouchableOpacity>
       </View>
     </View>
@@ -153,6 +155,11 @@ export default function HomeScreen() {
   const tint = Colors[colorScheme ?? 'light'].tint;
   const cardBg = useThemeColor({}, 'card');
   const borderColor = useThemeColor({}, 'border');
+  const errorColor = useThemeColor({}, 'error');
+  const successColor = useThemeColor({}, 'success');
+  const warningColor = useThemeColor({}, 'warning');
+  const buttonTextColor = useThemeColor({}, 'buttonText');
+  const textSecondaryColor = useThemeColor({}, 'textSecondary');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   const cardStyle = { backgroundColor: cardBg, borderColor: borderColor };
@@ -185,13 +192,13 @@ export default function HomeScreen() {
       case 'admin':
         return <AdminDashboard tint={tint} cardStyle={cardStyle} />;
       case 'supervisor':
-        return <SupervisorDashboard tint={tint} cardStyle={cardStyle} />;
+        return <SupervisorDashboard tint={tint} cardStyle={cardStyle} successColor={successColor} warningColor={warningColor} textSecondaryColor={textSecondaryColor} />;
       case 'midwife':
       case 'nurse':
       case 'student':
         return <StaffDashboard tint={tint} cardStyle={cardStyle} />;
       default:
-        return <UserDashboard tint={tint} cardStyle={cardStyle} />;
+        return <UserDashboard tint={tint} cardStyle={cardStyle} buttonTextColor={buttonTextColor} />;
     }
   };
 
@@ -201,15 +208,15 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <View>
             <View style={styles.greetingRow}>
-              <Image 
-                source={require('@/assets/images/app-logo-small.png')} 
-                style={styles.smallLogo} 
+              <Image
+                source={require('@/assets/images/app-logo-small.png')}
+                style={styles.smallLogo}
                 resizeMode="contain"
               />
               <ThemedText style={styles.greetingText}>{profile?.role?.toUpperCase() || 'USER'}</ThemedText>
               {isOffline && (
-                <View style={styles.offlineBadge}>
-                  <ThemedText style={styles.offlineText}>OFFLINE</ThemedText>
+                <View style={[styles.offlineBadge, { backgroundColor: errorColor + '15', borderColor: errorColor }]}>
+                  <ThemedText style={[styles.offlineText, { color: errorColor }]}>OFFLINE</ThemedText>
                 </View>
               )}
             </View>
@@ -217,8 +224,8 @@ export default function HomeScreen() {
               {displayName}
             </ThemedText>
           </View>
-          <TouchableOpacity 
-            style={styles.profileButton} 
+          <TouchableOpacity
+            style={styles.profileButton}
             onPress={() => router.push('/(app)/profile')}
           >
             <View style={[styles.avatar, { backgroundColor: tint + '20' }]}>
@@ -292,16 +299,13 @@ const styles = StyleSheet.create({
     marginRight: -4,
   },
   offlineBadge: {
-    backgroundColor: 'rgba(255, 61, 0, 0.1)',
     paddingHorizontal: 6,
     paddingVertical: 1,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: '#FF3D00',
   },
   offlineText: {
     fontSize: 8,
-    color: '#FF3D00',
     fontWeight: '900',
   },
   profileButton: {
@@ -426,7 +430,6 @@ const styles = StyleSheet.create({
   trendBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(76, 175, 80, 0.1)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -435,24 +438,20 @@ const styles = StyleSheet.create({
   trendText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#4CAF50',
   },
   alertCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 214, 0, 0.08)',
     padding: 16,
     borderRadius: 20,
     marginTop: 16,
     gap: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 214, 0, 0.2)',
   },
   alertIcon: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: 'rgba(255, 214, 0, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -479,7 +478,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   primaryButtonText: {
-    color: '#000',
     fontSize: 16,
     fontWeight: '700',
   },

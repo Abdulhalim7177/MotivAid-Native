@@ -1,33 +1,59 @@
 /**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
+ * MotivAid Healthcare Color System
+ *
+ * Primary: Calm Teal — clinical, trustworthy (surgical scrubs, hospital accents)
+ * Neutrals: Slate palette — warm, professional
+ * Dark mode: Deep navy — warmer than pure black
  */
 
 import { Platform } from 'react-native';
 
-const tintColorLight = '#00D2FF';
-const tintColorDark = '#00D2FF';
-
 export const Colors = {
   light: {
-    text: '#1A1C1E',
-    background: '#F8F9FA',
-    tint: tintColorLight,
-    icon: '#49454F',
-    tabIconDefault: '#49454F',
-    tabIconSelected: tintColorLight,
-    card: 'rgba(0, 0, 0, 0.03)',
-    border: 'rgba(0, 0, 0, 0.08)',
+    text: '#111827',
+    textSecondary: '#6B7280',
+    background: '#F8FAFC',
+    tint: '#0D9488',
+    icon: '#6B7280',
+    tabIconDefault: '#6B7280',
+    tabIconSelected: '#0D9488',
+    card: '#FFFFFF',
+    border: '#E2E8F0',
+    cardBorder: '#E2E8F0',
+    error: '#DC2626',
+    success: '#059669',
+    warning: '#D97706',
+    danger: '#DC2626',
+    link: '#0D9488',
+    inputBackground: '#F1F5F9',
+    inputBorder: '#CBD5E1',
+    placeholder: '#94A3B8',
+    buttonText: '#FFFFFF',
+    overlay: 'rgba(15,23,42,0.5)',
+    shadow: '#0D9488',
   },
   dark: {
-    text: '#F8F9FA',
-    background: '#0F1113',
-    tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
-    card: 'rgba(255, 255, 255, 0.04)',
-    border: 'rgba(255, 255, 255, 0.1)',
+    text: '#F1F5F9',
+    textSecondary: '#94A3B8',
+    background: '#0F172A',
+    tint: '#2DD4BF',
+    icon: '#94A3B8',
+    tabIconDefault: '#94A3B8',
+    tabIconSelected: '#2DD4BF',
+    card: '#1E293B',
+    border: '#334155',
+    cardBorder: '#334155',
+    error: '#EF4444',
+    success: '#34D399',
+    warning: '#FBBF24',
+    danger: '#EF4444',
+    link: '#2DD4BF',
+    inputBackground: '#1E293B',
+    inputBorder: '#475569',
+    placeholder: '#64748B',
+    buttonText: '#022C22',
+    overlay: 'rgba(15,23,42,0.7)',
+    shadow: '#2DD4BF',
   },
 };
 

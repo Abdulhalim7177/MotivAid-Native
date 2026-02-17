@@ -34,16 +34,17 @@ export default function ApprovalsScreen() {
   const textColor = useThemeColor({}, 'text');
   const cardBg = useThemeColor({}, 'card');
   const borderColor = useThemeColor({}, 'border');
+  const errorColor = useThemeColor({}, 'error');
+  const buttonTextColor = useThemeColor({}, 'buttonText');
 
   const fetchPending = async () => {
     setLoading(true);
     try {
-      // Fetch memberships with status 'pending'
       const { data, error } = await supabase
         .from('unit_memberships')
         .select(`
-          id, 
-          status, 
+          id,
+          status,
           unit_id,
           profiles(full_name, avatar_url, role),
           units(name)
@@ -100,17 +101,17 @@ export default function ApprovalsScreen() {
       </View>
 
       <View style={styles.actionRow}>
-        <TouchableOpacity 
-          style={[styles.button, styles.rejectButton]} 
+        <TouchableOpacity
+          style={[styles.button, styles.rejectButton, { backgroundColor: errorColor + '15', borderColor: errorColor + '30' }]}
           onPress={() => handleAction(item.id, 'rejected')}
         >
-          <ThemedText style={styles.rejectText}>Reject</ThemedText>
+          <ThemedText style={[styles.rejectText, { color: errorColor }]}>Reject</ThemedText>
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.button, { backgroundColor: tint }]} 
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: tint }]}
           onPress={() => handleAction(item.id, 'approved')}
         >
-          <ThemedText style={styles.approveText}>Approve</ThemedText>
+          <ThemedText style={[styles.approveText, { color: buttonTextColor }]}>Approve</ThemedText>
         </TouchableOpacity>
       </View>
     </View>
@@ -118,13 +119,13 @@ export default function ApprovalsScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <Stack.Screen options={{ 
-        title: 'Team Approvals', 
-        headerShown: true, 
+      <Stack.Screen options={{
+        title: 'Team Approvals',
+        headerShown: true,
         headerTransparent: true,
-        headerTintColor: textColor 
+        headerTintColor: textColor
       }} />
-      
+
       {loading ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={tint} />
@@ -218,16 +219,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   rejectButton: {
-    backgroundColor: 'rgba(255, 61, 0, 0.1)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 61, 0, 0.2)',
   },
   rejectText: {
-    color: '#FF3D00',
     fontWeight: '700',
   },
   approveText: {
-    color: '#000',
     fontWeight: '700',
   },
   emptyState: {

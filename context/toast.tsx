@@ -20,8 +20,11 @@ export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
   const opacity = useState(new Animated.Value(0))[0];
 
   const tintColor = useThemeColor({}, 'tint');
-  const backgroundColor = useThemeColor({ light: '#fff', dark: '#222' }, 'background');
+  const backgroundColor = useThemeColor({}, 'card');
   const textColor = useThemeColor({}, 'text');
+  const successColor = useThemeColor({}, 'success');
+  const errorColor = useThemeColor({}, 'error');
+  const shadowColor = useThemeColor({}, 'shadow');
 
   const showToast = useCallback((msg: string, toastType: ToastType = 'success') => {
     setMessage(msg);
@@ -70,8 +73,8 @@ export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
 
   const getIconColor = () => {
     switch (type) {
-      case 'success': return '#4CAF50';
-      case 'error': return '#FF4444';
+      case 'success': return successColor;
+      case 'error': return errorColor;
       default: return tintColor;
     }
   };
@@ -89,7 +92,7 @@ export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
               backgroundColor,
               borderColor: getIconColor(),
               ...Platform.select({
-                ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10 },
+                ios: { shadowColor: shadowColor, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 10 },
                 android: { elevation: 6 },
                 web: { boxShadow: '0px 8px 16px rgba(0,0,0,0.1)' }
               })

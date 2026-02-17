@@ -5,15 +5,17 @@ import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/context/auth';
 import { router } from 'expo-router';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useThemeColor } from '@/hooks/use-theme-color';
 
 export default function SplashScreen() {
   const { session, isLoading } = useAuth();
   const colorScheme = useColorScheme();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
+  const tint = useThemeColor({}, 'tint');
 
-  const logo = colorScheme === 'dark' 
-    ? require('@/assets/images/motivaid-dark.png') 
+  const logo = colorScheme === 'dark'
+    ? require('@/assets/images/motivaid-dark.png')
     : require('@/assets/images/motivaid-light.png');
 
   useEffect(() => {
@@ -37,7 +39,7 @@ export default function SplashScreen() {
         } else {
           router.replace('/(auth)/login');
         }
-      }, 2000); // Slightly longer for the animation to finish
+      }, 2000);
       return () => clearTimeout(timer);
     }
   }, [session, isLoading]);
@@ -45,15 +47,15 @@ export default function SplashScreen() {
   return (
     <ThemedView style={styles.container}>
       <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
-        <Image 
-          source={logo} 
-          style={styles.logo} 
+        <Image
+          source={logo}
+          style={styles.logo}
           resizeMode="contain"
         />
         <ThemedText type="title" style={styles.title}>MotivAid</ThemedText>
         <ThemedText style={styles.subtitle}>Your Journey, Better.</ThemedText>
       </Animated.View>
-      <ActivityIndicator size="small" color="#00D2FF" style={styles.loader} />
+      <ActivityIndicator size="small" color={tint} style={styles.loader} />
     </ThemedView>
   );
 }

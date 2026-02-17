@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-// Import Platform explicitly for web compatibility
 import { StyleSheet, View, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/context/auth';
@@ -22,8 +21,12 @@ export default function ProfileScreen() {
 
   const textColor = useThemeColor({}, 'text');
   const backgroundColor = useThemeColor({}, 'background');
-  const borderColor = useThemeColor({ light: 'rgba(0,0,0,0.1)', dark: 'rgba(255,255,255,0.1)' }, 'icon');
   const tint = useThemeColor({}, 'tint');
+  const inputBg = useThemeColor({}, 'inputBackground');
+  const inputBorder = useThemeColor({}, 'inputBorder');
+  const placeholderColor = useThemeColor({}, 'placeholder');
+  const buttonTextColor = useThemeColor({}, 'buttonText');
+  const shadowColor = useThemeColor({}, 'shadow');
 
   useEffect(() => {
     if (profile) {
@@ -39,7 +42,6 @@ export default function ProfileScreen() {
       setLoading(true);
       if (!user) throw new Error('No user on the session!');
 
-      // Ensure we only use a string for the URL, ignoring any event objects passed by onPress
       const finalAvatarUrl = typeof newAvatarUrl === 'string' ? newAvatarUrl : avatarUrl;
 
       const updates = {
@@ -54,7 +56,7 @@ export default function ProfileScreen() {
       const { error } = await supabase.from('profiles').upsert(updates);
 
       if (error) throw error;
-      
+
       await refreshProfile();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       if (typeof newAvatarUrl !== 'string') {
@@ -70,13 +72,13 @@ export default function ProfileScreen() {
 
   return (
     <ThemedView style={[styles.container, { backgroundColor }]}>
-      <Stack.Screen options={{ 
-        headerShown: true, 
+      <Stack.Screen options={{
+        headerShown: true,
         title: 'Edit Profile',
         headerTransparent: true,
         headerTintColor: textColor
       }} />
-      
+
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.avatarSection}>
           <Avatar
@@ -97,8 +99,8 @@ export default function ProfileScreen() {
               value={username}
               onChangeText={setUsername}
               placeholder="Your username"
-              placeholderTextColor="#888"
-              style={[styles.input, { color: textColor, borderColor: borderColor }]}
+              placeholderTextColor={placeholderColor}
+              style={[styles.input, { color: textColor, backgroundColor: inputBg, borderColor: inputBorder }]}
             />
           </View>
 
@@ -108,8 +110,8 @@ export default function ProfileScreen() {
               value={fullName}
               onChangeText={setFullName}
               placeholder="Your full name"
-              placeholderTextColor="#888"
-              style={[styles.input, { color: textColor, borderColor: borderColor }]}
+              placeholderTextColor={placeholderColor}
+              style={[styles.input, { color: textColor, backgroundColor: inputBg, borderColor: inputBorder }]}
             />
           </View>
 
@@ -119,20 +121,29 @@ export default function ProfileScreen() {
               value={website}
               onChangeText={setWebsite}
               placeholder="https://yourwebsite.com"
-              placeholderTextColor="#888"
-              style={[styles.input, { color: textColor, borderColor: borderColor }]}
+              placeholderTextColor={placeholderColor}
+              style={[styles.input, { color: textColor, backgroundColor: inputBg, borderColor: inputBorder }]}
             />
           </View>
 
-          <TouchableOpacity 
-            style={[styles.saveButton, { backgroundColor: tint }]} 
+          <TouchableOpacity
+            style={[
+              styles.saveButton,
+              {
+                backgroundColor: tint,
+                ...Platform.select({
+                  ios: { shadowColor },
+                  web: { boxShadow: `0px 4px 12px ${shadowColor}40` },
+                }),
+              }
+            ]}
             onPress={() => updateProfile()}
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color="#000" />
+              <ActivityIndicator color={buttonTextColor} />
             ) : (
-              <ThemedText style={styles.saveButtonText}>Save Changes</ThemedText>
+              <ThemedText style={[styles.saveButtonText, { color: buttonTextColor }]}>Save Changes</ThemedText>
             )}
           </TouchableOpacity>
         </View>
@@ -153,18 +164,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 40,
   },
-  avatarLarge: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  avatarTextLarge: {
-    fontSize: 40,
-    fontWeight: 'bold',
-  },
   emailLabel: {
     opacity: 0.6,
     fontSize: 16,
@@ -182,7 +181,6 @@ const styles = StyleSheet.create({
   },
   input: {
     height: 56,
-    backgroundColor: 'rgba(150, 150, 150, 0.05)',
     borderRadius: 16,
     paddingHorizontal: 16,
     fontSize: 16,
@@ -203,13 +201,9 @@ const styles = StyleSheet.create({
       android: {
         elevation: 4,
       },
-      web: {
-        boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)',
-      },
     }),
   },
   saveButtonText: {
-    color: '#000',
     fontSize: 16,
     fontWeight: '700',
   },

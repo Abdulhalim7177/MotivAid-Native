@@ -5,6 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import { decode } from 'base64-arraybuffer';
 import { IconSymbol } from './ui/icon-symbol';
+import { useThemeColor } from '@/hooks/use-theme-color';
 
 interface Props {
   size: number;
@@ -16,6 +17,13 @@ export default function Avatar({ url, size = 150, onUpload }: Props) {
   const [uploading, setUploading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const avatarSize = { height: size, width: size };
+
+  const placeholderIconColor = useThemeColor({}, 'placeholder');
+  const buttonTextColor = useThemeColor({}, 'buttonText');
+  const tintColor = useThemeColor({}, 'tint');
+  const bgColor = useThemeColor({}, 'background');
+  const inputBgColor = useThemeColor({}, 'inputBackground');
+  const borderColor = useThemeColor({}, 'border');
 
   useEffect(() => {
     if (url) downloadImage(url);
@@ -85,24 +93,24 @@ export default function Avatar({ url, size = 150, onUpload }: Props) {
         <Image
           source={{ uri: avatarUrl }}
           accessibilityLabel="Avatar"
-          style={[avatarSize, styles.avatar, styles.image]}
+          style={[avatarSize, styles.avatar, styles.image, { borderColor: tintColor + '40' }]}
           resizeMode="cover"
         />
       ) : (
-        <View style={[avatarSize, styles.avatar, styles.noImage]}>
-          <IconSymbol size={size * 0.5} name="person.fill" color="#888" />
+        <View style={[avatarSize, styles.avatar, { backgroundColor: inputBgColor, borderColor }]}>
+          <IconSymbol size={size * 0.5} name="person.fill" color={placeholderIconColor} />
         </View>
       )}
       <View style={styles.uploadButtonContainer}>
-        <TouchableOpacity 
-          onPress={uploadAvatar} 
+        <TouchableOpacity
+          onPress={uploadAvatar}
           disabled={uploading}
-          style={styles.uploadButton}
+          style={[styles.uploadButton, { backgroundColor: tintColor, borderColor: bgColor }]}
         >
           {uploading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={buttonTextColor} />
           ) : (
-            <IconSymbol size={20} name="camera.fill" color="#fff" />
+            <IconSymbol size={20} name="camera.fill" color={buttonTextColor} />
           )}
         </TouchableOpacity>
       </View>
@@ -119,30 +127,21 @@ const styles = StyleSheet.create({
     borderRadius: 100,
     overflow: 'hidden',
     borderWidth: 2,
-    borderColor: 'rgba(161, 206, 220, 0.5)',
-  },
-  image: {
-    // resizeMode is a prop on Image, not a style property in some RN versions, 
-    // but in modern RN it's both. We'll use the style here.
-  },
-  noImage: {
-    backgroundColor: 'rgba(150, 150, 150, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
+  image: {},
   uploadButtonContainer: {
     position: 'absolute',
     bottom: 0,
     right: 0,
   },
   uploadButton: {
-    backgroundColor: '#A1CEDC',
     width: 40,
     height: 40,
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
-    borderColor: '#000', // This will be updated to theme background in the usage if needed, or kept neutral
   },
 });
