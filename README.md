@@ -1,39 +1,88 @@
 # MotivAid 🩺
 
-**MotivAid** is a specialized mobile health (mHealth) application designed to empower midwives and frontline healthcare workers in the early detection and management of **Postpartum Hemorrhage (PPH)** using the WHO-endorsed **E-MOTIVE** clinical bundle.
+**MotivAid** is a mobile health (mHealth) application designed to empower midwives and frontline healthcare workers in the early detection and management of **Postpartum Hemorrhage (PPH)** using the WHO-endorsed **E-MOTIVE** clinical bundle.
 
-Built with a "Noir Tech" aesthetic for the year 2026, MotivAid provides a high-performance, offline-first experience to save lives in even the most resource-constrained environments.
+Built with React Native (Expo SDK 54) and an offline-first architecture, MotivAid delivers a high-performance experience in even the most resource-constrained environments.
 
 ---
 
 ## ✨ Key Features
 
-### 🛡️ Secure & Resilient
-- **Advanced Auth:** Supabase-backed authentication with Biometric (Fingerprint/FaceID) support.
-- **Offline-First:** Seamless SQLite + SecureStore caching allows users to log in and manage cases without an internet connection.
-- **Smart Session Locking:** Offline sign-out "locks" the app instead of clearing data, ensuring immediate resume when needed.
+### 🛡️ Secure & Resilient Authentication
+- **Three sign-in paths:** Online (Supabase), Offline (SHA-256 hash verification), Biometric (Fingerprint/FaceID)
+- **Offline-first:** SQLite profile caching + SecureStore credentials allow full functionality without internet
+- **Role-based access:** 6 roles (`admin`, `supervisor`, `midwife`, `nurse`, `student`, `user`) assigned via facility registration codes
 
-### 🏥 Clinical Excellence (E-MOTIVE)
-- **Early Detection:** Automated risk assessment and PPH triggers.
-- **Guided Interventions:** Step-by-step checklist for Massage, Oxytocics, Tranexamic Acid, and IV Fluids.
-- **Vitals Tracking:** Real-time Shock Index calculation and threshold-based alerts.
-- **Emergency Escalation:** One-tap notification system for unit and facility supervisors.
+### 🏥 Healthcare Facility Hierarchy
+- **Facilities & Units:** Organizational structure with membership approval workflow
+- **Supervisor Approvals:** Approve/reject staff membership requests per unit
+- **Role-specific Dashboards:** Each role sees a tailored home screen
 
-### 🎭 Role-Based Dashboards
-- **Midwife:** Focused on clinical mode, patient monitoring, and training.
-- **Supervisor:** Unit management, performance analytics, and team approvals.
-- **Administrator:** Global facility oversight and system configuration.
+### 🎨 Design System
+- Light/dark/system theme with persistence
+- Purple/pink healthcare brand palette
+- 8-point spacing grid, typography scale (15 variants), platform-aware shadows
+- Reusable UI components: Button, Card, Input, Skeleton, ScreenContainer
+
+### 🏥 Clinical Features (Planned)
+- **Risk Assessment:** Maternal risk scoring (low/medium/high/critical)
+- **E-MOTIVE Bundle:** Guided PPH intervention checklist
+- **Vitals Tracking:** Real-time Shock Index calculation
+- **Emergency Escalation:** One-tap supervisor notification
 
 ---
 
 ## 🚀 Tech Stack
 
-- **Frontend:** React Native Expo (SDK 54+)
-- **Navigation:** Expo Router (File-based)
-- **Backend:** Supabase (Auth, PostgreSQL, Storage, Edge Functions)
-- **Database (Offline):** SQLite (via `expo-sqlite`)
-- **State Management:** React Context + Zustand
-- **UI/UX:** custom "Noir Tech" theme with Animated Toasts and Haptic Feedback.
+| Layer | Technology |
+|-------|-----------|
+| **Framework** | React Native via Expo SDK 54 (managed workflow) |
+| **Language** | TypeScript 5.9 (strict mode) |
+| **Navigation** | Expo Router v6 (file-based routing) |
+| **Backend** | Supabase (Auth, PostgreSQL, Storage) |
+| **Offline DB** | SQLite via `expo-sqlite` |
+| **Credentials** | Expo SecureStore (native), localStorage (web) |
+| **State** | React Context (Auth, Theme, Toast, Unit) |
+| **UI** | Custom component library with themed wrappers |
+
+---
+
+## 📁 Project Structure
+
+```
+app/
+  index.tsx                  # Splash screen
+  _layout.tsx                # Root layout + provider hierarchy + route guard
+  (auth)/                    # Login, Register, Forgot/Reset Password
+  (app)/                     # Authenticated screens
+    (tabs)/                  # Bottom tabs (Home, Settings)
+    profile.tsx              # Profile editing + avatar upload
+    approvals.tsx            # Supervisor membership approvals
+
+components/
+  dashboard/                 # Role-based dashboard components
+  ui/                        # Reusable UI primitives (Button, Card, Input, etc.)
+  themed-text.tsx            # Typography wrapper
+  themed-view.tsx            # Background color wrapper
+
+context/                     # React Context providers
+  auth.tsx                   # Session, offline auth, biometrics
+  theme.tsx                  # Light/dark/system theme
+  toast.tsx                  # Animated notifications
+  unit.tsx                   # Facility unit selection
+
+lib/
+  supabase.ts                # Supabase client with SecureStore adapter
+  db.native.ts / db.ts       # SQLite (native) / no-op (web) caching
+  security.native.ts / .ts   # SecureStore (native) / localStorage (web)
+
+constants/
+  theme.ts                   # Colors, Spacing, Radius, Typography, Shadows, Fonts
+
+supabase/
+  migrations/                # 3 SQL migrations (auth, org hierarchy, facility codes)
+  seed.sql                   # Development seed data
+```
 
 ---
 
@@ -41,41 +90,67 @@ Built with a "Noir Tech" aesthetic for the year 2026, MotivAid provides a high-p
 
 ### Prerequisites
 - Node.js & npm
-- Expo Go app or Emulator
+- Expo Go app or Android/iOS emulator
 - [Supabase CLI](https://supabase.com/docs/guides/cli) (for local development)
 
 ### Installation
-1. Clone the repository
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Initialize local Supabase:
-   ```bash
-   npx supabase start
-   ```
-4. Start the app:
-   ```bash
-   npx expo start
-   ```
+
+```bash
+# Clone and install
+git clone <repo-url>
+cd MotivAid
+npm install
+
+# Start local Supabase
+npx supabase start
+
+# Start the dev server
+npx expo start
+```
+
+### Environment Variables
+
+Create a `.env` file with:
+```
+EXPO_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+EXPO_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
+```
+
+### Commands
+
+| Task | Command |
+|------|---------|
+| Start dev server | `npx expo start` |
+| Run on Android | `npx expo start --android` |
+| Run on iOS | `npx expo start --ios` |
+| Run on Web | `npx expo start --web` |
+| Lint | `npm run lint` |
+| Start local Supabase | `npx supabase start` |
 
 ---
 
-## 🗺️ Project Status
+## 🗺️ Roadmap
 
-- [x] **Phase 1:** Core Auth, SQLite Caching, and Biometrics.
-- [ ] **Phase 2:** Facility/Unit Management & Supervisor Approvals.
-- [ ] **Phase 3:** Risk Assessment & Clinical Vitals logic.
-- [ ] **Phase 4:** Active E-MOTIVE Checklist & Case Timeline.
-- [ ] **Phase 5:** Simulation Training Mode & Quizzes.
+| Phase | Status | Key Deliverables |
+|-------|--------|------------------|
+| 1. Security & Identity | ✅ Complete | Auth, offline sign-in, biometrics, theming |
+| 2. Facility & Unit Hierarchy | ✅ Complete | Roles, facilities, units, memberships, dashboards |
+| 3. Risk Assessment & Clinical Data | 🔲 Planned | Maternal data, vital signs, risk scoring |
+| 4. Active Clinical Mode (E-MOTIVE) | 🔲 Planned | PPH workflow, cases, interventions, case timeline |
+| 5. Alerts & Reports | 🔲 Planned | Escalation, case reports, adherence metrics |
+| 6. Training & Deployment | 🔲 Planned | Simulation scenarios, quizzes, QA, production launch |
+
+See [IMPLEMENTATION_ROADMAP.md](docs/IMPLEMENTATION_ROADMAP.md) for detailed sprint breakdowns.
 
 ---
 
 ## 📜 Compliance & Guidelines
-MotivAid is strictly aligned with:
+
+MotivAid is aligned with:
 - **WHO E-MOTIVE Clinical Guidelines**
 - **National Maternal Health Policies**
-- **Data Protection & Privacy Standards (AES-256 local encryption)**
+- **Data Protection & Privacy Standards**
 
 ---
-*MotivAid: Your Journey, Better. Saving Lives, One Delivery at a Time.*
+
+*MotivAid — Saving Lives, One Delivery at a Time.*

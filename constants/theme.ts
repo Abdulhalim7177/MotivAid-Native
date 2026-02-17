@@ -10,50 +10,69 @@ import { Platform } from 'react-native';
 
 export const Colors = {
   light: {
-    text: '#111827',
-    textSecondary: '#6B7280',
-    background: '#F8FAFC',
-    tint: '#0D9488',
+    text: '#1F2937', // Gray-900
+    textSecondary: '#6B7280', // Gray-500
+    background: '#FFFFFF',
+
+    // Brand Colors
+    primary: '#9B51E0', // Main Purple
+    secondary: '#EB4D88', // Pink
+    accent: '#300863', // Deep Purple
+
+    // UI Colors
+    tint: '#9B51E0',
     icon: '#6B7280',
-    tabIconDefault: '#6B7280',
-    tabIconSelected: '#0D9488',
+    tabIconDefault: '#9CA3AF',
+    tabIconSelected: '#9B51E0',
+
+    // Components
     card: '#FFFFFF',
-    border: '#E2E8F0',
-    cardBorder: '#E2E8F0',
-    error: '#DC2626',
-    success: '#059669',
-    warning: '#D97706',
-    danger: '#DC2626',
-    link: '#0D9488',
-    inputBackground: '#F1F5F9',
-    inputBorder: '#CBD5E1',
-    placeholder: '#94A3B8',
+    border: '#E5E7EB',
+    cardBorder: 'transparent',
+
+    // Feedback
+    error: '#EF4444',
+    success: '#10B981',
+    warning: '#F59E0B',
+
+    // Inputs
+    inputBackground: '#F9FAFB',
+    inputBorder: '#E5E7EB',
+    placeholder: '#9CA3AF',
+
     buttonText: '#FFFFFF',
-    overlay: 'rgba(15,23,42,0.5)',
-    shadow: '#0D9488',
+    overlay: 'rgba(0,0,0,0.4)',
+    shadow: '#9B51E0',
   },
   dark: {
-    text: '#F1F5F9',
-    textSecondary: '#94A3B8',
-    background: '#0F172A',
-    tint: '#2DD4BF',
-    icon: '#94A3B8',
-    tabIconDefault: '#94A3B8',
-    tabIconSelected: '#2DD4BF',
-    card: '#1E293B',
-    border: '#334155',
-    cardBorder: '#334155',
-    error: '#EF4444',
+    text: '#F9FAFB',
+    textSecondary: '#9CA3AF',
+    background: '#1F2937',
+
+    primary: '#A78BFA',
+    secondary: '#F472B6',
+    accent: '#4C1D95',
+
+    tint: '#A78BFA',
+    icon: '#9CA3AF',
+    tabIconDefault: '#6B7280',
+    tabIconSelected: '#A78BFA',
+
+    card: '#374151',
+    border: '#4B5563',
+    cardBorder: '#4B5563',
+
+    error: '#F87171',
     success: '#34D399',
     warning: '#FBBF24',
-    danger: '#EF4444',
-    link: '#2DD4BF',
-    inputBackground: '#1E293B',
-    inputBorder: '#475569',
-    placeholder: '#64748B',
-    buttonText: '#022C22',
-    overlay: 'rgba(15,23,42,0.7)',
-    shadow: '#2DD4BF',
+
+    inputBackground: '#374151',
+    inputBorder: '#4B5563',
+    placeholder: '#6B7280',
+
+    buttonText: '#FFFFFF',
+    overlay: 'rgba(0,0,0,0.7)',
+    shadow: '#A78BFA',
   },
 };
 

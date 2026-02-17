@@ -1,24 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
+import { Button } from '@/components/ui/button';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Input } from '@/components/ui/input';
+import { Colors, Spacing } from '@/constants/theme';
+import { useAuth } from '@/context/auth';
+import { useAppTheme } from '@/context/theme';
+import { useToast } from '@/context/toast';
+import { checkBiometrics, getSavedEmail } from '@/lib/security';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { Link, router } from 'expo-router';
-import { ThemedView } from '@/components/themed-view';
-import { ThemedText } from '@/components/themed-text';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { useThemeColor } from '@/hooks/use-theme-color';
-import { useToast } from '@/context/toast';
-import { useAuth } from '@/context/auth';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { checkBiometrics, getSavedEmail } from '@/lib/security';
-import { Spacing, Radius, Typography } from '@/constants/theme';
+import React, { useEffect, useState } from 'react';
+import { KeyboardAvoidingView, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function LoginScreen() {
+  const { theme } = useAppTheme();
+  const themeColors = Colors[theme];
   const { showToast } = useToast();
-  const { signIn, signInBiometric, isOfflineAuthenticated } = useAuth();
-  const colorScheme = useColorScheme();
+  const { signIn, signInBiometric } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -26,12 +24,7 @@ export default function LoginScreen() {
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [hasBiometrics, setHasBiometrics] = useState(false);
-
-  const tint = useThemeColor({}, 'tint');
-
-  const logo = colorScheme === 'dark'
-    ? require('@/assets/images/motivaid-dark.png')
-    : require('@/assets/images/motivaid-light.png');
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     async function init() {
@@ -99,36 +92,38 @@ export default function LoginScreen() {
   }
 
   return (
-    <ThemedView style={styles.container}>
+    <View style={[styles.container, { backgroundColor: themeColors.background }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
         <View style={styles.header}>
-          <Image
-            source={logo}
-            style={styles.logo}
-            contentFit="contain"
-            transition={300}
-          />
-          <ThemedText type="displaySm">Welcome Back</ThemedText>
-          <ThemedText color="secondary" style={styles.subtitle}>
-            Sign in to continue your journey
-          </ThemedText>
+          <View style={styles.logoContainer}>
+            <Image
+              source={require('@/assets/images/motivaid-light.png')}
+              style={styles.logo}
+              contentFit="contain"
+            />
+          </View>
+          <Text style={[styles.title, { color: themeColors.text }]}>Welcome Back</Text>
+          <Text style={[styles.subtitle, { color: themeColors.textSecondary }]}>
+            Sign in to continue
+          </Text>
         </View>
 
         <View style={styles.form}>
           <Input
-            label="Email"
+            label="Email or Phone"
             value={email}
             onChangeText={(text) => {
               setEmail(text);
               if (emailError) setEmailError('');
             }}
             error={emailError}
-            placeholder="Enter your email"
+            placeholder="Enter your email or phone"
             autoCapitalize="none"
             keyboardType="email-address"
+            leftIcon={<IconSymbol name="person" size={20} color={themeColors.textSecondary} />}
           />
 
           <Input
@@ -140,47 +135,70 @@ export default function LoginScreen() {
             }}
             error={passwordError}
             placeholder="Enter your password"
-            secureTextEntry
+            secureTextEntry={!showPassword}
             autoCapitalize="none"
+            leftIcon={<IconSymbol name="lock.fill" size={20} color={themeColors.textSecondary} />}
+            rightIcon={
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                <IconSymbol
+                  name={showPassword ? "eye.slash" : "eye"}
+                  size={20}
+                  color={themeColors.textSecondary}
+                />
+              </TouchableOpacity>
+            }
           />
 
-          <Link href="/(auth)/forgot-password" asChild>
-            <Pressable style={styles.forgotPasswordContainer}>
-              <ThemedText style={[Typography.labelMd, { color: tint }]}>Forgot Password?</ThemedText>
-            </Pressable>
-          </Link>
-
-          <View style={styles.buttonRow}>
-            <View style={{ flex: 1 }}>
-              <Button
-                title="Sign In"
-                onPress={handleLogin}
-                loading={loading}
-                disabled={loading}
-              />
+          <View style={styles.optionsRow}>
+            <View style={styles.checkboxContainer}>
+              {/* Simplified checkbox placeholder */}
+              <View style={[styles.checkbox, { borderColor: themeColors.border }]} />
+              <Text style={[styles.rememberText, { color: themeColors.textSecondary }]}>Remember me</Text>
             </View>
+            <Link href="/(auth)/forgot-password" asChild>
+              <TouchableOpacity>
+                <Text style={[styles.forgotText, { color: themeColors.secondary }]}>Forgot Password?</Text>
+              </TouchableOpacity>
+            </Link>
+          </View>
 
-            {hasBiometrics && (
-              <Pressable
-                style={[styles.bioButton, { backgroundColor: tint + '15', borderColor: tint + '30' }]}
+          <View style={styles.actionRow}>
+            <Button
+              title="Sign In"
+              onPress={handleLogin}
+              loading={loading}
+              disabled={loading}
+              style={styles.signInButton}
+            />
+
+            {/* Show only on native platforms if biometrics are available */}
+            {Platform.OS !== 'web' && (
+              <TouchableOpacity
+                style={[styles.biometricButton, { borderColor: themeColors.primary, borderWidth: 2 }]}
                 onPress={handleBiometric}
               >
-                <IconSymbol name="finger-print-outline" size={32} color={tint} />
-              </Pressable>
+                <IconSymbol name="touchid" size={28} color={themeColors.primary} />
+              </TouchableOpacity>
             )}
           </View>
-        </View>
 
-        <View style={styles.footer}>
-          <ThemedText type="bodyMd">New here? </ThemedText>
-          <Link href="/(auth)/register" asChild>
-            <Pressable>
-              <ThemedText style={[Typography.labelMd, { color: tint }]}>Create Account</ThemedText>
-            </Pressable>
-          </Link>
+          <View style={styles.orContainer}>
+            <Text style={[styles.orText, { color: themeColors.textSecondary }]}>or continue with</Text>
+          </View>
+
+          {/* Social Row Removed as requested (Fingerprint moved up) */}
+
+          <View style={styles.footer}>
+            <Text style={[styles.footerText, { color: themeColors.textSecondary }]}>Don't have an account? </Text>
+            <Link href="/(auth)/register" asChild>
+              <TouchableOpacity>
+                <Text style={[styles.signUpText, { color: themeColors.secondary }]}>Sign Up</Text>
+              </TouchableOpacity>
+            </Link>
+          </View>
         </View>
       </KeyboardAvoidingView>
-    </ThemedView>
+    </View>
   );
 }
 
@@ -190,45 +208,95 @@ const styles = StyleSheet.create({
   },
   keyboardView: {
     flex: 1,
-    padding: Spacing.lg,
+    padding: Spacing.xl,
     justifyContent: 'center',
   },
   header: {
     alignItems: 'center',
-    marginBottom: Spacing.xxl,
+    marginBottom: Spacing.xl,
+  },
+  logoContainer: {
+    marginBottom: Spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 80,
+    height: 80,
+    // Removed card background/shadow
   },
   logo: {
-    width: 216,
-    height: 144,
+    width: 158, // Matching register size
+    height: 158,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
     marginBottom: Spacing.xs,
   },
   subtitle: {
-    marginTop: Spacing.sm,
+    fontSize: 16,
   },
   form: {
-    gap: Spacing.mdl,
+    gap: Spacing.md,
   },
-  forgotPasswordContainer: {
-    alignSelf: 'flex-end',
-    marginTop: -Spacing.sm,
+  optionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: Spacing.sm,
   },
-  buttonRow: {
+  checkboxContainer: {
     flexDirection: 'row',
-    gap: Spacing.smd,
     alignItems: 'center',
+    gap: 8,
   },
-  bioButton: {
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 1,
+    borderRadius: 4,
+  },
+  rememberText: {
+    fontSize: 14,
+  },
+  forgotText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    marginTop: Spacing.sm,
+  },
+  signInButton: {
+    flex: 1,
+    marginTop: 0, // Reset margin since it's in a row
+  },
+  biometricButton: {
     width: 56,
     height: 56,
-    borderRadius: Radius.lg,
-    justifyContent: 'center',
+    borderRadius: 28, // Circle
+    borderWidth: 1.5,
     alignItems: 'center',
-    borderWidth: 1,
+    justifyContent: 'center',
+  },
+  orContainer: {
+    alignItems: 'center',
+    marginVertical: Spacing.md,
+  },
+  orText: {
+    fontSize: 14,
   },
   footer: {
     flexDirection: 'row',
-    marginTop: Spacing.xl,
     justifyContent: 'center',
+    marginTop: Spacing.lg, // Reduced from xl
+  },
+  footerText: {
+    fontSize: 14,
+  },
+  signUpText: {
+    fontSize: 14,
+    fontWeight: 'bold',
   },
 });

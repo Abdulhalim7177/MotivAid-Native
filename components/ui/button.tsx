@@ -1,29 +1,21 @@
+
+import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
-import { Pressable, ActivityIndicator, StyleSheet, View } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
-import { ThemedText } from '@/components/themed-text';
-import { useThemeColor } from '@/hooks/use-theme-color';
-import { Spacing, Radius, Typography, Shadows } from '@/constants/theme';
+import { ActivityIndicator, StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { Colors, Radius, Spacing, Typography } from '../../constants/theme';
+import { useAppTheme } from '../../context/theme';
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-
-type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
-type ButtonSize = 'sm' | 'md' | 'lg';
-
-interface ButtonProps {
+interface Props {
   title: string;
   onPress: () => void;
-  variant?: ButtonVariant;
-  size?: ButtonSize;
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
+  size?: 'sm' | 'md' | 'lg';
   loading?: boolean;
   disabled?: boolean;
-  icon?: React.ReactNode;
-  fullWidth?: boolean;
-  haptic?: boolean;
+  leftIcon?: React.ReactNode;
+  rightIcon?: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
 }
-
-const SIZE_MAP = { sm: 40, md: 48, lg: 56 } as const;
 
 export function Button({
   title,
@@ -32,132 +24,152 @@ export function Button({
   size = 'lg',
   loading = false,
   disabled = false,
-  icon,
-  fullWidth = true,
-  haptic = true,
-}: ButtonProps) {
-  const tint = useThemeColor({}, 'tint');
-  const buttonTextColor = useThemeColor({}, 'buttonText');
-  const errorColor = useThemeColor({}, 'error');
-  const textColor = useThemeColor({}, 'text');
+  leftIcon,
+  rightIcon,
+  style
+}: Props) {
+  const { theme } = useAppTheme();
+  const themeColors = Colors[theme];
 
-  const scale = useSharedValue(1);
+  if (variant === 'primary') {
+    return (
+      <TouchableOpacity
+        onPress={onPress}
+        disabled={disabled || loading}
+        activeOpacity={0.8}
+        style={[styles.container, style]}
+      >
+        <LinearGradient
+          colors={['#EB4D88', '#9B51E0']}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
+          style={[
+            styles.gradient,
+            styles[size],
+            disabled && styles.disabled
+          ]}
+        >
+          {loading ? (
+            <ActivityIndicator color="#FFF" />
+          ) : (
+            <View style={styles.content}>
+              {leftIcon && <View style={styles.iconLeft}>{leftIcon}</View>}
+              <Text style={[styles.textPrimary, styles[`text${size}`]]}>{title}</Text>
+              {rightIcon && <View style={styles.iconRight}>{rightIcon}</View>}
+            </View>
+          )}
+        </LinearGradient>
+      </TouchableOpacity>
+    );
+  }
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
-  const handlePressIn = () => {
-    scale.value = withSpring(0.97, { damping: 15, stiffness: 300 });
-  };
-
-  const handlePressOut = () => {
-    scale.value = withSpring(1, { damping: 15, stiffness: 300 });
-  };
-
-  const handlePress = () => {
-    if (haptic) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onPress();
-  };
-
-  const height = SIZE_MAP[size];
-  const typo = size === 'lg' ? Typography.buttonLg : size === 'md' ? Typography.buttonMd : Typography.buttonSm;
-
-  const getStyles = () => {
+  const getBackgroundColor = () => {
     switch (variant) {
-      case 'primary':
-        return {
-          bg: tint,
-          text: buttonTextColor,
-          border: 'transparent',
-          borderWidth: 0,
-          shadow: Shadows.tinted(tint),
-        };
-      case 'secondary':
-        return {
-          bg: tint + '15',
-          text: tint,
-          border: 'transparent',
-          borderWidth: 0,
-          shadow: {},
-        };
-      case 'outline':
-        return {
-          bg: 'transparent',
-          text: tint,
-          border: tint + '40',
-          borderWidth: 1,
-          shadow: {},
-        };
-      case 'ghost':
-        return {
-          bg: 'transparent',
-          text: textColor,
-          border: 'transparent',
-          borderWidth: 0,
-          shadow: {},
-        };
-      case 'danger':
-        return {
-          bg: errorColor,
-          text: '#FFFFFF',
-          border: 'transparent',
-          borderWidth: 0,
-          shadow: Shadows.tinted(errorColor),
-        };
+      case 'secondary': return themeColors.card;
+      case 'ghost': return 'transparent';
+      default: return 'transparent';
     }
   };
 
-  const s = getStyles();
+  const getBorderWidth = () => (variant === 'outline' ? 1 : 0);
+  const getTextColor = () => {
+    if (disabled) return themeColors.textSecondary;
+    if (variant === 'outline' || variant === 'ghost') return themeColors.primary;
+    return themeColors.text;
+  };
 
   return (
-    <AnimatedPressable
-      style={[
-        animatedStyle,
-        styles.base,
-        {
-          height,
-          backgroundColor: s.bg,
-          borderColor: s.border,
-          borderWidth: s.borderWidth,
-          ...s.shadow,
-        },
-        fullWidth && styles.fullWidth,
-        disabled && styles.disabled,
-      ]}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      onPress={handlePress}
+    <TouchableOpacity
+      onPress={onPress}
       disabled={disabled || loading}
+      style={[
+        styles.container,
+        styles.base,
+        styles[size],
+        {
+          backgroundColor: getBackgroundColor(),
+          borderColor: themeColors.border,
+          borderWidth: getBorderWidth(),
+        },
+        disabled && { opacity: 0.6 },
+        style
+      ]}
     >
       {loading ? (
-        <ActivityIndicator color={s.text} />
+        <ActivityIndicator color={themeColors.primary} />
       ) : (
         <View style={styles.content}>
-          {icon}
-          <ThemedText style={[typo, { color: s.text }]}>{title}</ThemedText>
+          {leftIcon && <View style={styles.iconLeft}>{leftIcon}</View>}
+          <Text style={[
+            styles.textBase,
+            styles[`text${size}`],
+            { color: getTextColor() }
+          ]}>
+            {title}
+          </Text>
+          {rightIcon && <View style={styles.iconRight}>{rightIcon}</View>}
         </View>
       )}
-    </AnimatedPressable>
+    </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  base: {
-    borderRadius: Radius.lg,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexDirection: 'row',
-  },
-  fullWidth: {
+  container: {
     width: '100%',
+  },
+  base: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radius.full,
+  },
+  gradient: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radius.full,
+  },
+  disabled: {
+    opacity: 0.6,
   },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
+    justifyContent: 'center',
   },
-  disabled: {
-    opacity: 0.5,
+  iconLeft: {
+    marginRight: Spacing.sm,
+  },
+  iconRight: {
+    marginLeft: Spacing.sm,
+  },
+  // Sizes
+  sm: {
+    height: 36,
+    paddingHorizontal: Spacing.md,
+  },
+  md: {
+    height: 48,
+    paddingHorizontal: Spacing.lg,
+  },
+  lg: {
+    height: 56,
+    paddingHorizontal: Spacing.xl,
+  },
+  // Text Styles
+  textBase: {
+    ...Typography.buttonMd,
+  },
+  textPrimary: {
+    color: '#FFF',
+    ...Typography.buttonLg,
+  },
+  textsm: {
+    ...Typography.buttonSm,
+  },
+  textmd: {
+    ...Typography.buttonMd,
+  },
+  textlg: {
+    ...Typography.buttonLg,
   },
 });

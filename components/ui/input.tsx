@@ -1,129 +1,90 @@
-import React, { forwardRef, useState } from 'react';
-import { View, TextInput, TextInputProps, StyleSheet } from 'react-native';
-import { useSharedValue, withTiming } from 'react-native-reanimated';
-import { ThemedText } from '@/components/themed-text';
-import { useThemeColor } from '@/hooks/use-theme-color';
-import { Spacing, Radius, Typography } from '@/constants/theme';
 
-interface InputProps extends TextInputProps {
+import React from 'react';
+import { StyleProp, StyleSheet, Text, TextInput, TextInputProps, View, ViewStyle } from 'react-native';
+import { Colors, Radius, Spacing, Typography } from '../../constants/theme';
+import { useAppTheme } from '../../context/theme';
+
+interface Props extends TextInputProps {
   label?: string;
-  error?: string;
-  hint?: string;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
+  error?: string;
+  containerStyle?: StyleProp<ViewStyle>;
 }
 
-export const Input = forwardRef<TextInput, InputProps>(({
+export function Input({
   label,
-  error,
-  hint,
   leftIcon,
   rightIcon,
+  error,
+  containerStyle,
   style,
-  ...textInputProps
-}, ref) => {
-  const textColor = useThemeColor({}, 'text');
-  const inputBg = useThemeColor({}, 'inputBackground');
-  const inputBorder = useThemeColor({}, 'inputBorder');
-  const tint = useThemeColor({}, 'tint');
-  const errorColor = useThemeColor({}, 'error');
-  const placeholderColor = useThemeColor({}, 'placeholder');
-  const textSecondary = useThemeColor({}, 'textSecondary');
-
-  const [isFocused, setIsFocused] = useState(false);
-  const focusProgress = useSharedValue(0);
-
-  const handleFocus = (e: any) => {
-    setIsFocused(true);
-    focusProgress.value = withTiming(1, { duration: 200 });
-    textInputProps.onFocus?.(e);
-  };
-
-  const handleBlur = (e: any) => {
-    setIsFocused(false);
-    focusProgress.value = withTiming(0, { duration: 200 });
-    textInputProps.onBlur?.(e);
-  };
-
-  const borderColorValue = error ? errorColor : isFocused ? tint : inputBorder;
+  ...props
+}: Props) {
+  const { theme } = useAppTheme();
+  const themeColors = Colors[theme];
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, containerStyle]}>
       {label && (
-        <ThemedText style={[Typography.labelMd, styles.label]}>{label}</ThemedText>
+        <Text style={[styles.label, { color: themeColors.textSecondary }]}>
+          {label}
+        </Text>
       )}
-      <View
-        style={[
-          styles.inputWrapper,
-          {
-            backgroundColor: inputBg,
-            borderColor: borderColorValue,
-          },
-        ]}
-      >
-        {leftIcon && <View style={styles.iconLeft}>{leftIcon}</View>}
+      <View style={[
+        styles.inputContainer,
+        {
+          borderColor: error ? themeColors.error : themeColors.inputBorder,
+          backgroundColor: themeColors.inputBackground
+        }
+      ]}>
+        {leftIcon && <View style={styles.leftIcon}>{leftIcon}</View>}
         <TextInput
-          ref={ref}
+          placeholderTextColor={themeColors.placeholder}
           style={[
             styles.input,
-            { color: textColor },
-            leftIcon && { paddingLeft: 0 },
-            rightIcon && { paddingRight: 0 },
-            style,
+            { color: themeColors.text },
+            style
           ]}
-          placeholderTextColor={placeholderColor}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
-          {...textInputProps}
+          {...props}
         />
-        {rightIcon && <View style={styles.iconRight}>{rightIcon}</View>}
+        {rightIcon && <View style={styles.rightIcon}>{rightIcon}</View>}
       </View>
-      {error && (
-        <ThemedText style={[Typography.labelSm, styles.errorText, { color: errorColor }]}>
-          {error}
-        </ThemedText>
-      )}
-      {hint && !error && (
-        <ThemedText style={[Typography.labelSm, styles.hintText, { color: textSecondary }]}>
-          {hint}
-        </ThemedText>
-      )}
+      {!!error && <Text style={[styles.error, { color: themeColors.error }]}>{error}</Text>}
     </View>
   );
-});
-
-Input.displayName = 'Input';
+}
 
 const styles = StyleSheet.create({
   container: {
-    gap: Spacing.sm,
+    width: '100%',
+    marginBottom: Spacing.md,
   },
   label: {
-    marginLeft: Spacing.xs,
+    marginBottom: Spacing.xs,
+    ...Typography.labelMd,
   },
-  inputWrapper: {
-    height: 56,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
+  inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: Radius.lg, // More rounded as per design
+    height: 56,
     paddingHorizontal: Spacing.md,
   },
   input: {
     flex: 1,
     height: '100%',
-    fontSize: 16,
+    ...Typography.bodyMd,
   },
-  iconLeft: {
-    marginRight: Spacing.smd,
+  leftIcon: {
+    marginRight: Spacing.sm,
   },
-  iconRight: {
-    marginLeft: Spacing.smd,
+  rightIcon: {
+    marginLeft: Spacing.sm,
   },
-  errorText: {
-    marginLeft: Spacing.xs,
-  },
-  hintText: {
-    marginLeft: Spacing.xs,
+  error: {
+    marginTop: Spacing.xs,
+    ...Typography.caption,
   },
 });

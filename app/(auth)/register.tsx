@@ -1,26 +1,27 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Pressable, ActivityIndicator } from 'react-native';
-import * as Haptics from 'expo-haptics';
-import { Image } from 'expo-image';
-import { supabase } from '../../lib/supabase';
-import { Link, router } from 'expo-router';
-import { ThemedView } from '@/components/themed-view';
-import { ThemedText } from '@/components/themed-text';
+import { Button } from '@/components/ui/button';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { useThemeColor } from '@/hooks/use-theme-color';
+import { Colors, Radius, Spacing } from '@/constants/theme';
+import { useAppTheme } from '@/context/theme';
 import { useToast } from '@/context/toast';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Spacing, Radius, Typography } from '@/constants/theme';
+import * as Haptics from 'expo-haptics';
+import { Image } from 'expo-image';
+import { Link, router } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { supabase } from '../../lib/supabase';
 
 export default function RegisterScreen() {
+  const { theme } = useAppTheme();
+  const themeColors = Colors[theme];
   const { showToast } = useToast();
-  const colorScheme = useColorScheme();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [isStaff, setIsStaff] = useState(false);
   const [accessCode, setAccessCode] = useState('');
   const [selectedRole, setSelectedRole] = useState<'midwife' | 'nurse' | 'student' | 'supervisor'>('midwife');
@@ -30,16 +31,6 @@ export default function RegisterScreen() {
   const [codeError, setCodeError] = useState('');
   const [isValidatingCode, setIsValidatingCode] = useState(false);
   const [codeVerified, setCodeVerified] = useState(false);
-
-  const tint = useThemeColor({}, 'tint');
-  const borderColor = useThemeColor({}, 'border');
-  const successColor = useThemeColor({}, 'success');
-  const buttonTextColor = useThemeColor({}, 'buttonText');
-  const cardColor = useThemeColor({}, 'card');
-
-  const logo = colorScheme === 'dark'
-    ? require('@/assets/images/motivaid-dark.png')
-    : require('@/assets/images/motivaid-light.png');
 
   useEffect(() => {
     if (isStaff && accessCode.length === 6) {
@@ -126,6 +117,7 @@ export default function RegisterScreen() {
           full_name: fullName,
           role: isStaff ? selectedRole : 'user',
           registration_code: isStaff ? accessCode : null,
+          phone_number: phoneNumber,
         }
       }
     });
@@ -145,54 +137,43 @@ export default function RegisterScreen() {
     setLoading(false);
   }
 
-  const RoleButton = ({ role, label }: { role: typeof selectedRole, label: string }) => (
-    <Pressable
-      style={[
-        styles.roleButton,
-        { borderColor },
-        selectedRole === role && { backgroundColor: tint, borderColor: tint }
-      ]}
-      onPress={() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        setSelectedRole(role);
-      }}
-    >
-      <ThemedText style={[Typography.labelMd, selectedRole === role && { color: buttonTextColor }]}>
-        {label}
-      </ThemedText>
-    </Pressable>
-  );
-
   return (
-    <ThemedView style={styles.container}>
+    <View style={[styles.container, { backgroundColor: themeColors.background }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+
           <View style={styles.header}>
-            <Image
-              source={logo}
-              style={styles.logo}
-              contentFit="contain"
-              transition={300}
-            />
-            <ThemedText type="displaySm">Join MotivAid</ThemedText>
-            <ThemedText color="secondary" style={styles.subtitle}>
-              Create an account to start your journey
-            </ThemedText>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+              <IconSymbol name="arrow.left" size={24} color={themeColors.text} />
+            </TouchableOpacity>
+            <View style={{ flex: 1, alignItems: 'center' }}>
+              <Text style={[styles.title, { color: themeColors.text }]}>Create Account</Text>
+              <Text style={[styles.subtitle, { color: themeColors.textSecondary }]}>
+                Join MotivAid to start helping mothers
+              </Text>
+            </View>
+            <View style={{ width: 40 }} />
           </View>
 
           <View style={styles.form}>
+            {/* Large Logo */}
+            <View style={styles.logoContainer}>
+              <Image source={require('@/assets/images/motivaid-light.png')} style={styles.logo} contentFit="contain" />
+            </View>
+
             <Input
               label="Full Name"
               value={fullName}
               onChangeText={setFullName}
               placeholder="Enter your full name"
+              leftIcon={<IconSymbol name="person" size={20} color={themeColors.textSecondary} />}
             />
 
             <Input
-              label="Email"
+              label="Email Address"
               value={email}
               onChangeText={(text) => {
                 setEmail(text);
@@ -202,32 +183,30 @@ export default function RegisterScreen() {
               placeholder="Enter your email"
               autoCapitalize="none"
               keyboardType="email-address"
+              leftIcon={<IconSymbol name="envelope" size={20} color={themeColors.textSecondary} />}
             />
 
             <Input
-              label="Password"
-              value={password}
-              onChangeText={(text) => {
-                setPassword(text);
-                if (passwordError) setPasswordError('');
-              }}
-              error={passwordError}
-              placeholder="Create a password"
-              secureTextEntry
-              autoCapitalize="none"
+              label="Phone Number"
+              value={phoneNumber}
+              onChangeText={setPhoneNumber}
+              placeholder="Enter your phone number"
+              keyboardType="phone-pad"
+              leftIcon={<IconSymbol name="phone" size={20} color={themeColors.textSecondary} />}
             />
 
-            <View style={[styles.staffToggleContainer, { borderBottomColor: borderColor }]}>
-              <ThemedText type="defaultSemiBold">Are you medical staff?</ThemedText>
-              <Pressable
-                style={[styles.toggleBackground, { backgroundColor: isStaff ? tint : borderColor }]}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  setIsStaff(!isStaff);
-                }}
-              >
-                <View style={[styles.toggleCircle, { backgroundColor: cardColor }, isStaff && { transform: [{ translateX: 24 }] }]} />
-              </Pressable>
+            {/* Role Switch */}
+            <View style={[styles.switchContainer, { borderColor: themeColors.border, backgroundColor: themeColors.card }]}>
+              <View>
+                <Text style={[styles.switchLabel, { color: themeColors.text }]}>Medical Staff Account</Text>
+                <Text style={[styles.switchSubLabel, { color: themeColors.textSecondary }]}>Are you a midwife, nurse, or student?</Text>
+              </View>
+              <Switch
+                value={isStaff}
+                onValueChange={setIsStaff}
+                trackColor={{ false: themeColors.border, true: themeColors.primary }}
+                thumbColor={'#FFF'}
+              />
             </View>
 
             {isStaff && (
@@ -240,44 +219,83 @@ export default function RegisterScreen() {
                   placeholder="ENTER 6-DIGIT CODE"
                   autoCapitalize="characters"
                   maxLength={6}
+                  leftIcon={<IconSymbol name="building.2" size={20} color={themeColors.textSecondary} />}
                   rightIcon={
                     isValidatingCode ? (
-                      <ActivityIndicator size="small" color={tint} />
+                      <ActivityIndicator size="small" color={themeColors.primary} />
                     ) : codeVerified ? (
-                      <IconSymbol name="shield-checkmark-outline" size={16} color={successColor} />
+                      <IconSymbol name="checkmark.circle.fill" size={20} color={themeColors.success} />
                     ) : null
                   }
                 />
 
-                <ThemedText style={[Typography.labelMd, styles.roleLabel]}>Select Your Role</ThemedText>
-                <View style={styles.roleGrid}>
-                  <RoleButton role="midwife" label="Midwife" />
-                  <RoleButton role="nurse" label="Nurse" />
-                  <RoleButton role="student" label="Student" />
-                  <RoleButton role="supervisor" label="Supervisor" />
-                </View>
+                <Text style={[styles.label, { color: themeColors.textSecondary }]}>Specific Role</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.roleScroll}>
+                  {['midwife', 'nurse', 'student', 'supervisor'].map((role) => (
+                    <TouchableOpacity
+                      key={role}
+                      style={[
+                        styles.chip,
+                        { borderColor: themeColors.border },
+                        selectedRole === role && { backgroundColor: themeColors.primary, borderColor: themeColors.primary }
+                      ]}
+                      onPress={() => setSelectedRole(role as any)}
+                    >
+                      <Text style={[
+                        styles.chipText,
+                        { color: selectedRole === role ? '#FFF' : themeColors.text }
+                      ]}>
+                        {role.charAt(0).toUpperCase() + role.slice(1)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
               </View>
             )}
 
+            <Input
+              label="Password"
+              value={password}
+              onChangeText={(text) => {
+                setPassword(text);
+                if (passwordError) setPasswordError('');
+              }}
+              error={passwordError}
+              placeholder="Create a password"
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              leftIcon={<IconSymbol name="lock.fill" size={20} color={themeColors.textSecondary} />}
+              rightIcon={
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                  <IconSymbol
+                    name={showPassword ? "eye.slash" : "eye"}
+                    size={20}
+                    color={themeColors.textSecondary}
+                  />
+                </TouchableOpacity>
+              }
+            />
+
             <Button
-              title="Register"
+              title="Sign Up"
               onPress={signUpWithEmail}
               loading={loading}
               disabled={loading || (isStaff && !codeVerified)}
+              style={styles.signUpButton}
             />
           </View>
 
           <View style={styles.footer}>
-            <ThemedText type="bodyMd">Already have an account? </ThemedText>
+            <Text style={[styles.footerText, { color: themeColors.textSecondary }]}>Already have an account? </Text>
             <Link href="/(auth)/login" asChild>
-              <Pressable>
-                <ThemedText style={[Typography.labelMd, { color: tint }]}>Sign In</ThemedText>
-              </Pressable>
+              <TouchableOpacity>
+                <Text style={[styles.signInText, { color: themeColors.secondary }]}>Sign In</Text>
+              </TouchableOpacity>
             </Link>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </ThemedView>
+    </View>
   );
 }
 
@@ -290,65 +308,88 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: Spacing.lg,
-    paddingTop: 80,
+    paddingTop: 60,
     paddingBottom: Spacing.xxl,
   },
   header: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.lg,
   },
-  logo: {
-    width: 216,
-    height: 144,
-    marginBottom: Spacing.xs,
+  backButton: {
+    padding: Spacing.xs,
+    marginLeft: -Spacing.xs,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
   },
   subtitle: {
-    marginTop: Spacing.sm,
-    textAlign: 'center',
+    fontSize: 14,
+    marginTop: 4,
   },
   form: {
     gap: Spacing.md,
   },
-  staffToggleContainer: {
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  },
+  logo: {
+    width: 158,
+    height: 158,
+  },
+  switchContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
-    marginBottom: Spacing.sm,
+    padding: Spacing.md,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    marginBottom: Spacing.md,
   },
-  toggleBackground: {
-    width: 52,
-    height: 28,
-    borderRadius: 14,
-    padding: 2,
+  switchLabel: {
+    fontSize: 16,
+    fontWeight: '600',
   },
-  toggleCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+  switchSubLabel: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  label: {
+    marginBottom: Spacing.xs,
+    fontSize: 14,
+    fontWeight: '600',
   },
   staffSection: {
     gap: Spacing.md,
-    paddingVertical: Spacing.sm,
   },
-  roleLabel: {
-    marginLeft: Spacing.xs,
-  },
-  roleGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  roleScroll: {
     gap: Spacing.sm,
+    paddingVertical: Spacing.xs,
   },
-  roleButton: {
-    paddingHorizontal: Spacing.md,
+  chip: {
+    paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
-    borderRadius: Radius.xl,
+    borderRadius: Radius.full,
     borderWidth: 1,
+  },
+  chipText: {
+    fontWeight: '600',
+  },
+  signUpButton: {
+    marginTop: Spacing.sm,
   },
   footer: {
     flexDirection: 'row',
     marginTop: Spacing.lg,
     justifyContent: 'center',
+  },
+  footerText: {
+    fontSize: 14,
+  },
+  signInText: {
+    fontSize: 14,
+    fontWeight: 'bold',
   },
 });

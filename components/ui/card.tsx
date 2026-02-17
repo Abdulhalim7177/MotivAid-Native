@@ -1,108 +1,77 @@
+
+import { BlurView } from 'expo-blur';
 import React from 'react';
-import { View, ViewProps, StyleSheet, Pressable } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
-import { useThemeColor } from '@/hooks/use-theme-color';
-import { Spacing, Radius, Shadows } from '@/constants/theme';
+import { Platform, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { Colors, Radius, Shadows, Spacing } from '../../constants/theme';
+import { useAppTheme } from '../../context/theme';
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-
-type CardVariant = 'default' | 'elevated' | 'outlined' | 'tinted';
-
-interface CardProps extends ViewProps {
-  variant?: CardVariant;
-  onPress?: () => void;
-  padding?: keyof typeof Spacing;
-  tintColor?: string;
+interface Props {
+  children: React.ReactNode;
+  variant?: 'default' | 'glass';
+  style?: StyleProp<ViewStyle>;
+  fullWidth?: boolean;
 }
 
 export function Card({
-  variant = 'default',
-  onPress,
-  padding = 'lg',
-  tintColor,
-  style,
   children,
-  ...viewProps
-}: CardProps) {
-  const cardBg = useThemeColor({}, 'card');
-  const borderColor = useThemeColor({}, 'cardBorder');
-  const tint = useThemeColor({}, 'tint');
+  variant = 'default',
+  style,
+  fullWidth = false,
+}: Props) {
+  const { theme } = useAppTheme();
+  const themeColors = Colors[theme];
 
-  const scale = useSharedValue(1);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
-  const handlePressIn = () => {
-    scale.value = withSpring(0.98, { damping: 15, stiffness: 300 });
-  };
-
-  const handlePressOut = () => {
-    scale.value = withSpring(1, { damping: 15, stiffness: 300 });
-  };
-
-  const getVariantStyle = () => {
-    switch (variant) {
-      case 'default':
-        return {
-          backgroundColor: cardBg,
-          borderWidth: 1,
-          borderColor,
-        };
-      case 'elevated':
-        return {
-          backgroundColor: cardBg,
-          borderWidth: 0,
-          ...Shadows.md,
-        };
-      case 'outlined':
-        return {
-          backgroundColor: 'transparent',
-          borderWidth: 1,
-          borderColor,
-        };
-      case 'tinted':
-        return {
-          backgroundColor: cardBg,
-          borderWidth: 1,
-          borderColor,
-          borderLeftWidth: 4,
-          borderLeftColor: tintColor || tint,
-        };
-    }
-  };
-
-  const cardStyle = [
-    styles.base,
-    { padding: Spacing[padding] },
-    getVariantStyle(),
-    style,
-  ];
-
-  if (onPress) {
+  if (variant === 'glass') {
     return (
-      <AnimatedPressable
-        style={[animatedStyle, ...cardStyle]}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        onPress={onPress}
-        {...viewProps}
-      >
-        {children}
-      </AnimatedPressable>
+      <View style={[styles.glassContainer, !fullWidth && { width: '100%' }, style]}>
+        <BlurView
+          intensity={Platform.OS === 'ios' ? 30 : 100}
+          tint={theme === 'dark' ? 'dark' : 'light'}
+          style={styles.blur}
+        >
+          <View style={styles.glassContent}>
+            {children}
+          </View>
+        </BlurView>
+      </View>
     );
   }
 
   return (
-    <View style={cardStyle} {...viewProps}>
+    <View style={[
+      styles.card,
+      {
+        backgroundColor: themeColors.card,
+        borderColor: themeColors.cardBorder,
+      },
+      !fullWidth && { width: '100%' },
+      style
+    ]}>
       {children}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  base: {
-    borderRadius: Radius.xxl,
+  card: {
+    borderRadius: Radius.xl,
+    padding: Spacing.lg,
+    borderWidth: 1,
+    ...Shadows.sm,
+  },
+  glassContainer: {
+    borderRadius: Radius.xl,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    ...Shadows.md,
+  },
+  blur: {
+    width: '100%',
+    height: '100%',
+  },
+  glassContent: {
+    padding: Spacing.lg,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
 });

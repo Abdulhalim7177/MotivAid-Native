@@ -1,25 +1,23 @@
-import { StyleSheet, View, Pressable } from 'react-native';
-import * as Haptics from 'expo-haptics';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
-import { useAuth } from '@/context/auth';
-import { useToast } from '@/context/toast';
-import { useAppTheme } from '@/context/theme';
 import { ThemedText } from '@/components/themed-text';
-import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Button } from '@/components/ui/button';
-import { SectionHeader } from '@/components/ui/section-header';
+import { Card } from '@/components/ui/card';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ScreenContainer } from '@/components/ui/screen-container';
-import { useThemeColor } from '@/hooks/use-theme-color';
-import { router } from 'expo-router';
-import { Spacing, Typography } from '@/constants/theme';
+import { SectionHeader } from '@/components/ui/section-header';
+import { Colors, Spacing } from '@/constants/theme';
+import { useAuth } from '@/context/auth';
+import { useAppTheme } from '@/context/theme';
+import { useToast } from '@/context/toast';
+import * as Haptics from 'expo-haptics';
+import { ScrollView, StyleSheet, Switch, View } from 'react-native';
 
 export default function SettingsScreen() {
   const { showToast } = useToast();
-  const { preference, setThemePreference } = useAppTheme();
-  const { signOut } = useAuth();
-  const tint = useThemeColor({}, 'tint');
-  const textColor = useThemeColor({}, 'text');
-  const borderColor = useThemeColor({}, 'border');
+  const { preference, setThemePreference, theme } = useAppTheme();
+  const { signOut, user } = useAuth();
+
+  const themeColors = Colors[theme];
+  const isDark = preference === 'dark';
 
   const handleSignOut = async () => {
     try {
@@ -31,106 +29,118 @@ export default function SettingsScreen() {
     }
   };
 
-  const ThemeOption = ({ label, value, icon }: { label: string, value: 'light' | 'dark' | 'system', icon: any }) => {
-    const isActive = preference === value;
-    const radioScale = useSharedValue(isActive ? 1 : 0);
-
-    const radioInnerStyle = useAnimatedStyle(() => ({
-      transform: [{ scale: radioScale.value }],
-    }));
-
-    if (isActive && radioScale.value === 0) {
-      radioScale.value = withSpring(1, { damping: 12, stiffness: 200 });
-    } else if (!isActive && radioScale.value === 1) {
-      radioScale.value = withSpring(0, { damping: 12, stiffness: 200 });
-    }
-
-    return (
-      <Pressable
-        style={[styles.settingRow, { borderColor }]}
-        onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          setThemePreference(value);
-          showToast(`Theme set to ${label}`, 'info');
-        }}
-      >
-        <View style={styles.settingLabelContainer}>
-          <IconSymbol name={icon} size={22} color={textColor} />
-          <ThemedText type="bodyMd">{label}</ThemedText>
+  const SettingItem = ({ label, icon, value, type = 'arrow', onPress, onToggle }: any) => (
+    <View style={[styles.settingItem, { borderBottomColor: themeColors.border }]}>
+      <View style={styles.settingLeft}>
+        <View style={[styles.iconContainer, { backgroundColor: themeColors.inputBackground }]}>
+          <IconSymbol name={icon} size={20} color={themeColors.text} />
         </View>
-        <View style={[styles.radio, { borderColor: tint }]}>
-          <Animated.View style={[styles.radioInner, { backgroundColor: tint }, radioInnerStyle]} />
-        </View>
-      </Pressable>
-    );
-  };
+        <ThemedText type="bodyMd" style={styles.settingLabel}>{label}</ThemedText>
+      </View>
+
+      {type === 'toggle' ? (
+        <Switch
+          value={value}
+          onValueChange={onToggle}
+          trackColor={{ false: themeColors.border, true: themeColors.primary }}
+          thumbColor={'#FFF'}
+        />
+      ) : (
+        <IconSymbol name="chevron.right" size={16} color={themeColors.textSecondary} />
+      )}
+    </View>
+  );
 
   return (
     <ScreenContainer>
-      <ThemedText type="displayLg" style={styles.title}>Settings</ThemedText>
+      <View style={styles.header}>
+        <ThemedText type="displaySm">Settings</ThemedText>
+      </View>
 
-      <SectionHeader title="Account" />
-      <Pressable
-        style={[styles.settingRow, { borderColor }]}
-        onPress={() => router.push('/(app)/profile')}
-      >
-        <View style={styles.settingLabelContainer}>
-          <IconSymbol name="person.fill" size={22} color={textColor} />
-          <ThemedText type="bodyMd">Edit Profile</ThemedText>
+      <ScrollView showsVerticalScrollIndicator={false}>
+
+        <SectionHeader title="Appearance" />
+        <Card style={styles.card}>
+          <SettingItem
+            label="Dark Mode"
+            icon="moon.fill"
+            type="toggle"
+            value={isDark}
+            onToggle={(val: boolean) => {
+              setThemePreference(val ? 'dark' : 'light');
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+          />
+        </Card>
+
+        <SectionHeader title="Account" />
+        <Card style={styles.card}>
+          <SettingItem label="Edit Profile" icon="person.fill" />
+          <SettingItem label="Notifications" icon="bell" />
+          <SettingItem label="Security" icon="lock.fill" />
+        </Card>
+
+        <SectionHeader title="Support" />
+        <Card style={styles.card}>
+          <SettingItem label="Help Center" icon="questionmark.circle" />
+          <SettingItem label="Privacy Policy" icon="hand.raised.fill" />
+        </Card>
+
+        <View style={styles.logoutContainer}>
+          <Button
+            title="Sign Out"
+            variant="outline"
+            onPress={handleSignOut}
+            style={{ borderColor: '#FF3B30' }}
+            rightIcon={<IconSymbol name="arrow.right.square" size={18} color="#FF3B30" />}
+          />
+          <ThemedText color="secondary" style={styles.versionText}>MotivAid v1.0.2 • Build 2026.02.17</ThemedText>
         </View>
-        <IconSymbol name="chevron.right" size={20} color={textColor} style={{ opacity: 0.3 }} />
-      </Pressable>
 
-      <SectionHeader title="Appearance" />
-      <ThemeOption label="Light Mode" value="light" icon="sun.max.fill" />
-      <ThemeOption label="Dark Mode" value="dark" icon="moon.fill" />
-      <ThemeOption label="System Default" value="system" icon="gearshape.fill" />
-
-      <SectionHeader title="Danger Zone" />
-      <Button
-        title="Sign Out"
-        variant="danger"
-        onPress={handleSignOut}
-        icon={<IconSymbol name="paperplane.fill" size={18} color="#FFFFFF" />}
-      />
-
-      <ThemedText color="secondary" style={styles.versionText}>MotivAid v1.0.0</ThemedText>
+      </ScrollView>
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  title: {
-    marginBottom: Spacing.xl,
+  header: {
+    marginBottom: Spacing.lg,
   },
-  settingRow: {
+  card: {
+    paddingVertical: 0,
+    paddingHorizontal: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  settingItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
   },
-  settingLabelContainer: {
+  settingLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.smd,
+    gap: Spacing.md,
   },
-  radio: {
-    width: 20,
-    height: 20,
+  iconContainer: {
+    width: 36,
+    height: 36,
     borderRadius: 10,
-    borderWidth: 2,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  radioInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+  settingLabel: {
+    fontWeight: '500',
+  },
+  logoutContainer: {
+    marginTop: Spacing.xl,
+    paddingBottom: Spacing.xxl,
   },
   versionText: {
     textAlign: 'center',
-    marginTop: Spacing.mdl,
-    ...Typography.caption,
+    marginTop: Spacing.md,
+    fontSize: 12,
+    opacity: 0.7,
   },
 });

@@ -1,10 +1,11 @@
 // Fallback for using Ionicons on Android and web.
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { SymbolWeight, SymbolViewProps } from 'expo-symbols';
+import { SymbolWeight } from 'expo-symbols';
 import { ComponentProps } from 'react';
 import { OpaqueColorValue, type StyleProp, type TextStyle } from 'react-native';
 
-type IconMapping = Record<SymbolViewProps['name'], ComponentProps<typeof Ionicons>['name']>;
+// Allow any string key to avoid "missing properties" error, but we'll restrict the input type later
+type IconMapping = Record<string, ComponentProps<typeof Ionicons>['name']>;
 type IconSymbolName = keyof typeof MAPPING;
 
 const MAPPING = {
@@ -31,6 +32,20 @@ const MAPPING = {
   'finger-print-outline': 'finger-print-outline',
   'close': 'close-outline',
   'checkmark': 'checkmark-outline',
+  'person': 'person-outline',
+  'envelope': 'mail-outline',
+  'phone': 'call-outline',
+  'building.2': 'business-outline',
+  'checkmark.circle.fill': 'checkmark-circle',
+  'arrow.left': 'arrow-back-outline',
+  'eye': 'eye-outline',
+  'eye.slash': 'eye-off-outline',
+  'touchid': 'finger-print-outline',
+  'bell': 'notifications-outline',
+  'book.fill': 'book-outline',
+  'arrow.right.square': 'log-out-outline',
+  'questionmark.circle': 'help-circle-outline',
+  'hand.raised.fill': 'hand-left-outline',
 } as IconMapping;
 
 export function IconSymbol({
