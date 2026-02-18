@@ -1,10 +1,11 @@
-import { Button } from '@/components/ui/button';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { SectionHeader } from '@/components/ui/section-header';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { useAppTheme } from '@/context/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActionItem } from './action-item';
 
 export function StaffDashboard() {
   const { theme } = useAppTheme();
@@ -74,14 +75,45 @@ export function StaffDashboard() {
         </View>
       </LinearGradient>
 
-      {/* Action Buttons */}
-      <View style={styles.actionsRow}>
-        <View style={{ flex: 1 }}>
-          <Button title="+ New Case" onPress={() => { }} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Button title="Training" variant="outline" onPress={() => { }} leftIcon={<IconSymbol name="book.fill" size={18} color={themeColors.primary} />} />
-        </View>
+      {/* Management */}
+      <SectionHeader title="Quick Actions" variant="heading" />
+      <View style={[styles.actionsGrid, Platform.OS === 'web' && styles.actionsGridWeb]}>
+        <ActionItem
+          label="New Case"
+          icon="add-circle-outline"
+          color="#EB4D88"
+          onPress={() => { }}
+        />
+        <ActionItem
+          label="Training"
+          icon="book-outline"
+          color="#3B82F6"
+          onPress={() => { }}
+        />
+        <ActionItem
+          label="My Patients"
+          icon="people-outline"
+          color={themeColors.primary}
+          onPress={() => { }}
+        />
+        <ActionItem
+          label="Schedule"
+          icon="calendar-outline"
+          color="#10B981"
+          onPress={() => { }}
+        />
+        <ActionItem
+          label="Protocols"
+          icon="document-text-outline"
+          color="#8B5CF6"
+          onPress={() => { }}
+        />
+        <ActionItem
+          label="Reports"
+          icon="bar-chart-outline"
+          color="#F59E0B"
+          onPress={() => { }}
+        />
       </View>
 
       {/* Recent Cases Header */}
@@ -254,5 +286,13 @@ const styles = StyleSheet.create({
   detailsText: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  actionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.smd,
+  },
+  actionsGridWeb: {
+    gap: Spacing.md,
   },
 });

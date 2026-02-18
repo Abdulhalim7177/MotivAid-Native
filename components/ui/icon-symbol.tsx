@@ -46,6 +46,27 @@ const MAPPING = {
   'arrow.right.square': 'log-out-outline',
   'questionmark.circle': 'help-circle-outline',
   'hand.raised.fill': 'hand-left-outline',
+  // Ionicons outline icons used directly (self-mapped)
+  'grid-outline': 'grid-outline',
+  'people-outline': 'people-outline',
+  'bar-chart-outline': 'bar-chart-outline',
+  'calendar-outline': 'calendar-outline',
+  'document-text-outline': 'document-text-outline',
+  'settings-outline': 'settings-outline',
+  'id-card-outline': 'id-card-outline',
+  'person-add-outline': 'person-add-outline',
+  'add-circle-outline': 'add-circle-outline',
+  'book-outline': 'book-outline',
+  // Common additional icons
+  'pencil': 'pencil-outline',
+  'trash': 'trash-outline',
+  'xmark': 'close-outline',
+  'xmark.circle.fill': 'close-circle',
+  'square.grid.2x2.fill': 'grid-outline',
+  'clock.arrow.circlepath': 'time-outline',
+  'info.circle': 'information-circle-outline',
+  'pause.circle': 'pause-circle-outline',
+  'play.circle': 'play-circle-outline',
 } as IconMapping;
 
 export function IconSymbol({

@@ -14,8 +14,11 @@ Built with React Native (Expo SDK 54) and an offline-first architecture, MotivAi
 - **Role-based access:** 6 roles (`admin`, `supervisor`, `midwife`, `nurse`, `student`, `user`) assigned via facility registration codes
 
 ### 🏥 Healthcare Facility Hierarchy
-- **Facilities & Units:** Organizational structure with membership approval workflow
-- **Supervisor Approvals:** Approve/reject staff membership requests per unit
+- **Facility Management (Admin):** Create, edit, delete facilities with auto-generated role-specific registration codes
+- **Unit Management (Supervisor):** CRUD units within facility, view staff roster per unit
+- **Supervisor Approvals:** Assign staff to units, view pending assignments
+- **Live Statistics:** Real-time KPI cards (facilities, staff, units, pending assignments)
+- **Desktop-first Admin:** Responsive grid layout optimized for web admin use
 - **Role-specific Dashboards:** Each role sees a tailored home screen
 
 ### 🎨 Design System
@@ -58,6 +61,8 @@ app/
     (tabs)/                  # Bottom tabs (Home, Settings)
     profile.tsx              # Profile editing + avatar upload
     approvals.tsx            # Supervisor membership approvals
+    facilities.tsx           # Admin facility management (CRUD + codes)
+    units.tsx                # Supervisor unit management (CRUD + staff)
 
 components/
   dashboard/                 # Role-based dashboard components
@@ -80,7 +85,7 @@ constants/
   theme.ts                   # Colors, Spacing, Radius, Typography, Shadows, Fonts
 
 supabase/
-  migrations/                # 3 SQL migrations (auth, org hierarchy, facility codes)
+  migrations/                # 5 SQL migrations (auth, org hierarchy, codes, profiles, management RLS)
   seed.sql                   # Development seed data
 ```
 

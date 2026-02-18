@@ -1,21 +1,23 @@
-import React from 'react';
-import { StyleSheet, Pressable, View } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Radius, Spacing } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { Spacing, Radius } from '@/constants/theme';
+import React from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 interface ActionItemProps {
   label: string;
   icon: any;
+  color?: string;
   onPress?: () => void;
 }
 
-export function ActionItem({ label, icon, onPress }: ActionItemProps) {
+export function ActionItem({ label, icon, color, onPress }: ActionItemProps) {
   const tint = useThemeColor({}, 'tint');
+  const activeColor = color || tint;
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -29,8 +31,8 @@ export function ActionItem({ label, icon, onPress }: ActionItemProps) {
       onPressOut={() => { scale.value = withSpring(1, { damping: 15, stiffness: 300 }); }}
       onPress={onPress}
     >
-      <View style={[styles.iconContainer, { backgroundColor: tint + '15' }]}>
-        <IconSymbol size={24} name={icon} color={tint} />
+      <View style={[styles.iconContainer, { backgroundColor: activeColor + '15' }]}>
+        <IconSymbol size={24} name={icon} color={activeColor} />
       </View>
       <ThemedText type="labelSm" style={styles.label}>{label}</ThemedText>
     </AnimatedPressable>

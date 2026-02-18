@@ -2,21 +2,26 @@ import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/card';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { SectionHeader } from '@/components/ui/section-header';
-import { Radius, Spacing, Typography } from '@/constants/theme';
+import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { useAppTheme } from '@/context/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { router } from 'expo-router';
 import React from 'react';
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { ActionItem } from './action-item';
 import { StatBox } from './stat-box';
 
+const isWeb = Platform.OS === 'web';
+
 export function SupervisorDashboard() {
+  const { theme } = useAppTheme();
+  const themeColors = Colors[theme];
   const successColor = useThemeColor({}, 'success');
   const warningColor = useThemeColor({}, 'warning');
   const textSecondaryColor = useThemeColor({}, 'textSecondary');
 
   return (
-    <View>
+    <View style={[isWeb && styles.webContainer]}>
       <Card>
         <View style={styles.cardHeader}>
           <ThemedText type="overline" color="secondary">Unit Adherence</ThemedText>
@@ -52,16 +57,54 @@ export function SupervisorDashboard() {
       </TouchableOpacity>
 
       <SectionHeader title="Management" variant="heading" />
-      <View style={styles.actionsGrid}>
-        <ActionItem label="Team" icon="people-outline" />
-        <ActionItem label="Analytics" icon="document-text-outline" />
-        <ActionItem label="Units" icon="settings-outline" />
+      <View style={[styles.actionsGrid, isWeb && styles.actionsGridWeb]}>
+        <ActionItem
+          label="Units"
+          icon="grid-outline"
+          color={themeColors.primary}
+          onPress={() => router.push('/(app)/units')}
+        />
+        <ActionItem
+          label="Team"
+          icon="people-outline"
+          color="#3B82F6"
+        />
+        <ActionItem
+          label="Analytics"
+          icon="bar-chart-outline"
+          color={themeColors.secondary}
+        />
+        <ActionItem
+          label="Schedule"
+          icon="calendar-outline"
+          color={successColor}
+        />
+        <ActionItem
+          label="Reports"
+          icon="document-text-outline"
+          color="#8B5CF6"
+        />
+        <ActionItem
+          label="Settings"
+          icon="settings-outline"
+          color="#6B7280"
+        />
+        <ActionItem
+          label="Identity Info"
+          icon="id-card-outline"
+          color="#0EA5E9"
+        />
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  webContainer: {
+    maxWidth: 1200,
+    alignSelf: 'center' as any,
+    width: '100%',
+  },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -99,6 +142,10 @@ const styles = StyleSheet.create({
   },
   actionsGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: Spacing.smd,
+  },
+  actionsGridWeb: {
+    gap: Spacing.md,
   },
 });

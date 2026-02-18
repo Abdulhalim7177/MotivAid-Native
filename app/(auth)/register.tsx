@@ -7,7 +7,7 @@ import { useToast } from '@/context/toast';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { Link, router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../../lib/supabase';
 
@@ -32,12 +32,22 @@ export default function RegisterScreen() {
   const [isValidatingCode, setIsValidatingCode] = useState(false);
   const [codeVerified, setCodeVerified] = useState(false);
 
+  // Debounced code validation — triggers after user stops typing
+  const codeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
-    if (isStaff && accessCode.length === 6) {
-      validateCode(accessCode, selectedRole);
+    if (codeTimerRef.current) clearTimeout(codeTimerRef.current);
+
+    if (isStaff && accessCode.length >= 4) {
+      codeTimerRef.current = setTimeout(() => {
+        validateCode(accessCode, selectedRole);
+      }, 500);
     } else {
       setCodeVerified(false);
+      setCodeError('');
     }
+
+    return () => { if (codeTimerRef.current) clearTimeout(codeTimerRef.current); };
   }, [accessCode, selectedRole, isStaff]);
 
   const validateCode = async (code: string, role: string) => {
@@ -46,7 +56,7 @@ export default function RegisterScreen() {
     try {
       const { data, error } = await supabase
         .from('facility_codes')
-        .select('role, facilities(name)')
+        .select('role, is_active, facilities(name)')
         .eq('code', code)
         .maybeSingle();
 
@@ -54,6 +64,9 @@ export default function RegisterScreen() {
 
       if (!data) {
         setCodeError('Invalid access code');
+        setCodeVerified(false);
+      } else if (!data.is_active) {
+        setCodeError('This code has been deactivated');
         setCodeVerified(false);
       } else if (data.role !== role) {
         setCodeError(`This code is for a ${data.role.toUpperCase()} role`);
@@ -214,11 +227,11 @@ export default function RegisterScreen() {
                 <Input
                   label="Facility Access Code"
                   value={accessCode}
-                  onChangeText={(text) => setAccessCode(text.toUpperCase())}
+                  onChangeText={(text) => setAccessCode(text.toUpperCase().replace(/[^A-Z0-9\-]/g, ''))}
                   error={codeError}
-                  placeholder="ENTER 6-DIGIT CODE"
+                  placeholder="e.g. AKTH1-SUP"
                   autoCapitalize="characters"
-                  maxLength={6}
+                  maxLength={12}
                   leftIcon={<IconSymbol name="building.2" size={20} color={themeColors.textSecondary} />}
                   rightIcon={
                     isValidatingCode ? (

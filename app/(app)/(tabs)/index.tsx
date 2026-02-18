@@ -16,7 +16,7 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { supabase } from '@/lib/supabase';
 import NetInfo from '@react-native-community/netinfo';
 import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 
 export default function HomeScreen() {
   const { user, profile } = useAuth();
@@ -24,6 +24,7 @@ export default function HomeScreen() {
   const [isOffline, setIsOffline] = useState(false);
   const tint = useThemeColor({}, 'tint');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const isWeb = Platform.OS === 'web';
 
   // Staff roles that require unit assignment
   const isStaffRole = ['midwife', 'nurse', 'student'].includes(profile?.role || '');
@@ -70,41 +71,48 @@ export default function HomeScreen() {
 
   return (
     <ScreenContainer>
-      <DashboardHeader
-        displayName={displayName}
-        roleBadge={profile?.role?.toUpperCase() || 'USER'}
-        avatarUrl={avatarUrl}
-        isOffline={isOffline}
-      />
+      <View style={isWeb ? styles.webWrapper : undefined}>
+        <DashboardHeader
+          displayName={displayName}
+          roleBadge={profile?.role?.toUpperCase() || 'USER'}
+          avatarUrl={avatarUrl}
+          isOffline={isOffline}
+        />
 
-      {needsAssignment ? (
-        <AwaitingAssignment />
-      ) : (
-        <>
-          <UnitSelector />
+        {needsAssignment ? (
+          <AwaitingAssignment />
+        ) : (
+          <>
+            <UnitSelector />
 
-          {renderDashboard()}
+            {renderDashboard()}
 
-          <Card style={styles.infoCard}>
-            <ThemedText type="overline" color="secondary" style={styles.infoLabel}>Identity Information</ThemedText>
-            <View style={styles.infoRow}>
-              <IconSymbol size={20} name="mail-outline" color={tint} />
-              <ThemedText type="bodyMd">{user?.email}</ThemedText>
-            </View>
-            <View style={styles.infoRow}>
-              <IconSymbol size={20} name="time-outline" color={tint} />
-              <ThemedText type="bodyMd">
-                Joined {new Date(user?.created_at || '').toLocaleDateString()}
-              </ThemedText>
-            </View>
-          </Card>
-        </>
-      )}
+            <Card style={styles.infoCard}>
+              <ThemedText type="overline" color="secondary" style={styles.infoLabel}>Identity Information</ThemedText>
+              <View style={styles.infoRow}>
+                <IconSymbol size={20} name="mail-outline" color={tint} />
+                <ThemedText type="bodyMd">{user?.email}</ThemedText>
+              </View>
+              <View style={styles.infoRow}>
+                <IconSymbol size={20} name="time-outline" color={tint} />
+                <ThemedText type="bodyMd">
+                  Joined {new Date(user?.created_at || '').toLocaleDateString()}
+                </ThemedText>
+              </View>
+            </Card>
+          </>
+        )}
+      </View>
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
+  webWrapper: {
+    maxWidth: 1200,
+    alignSelf: 'center' as any,
+    width: '100%',
+  },
   infoCard: {
     marginTop: Spacing.lg,
   },
