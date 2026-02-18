@@ -70,7 +70,7 @@ export default function SplashScreen() {
           />
         </Animated.View>
 
-        <Animated.View style={textStyle}>
+        <Animated.View style={[textStyle, styles.textContainer]}>
           <Text style={styles.title}>MotivAid</Text>
           <Text style={styles.subtitle}>Maternal Health Support System</Text>
           <Text style={styles.tagline}>Empowering midwives with E-MOTIVE guidelines</Text>
@@ -101,6 +101,11 @@ const styles = StyleSheet.create({
     height: 180,
     marginBottom: Spacing.xl,
   },
+  textContainer: {
+    alignItems: 'center',
+    width: '100%',
+    paddingHorizontal: Spacing.xl,
+  },
   title: {
     fontSize: 36,
     fontWeight: 'bold',
@@ -118,7 +123,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.7)',
     textAlign: 'center',
-    maxWidth: '80%',
   },
   pagination: {
     position: 'absolute',

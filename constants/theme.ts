@@ -1,9 +1,10 @@
 /**
  * MotivAid Healthcare Color System
  *
- * Primary: Calm Teal — clinical, trustworthy (surgical scrubs, hospital accents)
- * Neutrals: Slate palette — warm, professional
- * Dark mode: Deep navy — warmer than pure black
+ * Primary: Vibrant Purple (#9B51E0) — modern, trustworthy
+ * Secondary: Warm Pink (#EB4D88) — energetic, empathetic
+ * Accent: Deep Purple (#300863) — premium depth
+ * Dark mode: Purple-tinted dark surfaces for brand cohesion
  */
 
 import { Platform } from 'react-native';
@@ -45,34 +46,39 @@ export const Colors = {
     shadow: '#9B51E0',
   },
   dark: {
-    text: '#F9FAFB',
-    textSecondary: '#9CA3AF',
-    background: '#1F2937',
+    text: '#F0ECF9',
+    textSecondary: '#A89BBE',
+    background: '#13111C',
 
-    primary: '#A78BFA',
-    secondary: '#F472B6',
-    accent: '#4C1D95',
+    // Brand Colors — lighter tints for dark surfaces
+    primary: '#B07CED',
+    secondary: '#F2729E',
+    accent: '#7C3AED',
 
-    tint: '#A78BFA',
-    icon: '#9CA3AF',
-    tabIconDefault: '#6B7280',
-    tabIconSelected: '#A78BFA',
+    // UI Colors
+    tint: '#B07CED',
+    icon: '#A89BBE',
+    tabIconDefault: '#6B6080',
+    tabIconSelected: '#B07CED',
 
-    card: '#374151',
-    border: '#4B5563',
-    cardBorder: '#4B5563',
+    // Components — purple-tinted dark surfaces
+    card: '#1E1A2E',
+    border: '#2E2845',
+    cardBorder: '#2E2845',
 
+    // Feedback
     error: '#F87171',
     success: '#34D399',
     warning: '#FBBF24',
 
-    inputBackground: '#374151',
-    inputBorder: '#4B5563',
-    placeholder: '#6B7280',
+    // Inputs
+    inputBackground: '#1E1A2E',
+    inputBorder: '#2E2845',
+    placeholder: '#6B6080',
 
     buttonText: '#FFFFFF',
-    overlay: 'rgba(0,0,0,0.7)',
-    shadow: '#A78BFA',
+    overlay: 'rgba(10,8,20,0.8)',
+    shadow: '#B07CED',
   },
 };
 

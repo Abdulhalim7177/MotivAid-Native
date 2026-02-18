@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useColorScheme as useDeviceColorScheme, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { Platform, useColorScheme as useDeviceColorScheme } from 'react-native';
 
 type ThemePreference = 'light' | 'dark' | 'system';
 
@@ -41,7 +41,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
 
     // On web, update the body background color to match the theme
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      const bgColor = activeTheme === 'dark' ? '#0F172A' : '#F8FAFC';
+      const bgColor = activeTheme === 'dark' ? '#13111C' : '#FFFFFF';
       document.body.style.backgroundColor = bgColor;
     }
   }, [preference, deviceColorScheme]);

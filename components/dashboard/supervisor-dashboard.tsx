@@ -1,14 +1,14 @@
-import React from 'react';
-import { View, StyleSheet } from 'react-native';
-import { router } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/card';
-import { SectionHeader } from '@/components/ui/section-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { StatBox } from './stat-box';
-import { ActionItem } from './action-item';
+import { SectionHeader } from '@/components/ui/section-header';
+import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { Spacing, Radius, Typography } from '@/constants/theme';
+import { router } from 'expo-router';
+import React from 'react';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ActionItem } from './action-item';
+import { StatBox } from './stat-box';
 
 export function SupervisorDashboard() {
   const successColor = useThemeColor({}, 'success');
@@ -31,21 +31,25 @@ export function SupervisorDashboard() {
         </View>
       </Card>
 
-      <Card
+      <TouchableOpacity
+        activeOpacity={0.7}
         onPress={() => router.push('/(app)/approvals')}
-        style={[styles.alertCard, { backgroundColor: warningColor + '0D', borderColor: warningColor + '30' }]}
       >
-        <View style={styles.alertContent}>
-          <View style={[styles.alertIcon, { backgroundColor: warningColor + '20' }]}>
-            <IconSymbol name="person-add-outline" size={20} color={warningColor} />
+        <Card
+          style={[styles.alertCard, { backgroundColor: warningColor + '0D', borderColor: warningColor + '30' }]}
+        >
+          <View style={styles.alertContent}>
+            <View style={[styles.alertIcon, { backgroundColor: warningColor + '20' }]}>
+              <IconSymbol name="person-add-outline" size={20} color={warningColor} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <ThemedText type="labelLg">Pending Approvals</ThemedText>
+              <ThemedText type="caption" color="secondary">Staff awaiting unit assignment</ThemedText>
+            </View>
+            <IconSymbol name="chevron.right" size={20} color={textSecondaryColor} />
           </View>
-          <View style={{ flex: 1 }}>
-            <ThemedText type="labelLg">Pending Approvals</ThemedText>
-            <ThemedText type="caption" color="secondary">Midwives awaiting unit assignment</ThemedText>
-          </View>
-          <IconSymbol name="chevron.right" size={20} color={textSecondaryColor} />
-        </View>
-      </Card>
+        </Card>
+      </TouchableOpacity>
 
       <SectionHeader title="Management" variant="heading" />
       <View style={styles.actionsGrid}>

@@ -1,23 +1,40 @@
-import { ThemedText } from '@/components/themed-text';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ScreenContainer } from '@/components/ui/screen-container';
-import { SectionHeader } from '@/components/ui/section-header';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { useAppTheme } from '@/context/theme';
 import { useToast } from '@/context/toast';
+import { supabase } from '@/lib/supabase';
 import * as Haptics from 'expo-haptics';
-import { ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { Image } from 'expo-image';
+import { router } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 
 export default function SettingsScreen() {
   const { showToast } = useToast();
   const { preference, setThemePreference, theme } = useAppTheme();
-  const { signOut, user } = useAuth();
-
+  const { signOut, user, profile } = useAuth();
   const themeColors = Colors[theme];
   const isDark = preference === 'dark';
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  const displayName = profile?.full_name || profile?.username || user?.email?.split('@')[0] || '';
+
+  useEffect(() => {
+    if (profile?.avatar_url) downloadImage(profile.avatar_url);
+    else setAvatarUrl(null);
+  }, [profile?.avatar_url]);
+
+  async function downloadImage(path: string) {
+    try {
+      const { data, error } = await supabase.storage.from('avatars').download(path);
+      if (error) throw error;
+      const fr = new FileReader();
+      fr.readAsDataURL(data);
+      fr.onload = () => setAvatarUrl(fr.result as string);
+    } catch (error) { }
+  }
 
   const handleSignOut = async () => {
     try {
@@ -29,13 +46,21 @@ export default function SettingsScreen() {
     }
   };
 
-  const SettingItem = ({ label, icon, value, type = 'arrow', onPress, onToggle }: any) => (
-    <View style={[styles.settingItem, { borderBottomColor: themeColors.border }]}>
+  // Setting item component
+  const SettingItem = ({ label, icon, iconColor, value, type = 'arrow', onPress, onToggle, isLast = false }: any) => (
+    <TouchableOpacity
+      activeOpacity={type === 'toggle' ? 1 : 0.6}
+      onPress={onPress}
+      style={[
+        styles.settingItem,
+        !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: themeColors.border },
+      ]}
+    >
       <View style={styles.settingLeft}>
-        <View style={[styles.iconContainer, { backgroundColor: themeColors.inputBackground }]}>
-          <IconSymbol name={icon} size={20} color={themeColors.text} />
+        <View style={[styles.iconContainer, { backgroundColor: iconColor || themeColors.primary }]}>
+          <IconSymbol name={icon} size={18} color="#FFF" />
         </View>
-        <ThemedText type="bodyMd" style={styles.settingLabel}>{label}</ThemedText>
+        <Text style={[styles.settingLabel, { color: themeColors.text }]}>{label}</Text>
       </View>
 
       {type === 'toggle' ? (
@@ -46,56 +71,120 @@ export default function SettingsScreen() {
           thumbColor={'#FFF'}
         />
       ) : (
-        <IconSymbol name="chevron.right" size={16} color={themeColors.textSecondary} />
+        <IconSymbol name="chevron.right" size={14} color={themeColors.textSecondary} />
       )}
+    </TouchableOpacity>
+  );
+
+  // Section component
+  const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
+    <View style={styles.section}>
+      <Text style={[styles.sectionTitle, { color: themeColors.textSecondary }]}>{title}</Text>
+      <View style={[styles.sectionCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+        {children}
+      </View>
     </View>
   );
 
   return (
     <ScreenContainer>
-      <View style={styles.header}>
-        <ThemedText type="displaySm">Settings</ThemedText>
-      </View>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Profile Card */}
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => router.push('/(app)/profile')}
+          style={[styles.profileCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}
+        >
+          <View style={[styles.profileAvatar, { backgroundColor: themeColors.primary + '20' }]}>
+            {avatarUrl ? (
+              <Image source={{ uri: avatarUrl }} style={styles.profileAvatarImage} contentFit="cover" />
+            ) : (
+              <Text style={[styles.profileInitial, { color: themeColors.primary }]}>
+                {displayName?.charAt(0).toUpperCase() || 'U'}
+              </Text>
+            )}
+          </View>
+          <View style={styles.profileInfo}>
+            <Text style={[styles.profileName, { color: themeColors.text }]}>{displayName}</Text>
+            <Text style={[styles.profileEmail, { color: themeColors.textSecondary }]}>{user?.email}</Text>
+            <View style={[styles.roleBadge, { backgroundColor: themeColors.primary + '15' }]}>
+              <Text style={[styles.roleText, { color: themeColors.primary }]}>
+                {profile?.role?.charAt(0).toUpperCase()}{profile?.role?.slice(1) || 'User'}
+              </Text>
+            </View>
+          </View>
+          <IconSymbol name="chevron.right" size={16} color={themeColors.textSecondary} />
+        </TouchableOpacity>
 
-        <SectionHeader title="Appearance" />
-        <Card style={styles.card}>
+        {/* Appearance */}
+        <Section title="APPEARANCE">
           <SettingItem
             label="Dark Mode"
             icon="moon.fill"
+            iconColor="#5856D6"
             type="toggle"
             value={isDark}
+            isLast
             onToggle={(val: boolean) => {
               setThemePreference(val ? 'dark' : 'light');
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             }}
           />
-        </Card>
+        </Section>
 
-        <SectionHeader title="Account" />
-        <Card style={styles.card}>
-          <SettingItem label="Edit Profile" icon="person.fill" />
-          <SettingItem label="Notifications" icon="bell" />
-          <SettingItem label="Security" icon="lock.fill" />
-        </Card>
-
-        <SectionHeader title="Support" />
-        <Card style={styles.card}>
-          <SettingItem label="Help Center" icon="questionmark.circle" />
-          <SettingItem label="Privacy Policy" icon="hand.raised.fill" />
-        </Card>
-
-        <View style={styles.logoutContainer}>
-          <Button
-            title="Sign Out"
-            variant="outline"
-            onPress={handleSignOut}
-            style={{ borderColor: '#FF3B30' }}
-            rightIcon={<IconSymbol name="arrow.right.square" size={18} color="#FF3B30" />}
+        {/* Account */}
+        <Section title="ACCOUNT">
+          <SettingItem
+            label="Edit Profile"
+            icon="person.fill"
+            iconColor={themeColors.primary}
+            onPress={() => router.push('/(app)/profile')}
           />
-          <ThemedText color="secondary" style={styles.versionText}>MotivAid v1.0.2 • Build 2026.02.17</ThemedText>
+          <SettingItem
+            label="Notifications"
+            icon="bell"
+            iconColor="#FF9500"
+          />
+          <SettingItem
+            label="Security"
+            icon="lock.fill"
+            iconColor="#34C759"
+            isLast
+          />
+        </Section>
+
+        {/* Support */}
+        <Section title="SUPPORT">
+          <SettingItem
+            label="Help Center"
+            icon="questionmark.circle"
+            iconColor="#007AFF"
+          />
+          <SettingItem
+            label="Privacy Policy"
+            icon="hand.raised.fill"
+            iconColor="#FF3B30"
+            isLast
+          />
+        </Section>
+
+        {/* Sign Out */}
+        <View style={styles.signOutSection}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={handleSignOut}
+            style={[styles.signOutButton, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}
+          >
+            <IconSymbol name="arrow.right.square" size={18} color="#FF3B30" />
+            <Text style={styles.signOutText}>Sign Out</Text>
+          </TouchableOpacity>
         </View>
+
+        {/* Version */}
+        <Text style={[styles.versionText, { color: themeColors.textSecondary }]}>
+          MotivAid v1.0.2 • Build 2026.02.17
+        </Text>
 
       </ScrollView>
     </ScreenContainer>
@@ -103,44 +192,121 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: {
+  scrollContent: {
+    paddingBottom: Spacing.xxl,
+  },
+
+  // Profile card
+  profileCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.md,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    marginBottom: Spacing.lg,
+    marginTop: Spacing.sm,
+  },
+  profileAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  profileAvatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  profileInitial: {
+    fontSize: 22,
+    fontWeight: 'bold',
+  },
+  profileInfo: {
+    flex: 1,
+    marginLeft: Spacing.md,
+    marginRight: Spacing.sm,
+  },
+  profileName: {
+    ...Typography.headingSm,
+  },
+  profileEmail: {
+    ...Typography.bodySm,
+    marginTop: 2,
+  },
+  roleBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: Radius.full,
+    marginTop: Spacing.xs,
+  },
+  roleText: {
+    ...Typography.labelSm,
+  },
+
+  // Sections
+  section: {
     marginBottom: Spacing.lg,
   },
-  card: {
-    paddingVertical: 0,
-    paddingHorizontal: Spacing.md,
-    marginBottom: Spacing.lg,
+  sectionTitle: {
+    ...Typography.caption,
+    marginBottom: Spacing.sm,
+    paddingLeft: Spacing.md,
   },
+  sectionCard: {
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+
+  // Setting items
   settingItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
+    paddingVertical: Spacing.smd,
+    paddingHorizontal: Spacing.md,
   },
   settingLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
+    gap: Spacing.smd,
   },
   iconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
   settingLabel: {
-    fontWeight: '500',
+    ...Typography.bodyMd,
   },
-  logoutContainer: {
-    marginTop: Spacing.xl,
-    paddingBottom: Spacing.xxl,
+
+  // Sign out
+  signOutSection: {
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.md,
   },
+  signOutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.md,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    gap: Spacing.sm,
+  },
+  signOutText: {
+    color: '#FF3B30',
+    ...Typography.buttonMd,
+  },
+
+  // Version
   versionText: {
     textAlign: 'center',
-    marginTop: Spacing.md,
-    fontSize: 12,
-    opacity: 0.7,
+    ...Typography.labelSm,
+    opacity: 0.6,
   },
 });

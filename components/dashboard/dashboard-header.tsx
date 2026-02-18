@@ -33,7 +33,7 @@ export function DashboardHeader({ displayName, roleBadge, avatarUrl, isOffline }
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => router.push('/(app)/profile')}>
-          <View style={[styles.avatarContainer, { backgroundColor: themeColors.primary + '20' }]}>
+          <View style={[styles.avatarContainer, { backgroundColor: themeColors.primary + '20', borderColor: themeColors.primary + '40' }]}>
             {avatarUrl ? (
               <Image source={{ uri: avatarUrl }} style={styles.avatar} contentFit="cover" />
             ) : (
@@ -96,10 +96,13 @@ const styles = StyleSheet.create({
     borderColor: '#FFF',
   },
   avatarContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
   },
   avatar: {
     width: '100%',
