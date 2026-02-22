@@ -9,7 +9,7 @@ import { useToast } from '@/context/toast';
 import { supabase } from '@/lib/supabase';
 import * as Haptics from 'expo-haptics';
 import React, { useEffect, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 export default function ProfileTab() {
     const { showToast } = useToast();
@@ -56,7 +56,7 @@ export default function ProfileTab() {
             }
         } catch (error: any) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-            Alert.alert('Error', error.message);
+            showToast(error.message || 'Failed to update profile', 'error');
         } finally {
             setLoading(false);
         }

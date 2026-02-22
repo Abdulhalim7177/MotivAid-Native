@@ -23,7 +23,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
-  const [hasBiometrics, setHasBiometrics] = useState(false);
+  const [, setHasBiometrics] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
@@ -189,7 +189,7 @@ export default function LoginScreen() {
           {/* Social Row Removed as requested (Fingerprint moved up) */}
 
           <View style={styles.footer}>
-            <Text style={[styles.footerText, { color: themeColors.textSecondary }]}>Don't have an account? </Text>
+            <Text style={[styles.footerText, { color: themeColors.textSecondary }]}>Don&apos;t have an account? </Text>
             <Link href="/(auth)/register" asChild>
               <TouchableOpacity>
                 <Text style={[styles.signUpText, { color: themeColors.secondary }]}>Sign Up</Text>

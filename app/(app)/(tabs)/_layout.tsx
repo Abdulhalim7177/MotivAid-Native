@@ -47,6 +47,17 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="clinical"
+        options={{
+          title: 'Clinical',
+          tabBarIcon: ({ color, focused }) => (
+            <View style={focused ? [styles.activeIconBg, { backgroundColor: colors.primary + '15' }] : undefined}>
+              <IconSymbol size={24} name="cross.case.fill" color={color} />
+            </View>
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',

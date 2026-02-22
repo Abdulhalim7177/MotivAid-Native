@@ -55,7 +55,7 @@ This document outlines the sprint-by-sprint implementation plan for MotivAid, or
 - [x] Registration screen (`app/(auth)/register.tsx`)
   - Full name, email, password fields
   - Medical staff toggle with role selection
-  - 6-character facility code validation (real-time)
+  - Variable-length facility code validation (debounced, real-time)
   - Role buttons: Midwife, Nurse, Student, Supervisor
 - [x] Forgot password screen (`app/(auth)/forgot-password.tsx`)
 - [x] Reset password screen (`app/(auth)/reset-password.tsx`)
@@ -110,7 +110,7 @@ This document outlines the sprint-by-sprint implementation plan for MotivAid, or
   - Haptic feedback on selection
   - Checkmark on active unit
 
-### Sprint 4: Role-Based Dashboards & Approvals
+### Sprint 4a: Role-Based Dashboards & Approvals
 
 **Database:**
 - [x] Migration `20260216000002_role_specific_codes.sql`:
@@ -120,9 +120,9 @@ This document outlines the sprint-by-sprint implementation plan for MotivAid, or
 
 **Deliverables:**
 - [x] Home screen (`app/(app)/(tabs)/index.tsx`) with role-based dashboards:
-  - `AdminDashboard` — Global stats, system admin actions
-  - `SupervisorDashboard` — Unit adherence, pending approvals alert, management actions
-  - `StaffDashboard` — Shift overview, clinical mode entry, training progress
+  - `AdminDashboard` — Global stats (facilities, staff, units, pending), quick action nav cards
+  - `SupervisorDashboard` — Unit adherence, pending approvals alert, icon-based management grid (Units, Team, Analytics, Schedule, Reports, Settings, Identity Info)
+  - `StaffDashboard` — Shift overview, icon-based quick actions (New Case, Training, My Patients, Schedule, Protocols, Reports), training progress bar
   - `UserDashboard` — Simplified clinical mode entry
 - [x] Approvals screen (`app/(app)/approvals.tsx`)
   - FlatList of pending unit_memberships with profile info
@@ -132,86 +132,158 @@ This document outlines the sprint-by-sprint implementation plan for MotivAid, or
 - [x] Offline indicator badge on home screen header
 - [x] Identity information card on home screen
 
----
+### Sprint 4b: Facility & Unit Management
 
-## Phase 3: Risk Assessment & Clinical Data (Sprints 5-6) - PLANNED
+**Database:**
+- [x] Migration `20260216000003_add_facility_to_profiles.sql`:
+  - Added `facility_id` column to `profiles` table
+  - Updated `handle_new_user()` trigger to assign `facility_id` during registration
+- [x] Migration `20260216000004_management_rls.sql`:
+  - RLS policies for facility/unit/code CRUD operations by admin and supervisor roles
+- [x] Migration `20260218000000_facility_code_activation.sql`:
+  - Added `is_active` column to `facility_codes` table
+  - Updated `handle_new_user()` trigger to only accept active codes
+  - Enhanced `auto_generate_facility_codes()` with acronym-based code format
 
-### Sprint 5: Maternal Data Entry
-
-**Database (Planned):**
-- `maternal_profiles` table (age, parity, risk factors, blood type, etc.)
-- `vital_signs` table (heart_rate, systolic_bp, diastolic_bp, shock_index, etc.)
-
-**Deliverables (Planned):**
-- [ ] Maternal risk factor form screen
-- [ ] Risk scoring algorithm (low/medium/high/critical)
-- [ ] Preparedness recommendations based on risk level
-- [ ] Form validation with clinical constraints
-
-### Sprint 6: Vital Signs & Monitoring
-
-**Deliverables (Planned):**
-- [ ] Vital signs entry pad (heart rate, blood pressure)
-- [ ] Shock index auto-calculation (HR / systolic BP)
-- [ ] Threshold-based visual alerts (color coding)
-- [ ] Blood loss estimation guides (visual references)
-- [ ] Offline storage for vital signs data in SQLite
-
----
-
-## Phase 4: Active Clinical Mode (Sprints 7-8) - PLANNED
-
-### Sprint 7: E-MOTIVE Workflow
-
-**Database (Planned):**
-- `pph_cases` table (status, delivery_time, outcome, etc.)
-- `interventions` table (type, dosage, timing, completed_by, etc.)
-
-**Deliverables (Planned):**
-- [ ] Clinical mode activation screen
-- [ ] PPH monitoring timer (1-hour countdown)
-- [ ] E-MOTIVE step-by-step checklist with interventions:
-  - Early Detection
-  - Massage (Uterine)
-  - Oxytocics
-  - Tranexamic Acid
-  - IV Fluids
-  - Examination
-  - Escalation
-- [ ] Intervention logging with timestamps
-- [ ] Case timeline view
-
-### Sprint 8: Offline Clinical Mode
-
-**Deliverables (Planned):**
-- [ ] Complete clinical workflow in SQLite
-- [ ] Offline case creation and management
-- [ ] Offline vital signs and intervention logging
-- [ ] Sync queue for background data upload
-- [ ] Conflict resolution strategy implementation
+**Deliverables:**
+- [x] Facilities management screen (`app/(app)/facilities.tsx`)
+  - Create, edit, delete facilities
+  - Auto-generate registration codes using facility name acronyms (e.g., `AKTH1-SUP`)
+  - View facility details with all codes in a modal
+  - Activate/deactivate individual codes with visual feedback (dimmed + strikethrough for inactive)
+  - Close buttons on all modals
+- [x] Units management screen (`app/(app)/units.tsx`)
+  - Create, edit, delete units within facilities
+  - Description and metadata fields
+- [x] Updated registration screen (`app/(auth)/register.tsx`)
+  - Variable-length code input (up to 12 chars) with character filter (A-Z, 0-9, hyphens)
+  - Debounced validation (500ms after typing stops, at 4+ chars)
+  - Placeholder shows example format: `e.g. AKTH1-SUP`
+  - Deactivated code detection: "This code has been deactivated"
+- [x] Dashboard UI components:
+  - `ActionItem` — Animated icon-based action card with press effect
+  - `StatBox` — Compact stat display
+  - `SectionHeader` — Section title with optional variant
+  - `DashboardHeader` — Page header with avatar and greeting
+  - `AwaitingAssignment` — Empty state for unassigned staff
+  - `Skeleton` — Loading placeholder component
+  - `Card`, `Button`, `Input`, `ScreenContainer` — Reusable UI primitives
 
 ---
 
-## Phase 5: Alerts, Escalation & Reports (Sprint 9) - PLANNED
+## Phase 3: Risk Assessment & Clinical Mode (Sprints 5-6) - COMPLETE
 
-### Sprint 9: Notifications & Reporting
+### Sprint 5: Maternal Data Entry & Risk Assessment
+
+**Database:**
+- [x] Migration `20260220000000_clinical_data_tables.sql`:
+  - `maternal_profiles` table (age, parity, gravida, blood type, weight, hemoglobin, 13 risk factors, status, risk_level)
+  - `vital_signs` table (heart_rate, systolic_bp, diastolic_bp, temperature, respiratory_rate, spo2, estimated_blood_loss, blood_loss_method)
+  - `sync_queue` table (table_name, record_id, operation, payload, retry logic)
+  - RLS policies for facility-scoped access
+  - `updated_at` trigger on maternal_profiles
+
+**Deliverables:**
+- [x] New patient form (`app/(app)/clinical/new-patient.tsx`)
+  - Obstetric data: age, gravida, parity, gestational age, blood type, weight, hemoglobin
+  - 13 toggleable risk factor switches grouped by severity tier
+  - Live risk banner with color-coded level (Low/Medium/High/Critical)
+  - Patient ID auto-generation
+- [x] Risk scoring algorithm (`lib/risk-calculator.ts`)
+  - AWHONN-adapted scoring: 13 factors weighted by severity
+  - Output: Low (0-1), Medium (2-3), High (4-5), Critical (6+)
+- [x] Clinical tab (`app/(app)/(tabs)/clinical.tsx`)
+  - Case list with status filter chips (Pre-Delivery/Active/Monitoring/Closed)
+  - Supervisor cross-unit view with unit filter
+  - Pull-to-refresh, sync button, new case FAB
+- [x] Clinical context provider (`context/clinical.tsx`)
+  - Profiles, vitals, E-MOTIVE checklist state management
+  - CRUD operations with sync queue integration
+- [x] Clinical database layer:
+  - `lib/clinical-db.native.ts` — SQLite tables + full CRUD (native)
+  - `lib/clinical-db.ts` — localStorage fallback with identical API (web)
+- [x] Sync queue engine (`lib/sync-queue.ts`)
+  - Background upload with local_id → remote_id resolution
+  - Retry logic (max 3 attempts per item)
+
+### Sprint 6: Vital Signs, Shock Index & E-MOTIVE Bundle
+
+**Database:**
+- [x] Migration `20260222000000_emotive_checklists.sql`:
+  - `emotive_checklists` table (6 step groups with done/time/dose/notes)
+  - Indexes on maternal_profile_id and local_id
+  - RLS policies mirroring vital_signs
+  - `updated_at` trigger
+
+**Deliverables:**
+- [x] Record vitals screen (`app/(app)/clinical/record-vitals.tsx`)
+  - Quick-entry pad: HR, SpO2, systolic/diastolic BP, temperature, respiratory rate
+  - Blood loss estimation: numeric input + quick-add buttons (+100/+250/+500/+1000 mL) + reset
+  - Blood loss method selector: Visual, Drape, Weighed
+  - Blood loss severity assessment banner
+- [x] Shock Index calculation (`lib/shock-index.ts`)
+  - Live SI = HR / SBP
+  - 5-level severity: Normal (≤0.7), Warning (0.7-0.9), Alert (0.9-1.0), Critical (1.0-1.4), Emergency (>1.4)
+  - Color-coded banner with haptic alerts on critical/emergency
+  - Pulse animation on critical values
+- [x] E-MOTIVE checklist (`components/clinical/emotive-checklist.tsx`)
+  - 6 interactive steps: Early Detection, Massage, Oxytocin, TXA, IV Fluids, Escalation
+  - 60-minute elapsed timer anchored to earliest step timestamp
+  - Accordion UX: one step expanded at a time
+  - Auto-timestamps, dose/volume input fields, notes per step
+  - "Done" button when all complete → close case modal with outcome selection
+- [x] Patient detail screen (`app/(app)/clinical/patient-detail.tsx`)
+  - Metrics cards: latest Shock Index + latest Blood Loss
+  - Quick actions: Record Vitals, E-MOTIVE Bundle
+  - Case lifecycle: Pre-Delivery → Active → Monitoring → Closed
+  - Cross-platform close modal (replaces Alert.alert)
+- [x] Vitals prompt banner (`components/clinical/vitals-prompt-banner.tsx`)
+  - Animated slide-in/pulse reminder when vitals are overdue
+  - Haptic warning notification
+- [x] Cross-platform compatibility
+  - All `Alert.alert()` calls replaced with `<Modal>` or `showToast()` across entire codebase
+
+---
+
+## Phase 4: Case Timeline, Alerts & Escalation (Sprints 7-8) - PLANNED (Next)
+
+### Sprint 7: Timeline & Alerts
 
 **Database (Planned):**
-- `emergency_contacts` table
-- `audit_logs` table
+- `emergency_contacts` table (unit/facility contacts with tiers)
+- `audit_logs` table (action audit trail)
 
 **Deliverables (Planned):**
-- [ ] Visual and haptic alert system for clinical thresholds
+- [ ] Case timeline view — chronological event list per case
+- [ ] Configurable alert thresholds for SI and blood loss
 - [ ] One-tap emergency escalation button
-- [ ] 3-level escalation hierarchy (unit -> facility -> external)
-- [ ] SMS/in-app notification to emergency contacts
-- [ ] PPH case report generation
+- [ ] 3-level escalation hierarchy (unit → facility → external)
+- [ ] Emergency contacts management screen
+
+### Sprint 8: Reports & Audit
+
+**Deliverables (Planned):**
+- [ ] PPH case report generation from timeline data
 - [ ] Supervisor unit reports with E-MOTIVE adherence metrics
-- [ ] Export functionality (PDF/CSV)
+- [ ] PDF export capability
+- [ ] Audit logging for clinical actions and status changes
 
 ---
 
-## Phase 6: Training, Polish & Deployment (Sprint 10) - PLANNED
+## Phase 5: Training & Simulation (Sprint 9) - PLANNED
+
+### Sprint 9: Training Mode
+
+**Deliverables (Planned):**
+- [ ] Simulated PPH scenarios (no real patient data affected)
+- [ ] MCQ knowledge assessments with auto-scoring
+- [ ] Interactive decision tree case studies
+- [ ] Performance tracking per user
+- [ ] Training dashboard with completion metrics
+
+---
+
+## Phase 6: Polish & Deployment (Sprint 10) - PLANNED
 
 ### Sprint 10: Training Module & Release
 
@@ -247,6 +319,8 @@ app/
 │   ├── _layout.tsx
 │   ├── profile.tsx
 │   ├── approvals.tsx
+│   ├── facilities.tsx               # Facility CRUD with code management
+│   ├── units.tsx                    # Unit CRUD within facilities
 │   ├── modal.tsx
 │   ├── clinical/                    # Phase 3-4 (planned)
 │   │   ├── index.tsx
@@ -261,7 +335,31 @@ app/
 │   └── (tabs)/
 │       ├── _layout.tsx
 │       ├── index.tsx                # Home (role-based dashboard)
+│       ├── profile.tsx              # Profile (tab)
 │       └── settings.tsx
+components/
+├── dashboard/
+│   ├── action-item.tsx              # Animated icon action card
+│   ├── admin-dashboard.tsx
+│   ├── supervisor-dashboard.tsx
+│   ├── staff-dashboard.tsx
+│   ├── user-dashboard.tsx
+│   ├── dashboard-header.tsx
+│   ├── stat-box.tsx
+│   └── awaiting-assignment.tsx
+├── ui/
+│   ├── button.tsx
+│   ├── card.tsx
+│   ├── input.tsx
+│   ├── icon-symbol.tsx / .ios.tsx
+│   ├── section-header.tsx
+│   ├── screen-container.tsx
+│   └── skeleton.tsx
+├── avatar.tsx
+├── themed-text.tsx
+├── themed-view.tsx
+├── unit-selector.tsx
+└── haptic-tab.tsx
 context/
 ├── auth.tsx
 ├── theme.tsx
@@ -275,6 +373,9 @@ lib/
 ├── security.native.ts / security.ts
 ├── risk-calculator.ts               # Phase 3 (planned)
 └── sync-queue.ts                    # Phase 4 (planned)
+supabase/
+├── migrations/                      # 6 migration files
+└── seed.sql                         # Seed data for 4 facilities
 ```
 
 ---

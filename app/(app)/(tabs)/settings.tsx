@@ -33,7 +33,7 @@ export default function SettingsScreen() {
       const fr = new FileReader();
       fr.readAsDataURL(data);
       fr.onload = () => setAvatarUrl(fr.result as string);
-    } catch (error) { }
+    } catch { }
   }
 
   const handleSignOut = async () => {
@@ -41,7 +41,7 @@ export default function SettingsScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await signOut();
       showToast('Signed out successfully', 'success');
-    } catch (error: any) {
+    } catch {
       showToast('Error signing out', 'error');
     }
   };

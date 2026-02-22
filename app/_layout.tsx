@@ -4,11 +4,12 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/context/auth';
-import { ToastProvider } from '@/context/toast';
+import { ClinicalProvider } from '@/context/clinical';
 import { ThemeProvider as AppThemeProvider } from '@/context/theme';
+import { ToastProvider } from '@/context/toast';
 import { UnitProvider } from '@/context/unit';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export const unstable_settings = {
   anchor: '(app)/(tabs)',
@@ -25,7 +26,7 @@ function RootLayoutNav() {
     const inAuthGroup = segments[0] === '(auth)';
     const isSplash = segments.length === 0 || segments[0] === 'index';
 
-    if (isSplash) return; 
+    if (isSplash) return;
 
     if (!isOfflineAuthenticated && !inAuthGroup) {
       router.replace('/(auth)/login');
@@ -52,7 +53,9 @@ export default function RootLayout() {
       <ToastProvider>
         <AuthProvider>
           <UnitProvider>
-            <RootLayoutNav />
+            <ClinicalProvider>
+              <RootLayoutNav />
+            </ClinicalProvider>
           </UnitProvider>
         </AuthProvider>
       </ToastProvider>

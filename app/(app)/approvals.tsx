@@ -47,6 +47,7 @@ export default function ApprovalsScreen() {
 
   useEffect(() => {
     if (user?.id) fetchData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
   const fetchData = async () => {

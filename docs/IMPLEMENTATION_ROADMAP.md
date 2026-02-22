@@ -6,7 +6,7 @@ This roadmap provides a phased timeline for the development of MotivAid. Each ph
 
 ---
 
-## Phase 1: Security & Identity - COMPLETE
+## Phase 1: Security & Identity — COMPLETE
 
 **Focus:** Building a resilient authentication foundation.
 
@@ -20,7 +20,7 @@ This roadmap provides a phased timeline for the development of MotivAid. Each ph
 
 ---
 
-## Phase 2: Facility & Unit Hierarchy - COMPLETE
+## Phase 2: Facility & Unit Hierarchy — COMPLETE
 
 **Focus:** Modeling the real-world healthcare environment.
 
@@ -28,73 +28,105 @@ This roadmap provides a phased timeline for the development of MotivAid. Each ph
   - **Backend:** Created `facilities`, `units`, `unit_memberships` tables with RLS
   - **Roles:** Expanded `user_role` enum with `nurse` and `student`
   - **UI:** `UnitProvider` context + `UnitSelector` component with modal picker
-- **Sprint 4:**
+
+- **Sprint 4a:**
   - **Backend:** Created `facility_codes` table for role-specific registration codes
-  - **Dashboard:** 4 role-based dashboards (Admin, Supervisor, Staff, User)
+  - **Dashboard:** 4 role-based dashboards (Admin, Supervisor, Staff, User) with icon-based action grids
   - **Approval:** Supervisor membership approval screen with approve/reject workflow
 
-**Result:** Users can register with facility codes to get role assignments. Staff see their approved units. Supervisors can approve/reject membership requests. Each role gets a customized dashboard.
+- **Sprint 4b (Management):**
+  - **Backend:** Added `facility_id` column to `profiles`, management RLS policies (facility CRUD for admin/supervisor), facility code activation (`is_active` column)
+  - **Facilities Screen:** Full CRUD for facilities with name/location fields, auto-generated registration codes (acronym-based format e.g. `AKTH1-SUP`), view/edit/create modals, code activate/deactivate toggle
+  - **Units Screen:** Full CRUD for units within facilities, description and metadata fields
+  - **Registration:** Updated code validation to support variable-length codes with debounced input, deactivated code detection
+  - **DB Functions:** Enhanced `auto_generate_facility_codes()` with acronym logic, enhanced `handle_new_user()` with `is_active` check
 
-**Migrations:** `20260216000001_expand_roles_and_org.sql`, `20260216000002_role_specific_codes.sql`
+**Result:** Full organizational hierarchy management. Admins can create/edit facilities with auto-generated codes. Supervisors can approve memberships. Staff register with facility codes that are validated in real-time, including deactivation checks. Each role gets a customized dashboard with icon-based action grids.
 
----
-
-## Phase 3: Risk Assessment & Clinical Data - PLANNED
-
-**Focus:** Patient data entry and initial clinical logic.
-
-- **Sprint 5:**
-  - **Forms:** Build the Maternal Risk Assessment form (age, parity, anemia, PPH history)
-  - **Logic:** Implement the Risk Scoring algorithm (low/medium/high/critical)
-- **Sprint 6:**
-  - **Vital Signs:** Create the quick-entry vital signs pad (HR, BP)
-  - **Calculations:** Automated Shock Index display (HR / systolic BP)
-  - **Offline:** SQLite tables for maternal profiles and vital signs
-
-**Goal:** Identify high-risk mothers before delivery begins and establish the offline clinical data foundation.
+**Migrations:**
+- `20260216000001_expand_roles_and_org.sql`
+- `20260216000002_role_specific_codes.sql`
+- `20260216000003_add_facility_to_profiles.sql`
+- `20260216000004_management_rls.sql`
+- `20260218000000_facility_code_activation.sql`
 
 ---
 
-## Phase 4: Active Clinical Mode - PLANNED
+## Phase 3: Risk Assessment & Clinical Mode — COMPLETE
 
-**Focus:** The point-of-care intervention interface (the heart of MotivAid).
+**Focus:** Patient data entry, clinical logic, and the E-MOTIVE intervention workflow.
+
+- **Sprint 5 (Risk Assessment & Patient Management):**
+  - **Database:** Created `maternal_profiles`, `vital_signs`, `emotive_checklists` Supabase tables with RLS + `sync_queue` table
+  - **Offline:** Parallel SQLite tables (`maternal_profiles_local`, `vital_signs_local`, `emotive_checklists_local`, `sync_queue_local`) with full CRUD
+  - **Web Fallback:** localStorage-backed equivalents in `lib/clinical-db.ts`
+  - **Risk Calculator:** AWHONN-adapted scoring algorithm (`lib/risk-calculator.ts`) — Low/Medium/High/Critical with 13 factor flags
+  - **New Patient Form:** Full maternal data entry with live risk banner, 13 toggleable risk factors, obstetric history fields
+  - **Clinical Tab:** Bottom nav tab with case list, status filters (Pre-Delivery/Active/Monitoring/Closed), pull-to-refresh, supervisor cross-unit view
+
+- **Sprint 6 (Vital Signs, Shock Index & E-MOTIVE):**
+  - **Vital Signs Pad:** Quick-entry form for HR, BP (systolic/diastolic), temperature, SpO2, respiratory rate
+  - **Shock Index:** Live SI calculation (`lib/shock-index.ts`) with 5-level severity (Normal → Emergency), color-coded banners, haptic alerts on critical values
+  - **Blood Loss Estimation:** Numeric input with quick-add buttons (+100/+250/+500/+1000 mL), method selector (Visual/Drape/Weighed), severity assessment
+  - **E-MOTIVE Checklist:** Full interactive WHO E-MOTIVE bundle (6 steps: Early Detection, Massage, Oxytocin, TXA, IV Fluids, Escalation) with:
+    - Elapsed timer tracking 60-minute WHO target
+    - Accordion UX (one step expanded at a time)
+    - Auto-timestamps, dose/volume fields, notes per step
+    - "Done" button → close case modal with outcome selection
+  - **Patient Detail Screen:** Overview with metrics cards (Shock Index, Blood Loss), quick actions (Record Vitals, E-MOTIVE Bundle), case lifecycle management (Pre-Delivery → Active → Monitoring → Closed)
+  - **Vitals Prompt Banner:** Animated reminder when vital signs are overdue
+  - **Sync Queue:** Background upload engine (`lib/sync-queue.ts`) with retry logic, resolves local IDs to remote UUIDs
+  - **Context:** `ClinicalProvider` managing profiles, vitals, E-MOTIVE checklist, active case state, sync operations
+
+**Result:** A complete clinical workflow from patient registration through risk assessment, vital signs monitoring, E-MOTIVE intervention tracking, and case closure — all working offline-first with queue-based sync.
+
+**Migrations:**
+- `20260220000000_clinical_data_tables.sql` (maternal_profiles, vital_signs, sync_queue + RLS)
+- `20260222000000_emotive_checklists.sql` (emotive_checklists + RLS)
+
+---
+
+## Phase 4: Case Timeline, Alerts & Escalation — PLANNED (Next)
+
+**Focus:** Communication, real-time alerts, and comprehensive case documentation.
 
 - **Sprint 7:**
-  - **Timer Logic:** 1-hour PPH watch timer and delivery timestamping
-  - **Checklist:** The E-MOTIVE interactive bundle (Early Detection through Escalation)
-  - **Logging:** Automatic intervention timestamping
+  - **Timeline View:** Chronological event list for each case showing all vitals, interventions, and status changes
+  - **Alert Thresholds:** Configurable visual/haptic triggers for SI thresholds and blood loss levels
+  - **Escalation System:** One-tap emergency contact with 3-level hierarchy (unit → facility → external referral)
+  - **Emergency Contacts Table:** Unit and facility emergency contacts
 - **Sprint 8:**
-  - **Timeline:** Build the Case Timeline showing every intervention in real-time
-  - **Offline Persistence:** Robust SQLite saving for active cases
-  - **Sync Queue:** Background data upload when connectivity restores
-
-**Goal:** Provide guided support to midwives during a PPH emergency, even without internet.
-
----
-
-## Phase 5: Alerts, Escalation & Reports - PLANNED
-
-**Focus:** Communication and documentation.
-
-- **Sprint 9:**
-  - **Alerts:** Visual/haptic triggers for critical clinical thresholds
-  - **Escalation:** One-tap emergency contact system with 3-level hierarchy
-  - **Reporting:** PPH case report generation for audit
-  - **Metrics:** Supervisor unit-wide E-MOTIVE adherence view
-  - **Audit:** Action logging for accountability
+  - **Case Reports:** Auto-generated PPH case summary from interventions and vitals timeline
+  - **Audit Logging:** Action logging table for accountability
+  - **E-MOTIVE Adherence Metrics:** Supervisor unit-wide adherence view
+  - **PDF Export:** Case report generation for audit
 
 **Goal:** Ensure rapid emergency response and comprehensive case documentation.
 
 ---
 
-## Phase 6: Training, Polish & Deployment - PLANNED
+## Phase 5: Training & Simulation — PLANNED
 
-**Focus:** Sustainability and production readiness.
+**Focus:** Continuous learning and competency assessment.
+
+- **Sprint 9:**
+  - **Simulation:** Practice PPH scenarios for midwives to build confidence (no real patient data)
+  - **Quizzes:** MCQ knowledge assessments with automated scoring
+  - **Case Studies:** Interactive decision trees based on real-world PPH cases
+  - **Progress Tracking:** Performance history per user, completion rates
+
+**Goal:** Build clinical confidence through safe, repeatable practice.
+
+---
+
+## Phase 6: Polish & Deployment — PLANNED
+
+**Focus:** Production readiness.
 
 - **Sprint 10:**
-  - **Simulation:** Practice PPH scenarios for midwives to build confidence
-  - **Quizzes:** MCQ knowledge assessments with progress tracking
   - **QA:** Edge-case testing, performance optimization on low-end devices
+  - **Analytics Dashboard:** Supervisor/admin aggregated metrics view
+  - **Multi-Language:** Localization support (Hausa, Yoruba)
   - **Launch:** Production Supabase deployment and app store submissions
 
 **Goal:** A polished, life-saving clinical tool ready for real-world deployment.
@@ -105,9 +137,9 @@ This roadmap provides a phased timeline for the development of MotivAid. Each ph
 
 | Phase | Sprints | Status | Key Deliverables |
 |-------|---------|--------|------------------|
-| 1. Security & Identity | 0-2 | Complete | Auth, offline sign-in, biometrics, theming |
-| 2. Facility & Unit Hierarchy | 3-4 | Complete | Roles, facilities, units, memberships, dashboards |
-| 3. Risk Assessment | 5-6 | Planned | Maternal data, vital signs, risk scoring |
-| 4. Clinical Mode | 7-8 | Planned | E-MOTIVE workflow, cases, interventions |
-| 5. Alerts & Reports | 9 | Planned | Escalation, case reports, adherence metrics |
-| 6. Training & Deployment | 10 | Planned | Scenarios, quizzes, QA, production launch |
+| 1. Security & Identity | 0–2 | ✅ Complete | Auth, offline sign-in, biometrics, theming |
+| 2. Facility & Unit Hierarchy | 3–4b | ✅ Complete | Roles, facilities CRUD, units CRUD, codes, dashboards, activation |
+| 3. Risk Assessment & Clinical Mode | 5–6 | ✅ Complete | Maternal profiles, vital signs, risk scoring, E-MOTIVE checklist, shock index, sync queue, offline clinical data |
+| 4. Timeline, Alerts & Escalation | 7–8 | 🔲 Next | Case timeline, alert thresholds, escalation, case reports, audit logs |
+| 5. Training & Simulation | 9 | 🔲 Planned | PPH scenarios, quizzes, case studies, progress tracking |
+| 6. Polish & Deployment | 10 | 🔲 Planned | QA, analytics, localization, production launch |

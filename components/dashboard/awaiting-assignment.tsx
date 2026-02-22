@@ -20,6 +20,7 @@ export function AwaitingAssignment() {
 
     useEffect(() => {
         fetchFacility();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const fetchFacility = async () => {

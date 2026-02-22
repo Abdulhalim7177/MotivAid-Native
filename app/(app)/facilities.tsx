@@ -158,9 +158,10 @@ export default function FacilitiesScreen() {
             setLoading(false);
             setRefreshing(false);
         }
-    }, []);
+    }, [showToast]);
 
-    useEffect(() => { fetchFacilities(); }, []);
+    useEffect(() => { fetchFacilities(); // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     /* ── Collect all existing codes for uniqueness checks ── */
 

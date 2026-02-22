@@ -48,6 +48,7 @@ export default function RegisterScreen() {
     }
 
     return () => { if (codeTimerRef.current) clearTimeout(codeTimerRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessCode, selectedRole, isStaff]);
 
   const validateCode = async (code: string, role: string) => {
@@ -76,7 +77,7 @@ export default function RegisterScreen() {
         // @ts-ignore
         showToast(`Verified for ${data.facilities.name}`, 'success');
       }
-    } catch (err) {
+    } catch {
       // Error handled
     } finally {
       setIsValidatingCode(false);

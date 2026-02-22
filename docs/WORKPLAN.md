@@ -25,7 +25,8 @@ This workplan outlines the functional blocks required to implement the MotivAid 
 - [x] **1.3 Registration with Facility Codes**
   - Medical staff toggle on registration form
   - Role selection buttons (Midwife, Nurse, Student, Supervisor)
-  - Real-time 6-character code validation against `facility_codes` table
+  - Real-time variable-length code validation against `facility_codes` table (debounced)
+  - Deactivated code detection with specific error message
   - Pass `registration_code` in user metadata for trigger-based role assignment
 
 - [x] **1.4 Unit Selector**
@@ -42,10 +43,17 @@ This workplan outlines the functional blocks required to implement the MotivAid 
   - Haptic feedback and toast notifications
 
 - [x] **1.6 Role-Based Dashboards**
-  - `AdminDashboard` — Global statistics, system admin actions
-  - `SupervisorDashboard` — Unit adherence, pending approvals, team management
-  - `StaffDashboard` — Shift overview, clinical mode entry, training progress
+  - `AdminDashboard` — Global statistics, system admin actions, quick action nav cards
+  - `SupervisorDashboard` — Unit adherence, pending approvals, icon-based management grid
+  - `StaffDashboard` — Shift overview, icon-based quick actions, training progress
   - `UserDashboard` — Simplified clinical mode entry
+
+- [x] **1.7 Facility & Unit Management**
+  - Facilities CRUD screen with auto-generated registration codes (acronym-based format)
+  - Code activation/deactivation toggle with visual feedback
+  - Units CRUD screen within facilities
+  - Management RLS policies for admin/supervisor roles
+  - `is_active` column on `facility_codes` for code lifecycle management
 
 ### Dependencies:
 - Supabase Auth (Phase 1) must be complete
@@ -53,95 +61,109 @@ This workplan outlines the functional blocks required to implement the MotivAid 
 
 ---
 
-## Block 2: Clinical Schema & Offline Foundation - PLANNED
+## Block 2: Clinical Schema & Offline Foundation - COMPLETE
 
 **Objective:** Build the data model for maternal profiles, vital signs, and PPH cases with offline-first storage.
 
 ### Tasks:
 
-- [ ] **2.1 Maternal Profiles Table**
-  - Create migration: age, parity, gravida, blood type, weight, risk factors
-  - Boolean flags: has_anemia, has_pph_history, has_multiple_pregnancy, has_pre_eclampsia, etc.
-  - Link to facility and unit via foreign keys
-  - RLS policies scoped to unit membership
+- [x] **2.1 Maternal Profiles Table**
+  - Migration `20260220000000_clinical_data_tables.sql`: age, parity, gravida, blood type, weight, 13 AWHONN-adapted risk factors
+  - Boolean flags: has_anemia, has_pph_history, is_multiple_gestation, has_prior_cesarean, has_placenta_previa, has_large_fibroids, has_intraamniotic_infection, has_severe_anemia, has_coagulopathy, has_severe_pph_history, has_placenta_accreta, has_active_bleeding, has_morbid_obesity
+  - Linked to facility, unit, and created_by (staff profile)
+  - RLS policies: facility-scoped reads, staff insert, creator/supervisor update
 
-- [ ] **2.2 Vital Signs Table**
-  - Create migration: heart_rate, systolic_bp, diastolic_bp, temperature, respiratory_rate
-  - Computed column or application-level shock_index (HR / systolic_bp)
-  - Timestamp tracking, recorded_by reference
+- [x] **2.2 Vital Signs Table**
+  - Migration `20260220000000_clinical_data_tables.sql`: heart_rate, systolic_bp, diastolic_bp, temperature, respiratory_rate, spo2, estimated_blood_loss, blood_loss_method
+  - Application-level Shock Index calculation (HR / systolic_bp) via `lib/shock-index.ts`
+  - 5-level severity: Normal, Warning, Alert, Critical, Emergency
 
-- [ ] **2.3 Risk Scoring Algorithm**
-  - Implement `lib/risk-calculator.ts`
-  - Score based on maternal factors (age, parity, history, anemia, etc.)
-  - Output: low / medium / high / critical risk level
+- [x] **2.3 Risk Scoring Algorithm**
+  - Implemented `lib/risk-calculator.ts` (AWHONN-adapted)
+  - 13 risk factors scored: Low (0-1), Medium (2-3), High (4-5), Critical (6+)
   - Preparedness recommendations per level
+  - Live risk banner updates as factors are toggled
 
-- [ ] **2.4 Offline SQLite Tables**
-  - Extend `lib/db.native.ts` with tables for maternal profiles and vital signs
-  - Implement CRUD operations for offline data entry
-  - Add `sync_status` column (pending, synced, failed) to each local table
+- [x] **2.4 Offline SQLite Tables**
+  - Created `lib/clinical-db.native.ts` with tables: `maternal_profiles_local`, `vital_signs_local`, `emotive_checklists_local`, `sync_queue_local`
+  - Full CRUD for all tables
+  - `is_synced` and `remote_id` columns for sync tracking
+  - Web fallback in `lib/clinical-db.ts` using localStorage
+
+- [x] **2.5 Sync Queue**
+  - Implemented `lib/sync-queue.ts` for background upload
+  - Resolves local_id → remote_id for foreign keys
+  - Retry logic with max_retries (default 3)
+  - Supports maternal_profiles, vital_signs, and emotive_checklists
 
 ### Dependencies:
-- Block 1 complete (facilities, units, memberships)
+- Block 1 complete (facilities, units, memberships) ✅
 
 ---
 
-## Block 3: E-MOTIVE Workflow - PLANNED
+## Block 3: E-MOTIVE Workflow - COMPLETE
 
 **Objective:** Implement the core clinical decision support system based on the WHO E-MOTIVE bundle.
 
 ### Tasks:
 
-- [ ] **3.1 PPH Cases Table**
-  - Create migration: delivery_time, estimated_blood_loss, status (active/resolved/referred/death)
-  - Link to maternal_profile, midwife (profile), unit, facility
-  - Timestamps for key events
+- [x] **3.1 Clinical Tab & Case List**
+  - Bottom nav tab `app/(app)/(tabs)/clinical.tsx`
+  - FlatList with status filters (Pre-Delivery/Active/Monitoring/Closed)
+  - Supervisor cross-unit view with unit filter chips
+  - Pull-to-refresh, sync button, new case navigation
 
-- [ ] **3.2 Interventions Table**
-  - Create migration: pph_case_id, type (enum), name, dosage, route, timing
-  - Track performed_by, is_completed, completed_at
-  - E-MOTIVE types: early_detection, massage, oxytocics, tranexamic_acid, iv_fluids, examination, escalation
+- [x] **3.2 New Patient Form**
+  - `app/(app)/clinical/new-patient.tsx`
+  - Obstetric data entry: age, gravida, parity, gestational age, blood type, weight, hemoglobin
+  - 13 toggleable risk factor switches grouped by severity (Medium/High/Critical)
+  - Live risk banner with color-coded level display
 
-- [ ] **3.3 Clinical Mode Screen**
-  - Pre-delivery: enter maternal data, calculate risk
-  - Active monitoring: 1-hour timer, vital signs entry
-  - PPH detected: trigger E-MOTIVE checklist
+- [x] **3.3 Patient Detail Screen**
+  - `app/(app)/clinical/patient-detail.tsx`
+  - Metrics cards: Shock Index (latest) + Blood Loss (latest)
+  - Quick actions: Record Vitals, E-MOTIVE Bundle
+  - Case lifecycle controls: status transitions + cross-platform close modal with outcome selection
 
-- [ ] **3.4 E-MOTIVE Checklist UI**
-  - Interactive step-by-step checklist
-  - Each step logs an intervention with timestamp
-  - Visual progress tracking
-  - Color-coded urgency indicators
+- [x] **3.4 E-MOTIVE Checklist**
+  - `components/clinical/emotive-checklist.tsx`
+  - 6 interactive steps: Early Detection, Massage, Oxytocin, TXA, IV Fluids, Escalation
+  - 60-minute elapsed timer anchored to earliest step timestamp
+  - Accordion UX: one step expanded at a time with detail inputs (dose, volume, notes)
+  - Auto-timestamps on check, "Done" button when all complete → close case modal
+  - E-MOTIVE data persisted in `emotive_checklists` table (local + remote)
 
-- [ ] **3.5 Case Timeline**
-  - Chronological event list for a case
-  - Auto-logged events (vital signs, interventions, escalations)
-  - Exportable for audit
+- [x] **3.5 Vital Signs Recording**
+  - `app/(app)/clinical/record-vitals.tsx`
+  - Quick-entry pad for HR, BP, temperature, SpO2, respiratory rate
+  - Blood loss estimation with quick-add buttons and method selector (Visual/Drape/Weighed)
+  - Live Shock Index banner with 5-level severity
+  - Vitals prompt banner (`components/clinical/vitals-prompt-banner.tsx`) for timed reminders
 
-- [ ] **3.6 Offline Case Management**
-  - Full case lifecycle in SQLite
-  - Queue-based sync when connectivity restores
-  - Conflict resolution for concurrent edits
+- [x] **3.6 Offline Case Management**
+  - Full case lifecycle in SQLite (native) and localStorage (web)
+  - Queue-based sync via `lib/sync-queue.ts`
+  - Context provider (`context/clinical.tsx`) managing all state and operations
 
 ### Dependencies:
-- Block 2 complete (maternal profiles, vital signs, offline foundation)
+- Block 2 complete (maternal profiles, vital signs, offline foundation) ✅
 
 ---
 
-## Block 4: Escalation & Communications - PLANNED
+## Block 4: Timeline, Escalation & Reports - PLANNED (Next)
 
-**Objective:** Implement the emergency alert and escalation system.
+**Objective:** Implement the case timeline, emergency escalation, and case reporting.
 
 ### Tasks:
 
-- [ ] **4.1 Emergency Contacts Table**
+- [ ] **4.1 Case Timeline View**
+  - Chronological event list per case (vitals, E-MOTIVE steps, status changes)
+  - Auto-logged entries from existing data
+  - Scrollable timeline UI with timestamps
+
+- [ ] **4.2 Emergency Contacts Table**
   - Create migration: unit_id, facility_id, contact_type, name, phone, role
   - Three tiers: unit contacts, facility contacts, external referrals
-
-- [ ] **4.2 Alert Thresholds**
-  - Configurable thresholds: blood loss >500ml (warning), >1000ml (critical)
-  - Shock index thresholds: >0.9 (warning), >1.4 (critical)
-  - Visual alerts (color change, animation) + haptic alerts
 
 - [ ] **4.3 One-Tap Escalation**
   - Emergency button in clinical mode
@@ -149,13 +171,18 @@ This workplan outlines the functional blocks required to implement the MotivAid 
   - Auto-escalate to Level 2 (facility) if no response
   - Level 3: external referral contacts
 
-- [ ] **4.4 Audit Logging**
+- [ ] **4.4 Case Reports**
+  - Auto-generated PPH case summary from interventions and vitals
+  - PDF export capability
+  - E-MOTIVE adherence metrics per case
+
+- [ ] **4.5 Audit Logging**
   - `audit_logs` table: action, actor, target, timestamp, metadata
   - Log all clinical actions, escalations, and case status changes
   - Supervisor/admin accessible audit trail
 
 ### Dependencies:
-- Block 3 complete (PPH cases, interventions, clinical mode)
+- Block 3 complete (E-MOTIVE workflow, clinical data) ✅
 
 ---
 

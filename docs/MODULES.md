@@ -64,9 +64,9 @@ graph LR
 
 | Role | Component | Content |
 |------|-----------|---------|
-| `admin` | `AdminDashboard` | Global statistics, system admin actions (Security, Config, Audit Logs) |
-| `supervisor` | `SupervisorDashboard` | Unit adherence metrics, pending approvals link, management actions |
-| `midwife` / `nurse` / `student` | `StaffDashboard` | Shift overview stats, Clinical Mode + Training + History actions, training progress bar |
+| `admin` | `AdminDashboard` | Global statistics (facilities, staff, units, pending), quick action nav cards (Manage Facilities, All Staff, Audit Log, System Settings) |
+| `supervisor` | `SupervisorDashboard` | Unit adherence metrics, pending approvals link, icon-based management grid (Units, Team, Analytics, Schedule, Reports, Settings, Identity Info) |
+| `midwife` / `nurse` / `student` | `StaffDashboard` | Shift overview stats, icon-based quick actions (New Case, Training, My Patients, Schedule, Protocols, Reports), training progress bar |
 | `user` (default) | `UserDashboard` | Simplified clinical mode entry |
 
 ---
@@ -89,11 +89,24 @@ graph LR
 | Screen | File | Purpose |
 |--------|------|---------|
 | Approvals | `app/(app)/approvals.tsx` | Supervisor reviews pending membership requests |
+| Facilities | `app/(app)/facilities.tsx` | Admin/Supervisor creates, edits, deletes facilities, manages codes |
+| Units | `app/(app)/units.tsx` | Admin/Supervisor creates, edits, deletes units within facilities |
 
 ### Key Components
 
 - `UnitProvider` (`context/unit.tsx`) — Active unit state and available units
 - `UnitSelector` (`components/unit-selector.tsx`) — Modal picker for unit switching
+
+### Facility Code Management
+
+| Feature | Description | Priority | Status |
+|---------|-------------|----------|--------|
+| Create Facility | Name, location, auto-generated codes | P0 | Done |
+| Edit Facility | Update name, location | P1 | Done |
+| Delete Facility | Remove facility and all related data | P1 | Done |
+| View Codes | Modal showing all role codes for a facility | P0 | Done |
+| Activate/Deactivate Codes | Toggle `is_active` flag with visual feedback | P0 | Done |
+| Code Format | Acronym-based (e.g., `AKTH1-SUP`) with unique suffix | P0 | Done |
 
 ---
 
@@ -132,53 +145,83 @@ graph LR
 
 ---
 
-## 6. Clinical Mode Module (Planned — Phase 3-4)
+## 6. Clinical Mode Module — COMPLETE (Phase 3)
+
+**Location:** `app/(app)/(tabs)/clinical.tsx`, `app/(app)/clinical/`, `context/clinical.tsx`, `lib/clinical-db.native.ts`
 
 ### Features
 
 | Feature | Description | Priority | Status |
 |---------|-------------|----------|--------|
-| Risk Assessment | Maternal risk factor entry form | P0 | Planned |
-| Risk Profile | Auto-generated PPH risk level | P0 | Planned |
-| E-MOTIVE Checklist | Step-by-step clinical workflow | P0 | Planned |
-| Vital Signs | HR, BP, shock index calculation | P0 | Planned |
-| Blood Loss Tracking | Visual estimation guides | P0 | Planned |
-| Timer | PPH monitoring countdown (1 hour) | P0 | Planned |
-| Alerts | Threshold-based warnings | P0 | Planned |
+| Risk Assessment | Maternal risk factor entry with 13 AWHONN-adapted factors | P0 | Done |
+| Risk Profile | Auto-generated PPH risk level (Low/Medium/High/Critical) | P0 | Done |
+| E-MOTIVE Checklist | Interactive 6-step clinical workflow with timer | P0 | Done |
+| Vital Signs | HR, BP, temp, SpO2, RR with live shock index | P0 | Done |
+| Blood Loss Tracking | Numeric input with quick-add buttons and method selector | P0 | Done |
+| Timer | 60-minute elapsed timer anchored to first E-MOTIVE step | P0 | Done |
+| Shock Index Alerts | 5-level severity with color banners and haptic alerts | P0 | Done |
+| Case Lifecycle | Pre-Delivery → Active → Monitoring → Closed with outcomes | P0 | Done |
+| Offline Clinical Data | SQLite (native) + localStorage (web) with full CRUD | P0 | Done |
+| Sync Queue | Background upload with retry logic | P0 | Done |
 | Escalation | One-tap emergency notification | P0 | Planned |
-| Documentation | Automatic event logging | P0 | Planned |
+| Case Timeline | Chronological event view | P1 | Planned |
+| Case Reports | Auto-generated PPH case summary | P1 | Planned |
+
+### Screens
+
+| Screen | File | Purpose |
+|--------|------|---------|
+| Clinical Tab | `app/(app)/(tabs)/clinical.tsx` | Case list with status filters, search, supervisor cross-unit view |
+| New Patient | `app/(app)/clinical/new-patient.tsx` | Maternal data entry with 13 risk factor toggles, live risk banner |
+| Patient Detail | `app/(app)/clinical/patient-detail.tsx` | Patient overview, metrics cards (SI + Blood Loss), E-MOTIVE checklist, case lifecycle |
+| Record Vitals | `app/(app)/clinical/record-vitals.tsx` | Quick-entry vitals pad with live shock index and blood loss estimation |
+
+### Key Components
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| `EmotiveChecklist` | `components/clinical/emotive-checklist.tsx` | Interactive E-MOTIVE bundle card with timer, accordion, dose fields |
+| `VitalsPromptBanner` | `components/clinical/vitals-prompt-banner.tsx` | Animated reminder when vital signs are overdue |
+| `ClinicalProvider` | `context/clinical.tsx` | Profiles, vitals, E-MOTIVE state, sync operations |
+
+### Clinical Logic Libraries
+
+| Library | File | Purpose |
+|---------|------|---------|
+| Risk Calculator | `lib/risk-calculator.ts` | AWHONN-adapted scoring: 13 factors → Low/Medium/High/Critical |
+| Shock Index | `lib/shock-index.ts` | SI = HR/SBP → 5 levels (Normal/Warning/Alert/Critical/Emergency) |
+| Clinical DB (native) | `lib/clinical-db.native.ts` | SQLite tables + CRUD for profiles, vitals, checklists |
+| Clinical DB (web) | `lib/clinical-db.ts` | localStorage fallback with identical API |
+| Sync Queue | `lib/sync-queue.ts` | Background sync engine: local → Supabase with retry |
 
 ### E-MOTIVE Workflow
 
 ```
-┌─────────────────────────────────────────────┐
-│  E-MOTIVE CHECKLIST                         │
-├─────────────────────────────────────────────┤
-│  [ ] Early Detection                        │
-│      └─ Blood loss estimation               │
-│      └─ Vital signs check                   │
-│                                              │
-│  [ ] Massage (Uterine)                      │
-│      └─ Bimanual compression                │
-│                                              │
-│  [ ] Oxytocics                              │
-│      └─ Oxytocin (10 IU IM/IV)             │
-│      └─ Alternative: Misoprostol           │
-│                                              │
-│  [ ] Tranexamic Acid                        │
-│      └─ 1g IV within 3 hours               │
-│                                              │
-│  [ ] IV Fluids                              │
-│      └─ Crystalloids (Ringer's/NS)         │
-│                                              │
-│  [ ] Examination                            │
-│      └─ Inspect for tears                  │
-│      └─ Check for retained products        │
-│                                              │
-│  [ ] Escalation                             │
-│      └─ Call for help                      │
-│      └─ Prepare referral                   │
-└─────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│  E-MOTIVE BUNDLE                    ⏱ 12:34 / 60:00       │
+│  Progress: ████████░░ 4/6                                    │
+├─────────────────────────────────────────────────────────────┤
+│  [✓] E  Early Detection           14:32                     │
+│        └─ Notes: Blood loss observed at 500mL               │
+│                                                              │
+│  [✓] M  Uterine Massage           14:33                     │
+│        └─ Notes: Bimanual compression applied               │
+│                                                              │
+│  [✓] O  Oxytocin                   14:35                     │
+│        └─ Dose: 10 IU IV                                    │
+│                                                              │
+│  [✓] T  Tranexamic Acid            14:36                     │
+│        └─ Dose: 1g IV                                       │
+│                                                              │
+│  [ ] I  IV Fluids                  (expanded, detail input) │
+│        └─ Volume: _____ mL                                  │
+│        └─ Notes: _____                                      │
+│                                                              │
+│  [ ] V/E Escalation                                         │
+│                                                              │
+├─────────────────────────────────────────────────────────────┤
+│  [Complete All Steps → "Done" Button → Close Case Modal]    │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -221,15 +264,35 @@ graph LR
 | `UnitSelector` | `components/unit-selector.tsx` | Unit switching modal |
 | `IconSymbol` | `components/ui/icon-symbol.tsx` | Cross-platform icon (Ionicons / SF Symbols) |
 | `HapticTab` | `components/haptic-tab.tsx` | Tab button with haptic feedback |
-| `Collapsible` | `components/ui/collapsible.tsx` | Expandable section |
-| `ExternalLink` | `components/external-link.tsx` | In-app browser link |
-| `ParallaxScrollView` | `components/parallax-scroll-view.tsx` | Parallax header scroll |
+| `Button` | `components/ui/button.tsx` | Themed button with variants (primary, outline, secondary, ghost) |
+| `Card` | `components/ui/card.tsx` | Themed card container |
+| `Input` | `components/ui/input.tsx` | Themed text input with label, error, left/right icons |
+| `ScreenContainer` | `components/ui/screen-container.tsx` | Page wrapper with safe area |
+| `SectionHeader` | `components/ui/section-header.tsx` | Section title with optional action |
+| `Skeleton` | `components/ui/skeleton.tsx` | Loading skeleton placeholder |
+
+### Dashboard Components
+
+| Component | File | Usage |
+|-----------|------|-------|
+| `ActionItem` | `components/dashboard/action-item.tsx` | Animated icon-based action card |
+| `StatBox` | `components/dashboard/stat-box.tsx` | Compact stat display |
+| `DashboardHeader` | `components/dashboard/dashboard-header.tsx` | Page header with avatar and greeting |
+| `AwaitingAssignment` | `components/dashboard/awaiting-assignment.tsx` | Empty state for unassigned staff |
+
+### Clinical Components
+
+| Component | File | Usage |
+|-----------|------|-------|
+| `EmotiveChecklist` | `components/clinical/emotive-checklist.tsx` | Interactive E-MOTIVE bundle with timer, accordion, dose fields |
+| `VitalsPromptBanner` | `components/clinical/vitals-prompt-banner.tsx` | Animated vitals reminder banner |
 
 ### Context Providers
 
 | Provider | File | Responsibility |
 |----------|------|----------------|
 | `AuthProvider` | `context/auth.tsx` | Session, profile, sign-in/out |
+| `ClinicalProvider` | `context/clinical.tsx` | Maternal profiles, vitals, E-MOTIVE, sync |
 | `ThemeProvider` | `context/theme.tsx` | Light/dark/system theme |
 | `ToastProvider` | `context/toast.tsx` | Animated notifications |
 | `UnitProvider` | `context/unit.tsx` | Active unit selection |

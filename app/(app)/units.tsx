@@ -100,9 +100,10 @@ export default function UnitsScreen() {
         } catch (e: any) {
             showToast(e.message || 'Failed to load units', 'error');
         } finally { setLoading(false); setRefreshing(false); }
-    }, [user?.id]);
+    }, [user?.id, showToast]);
 
-    useEffect(() => { if (user?.id) fetchUnits(); }, [user?.id]);
+    useEffect(() => { if (user?.id) fetchUnits(); // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user?.id]);
 
     /* ── CRUD ───────────────────────────────────── */
 

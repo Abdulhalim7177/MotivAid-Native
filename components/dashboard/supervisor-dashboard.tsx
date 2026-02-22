@@ -2,11 +2,13 @@ import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/card';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { SectionHeader } from '@/components/ui/section-header';
-import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Colors, Radius, Spacing } from '@/constants/theme';
+import { useClinical } from '@/context/clinical';
 import { useAppTheme } from '@/context/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { supabase } from '@/lib/supabase';
 import { router } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { ActionItem } from './action-item';
 import { StatBox } from './stat-box';
@@ -19,37 +21,75 @@ export function SupervisorDashboard() {
   const successColor = useThemeColor({}, 'success');
   const warningColor = useThemeColor({}, 'warning');
   const textSecondaryColor = useThemeColor({}, 'textSecondary');
+  const { profiles } = useClinical();
+
+  // Real clinical stats
+  const clinicalStats = useMemo(() => {
+    const activeCases = profiles.filter(p => p.status !== 'closed');
+    const highRiskCases = activeCases.filter(p => p.risk_level === 'high');
+    const closedToday = profiles.filter(p => {
+      if (p.status !== 'closed') return false;
+      const closedDate = new Date(p.updated_at);
+      const today = new Date();
+      return closedDate.toDateString() === today.toDateString();
+    });
+    return { activeCases: activeCases.length, highRisk: highRiskCases.length, closedToday: closedToday.length };
+  }, [profiles]);
+
+  // Pending approvals count from Supabase
+  const [pendingCount, setPendingCount] = useState(0);
+  useEffect(() => {
+    (async () => {
+      const { count } = await supabase
+        .from('unit_memberships')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending');
+      setPendingCount(count ?? 0);
+    })();
+  }, []);
 
   return (
     <View style={[isWeb && styles.webContainer]}>
+      {/* Unit Overview Card — Real Data */}
       <Card>
         <View style={styles.cardHeader}>
-          <ThemedText type="overline" color="secondary">Unit Adherence</ThemedText>
-          <View style={[styles.trendBadge, { backgroundColor: successColor + '15' }]}>
-            <IconSymbol name="chevron.right" size={12} color={successColor} style={{ transform: [{ rotate: '-90deg' }] }} />
-            <ThemedText style={[Typography.labelSm, { color: successColor }]}>+4%</ThemedText>
-          </View>
+          <ThemedText type="overline" color="secondary">Unit Overview</ThemedText>
         </View>
         <View style={styles.statsRow}>
-          <StatBox label="Avg Response" value="3.2m" />
-          <StatBox label="E-MOTIVE" value="92%" />
+          <StatBox label="Active Cases" value={`${clinicalStats.activeCases}`} />
+          <StatBox label="High Risk" value={`${clinicalStats.highRisk}`} />
+          <StatBox label="Closed Today" value={`${clinicalStats.closedToday}`} />
         </View>
       </Card>
 
+      {/* Pending Approvals */}
       <TouchableOpacity
         activeOpacity={0.7}
         onPress={() => router.push('/(app)/approvals')}
       >
         <Card
-          style={[styles.alertCard, { backgroundColor: warningColor + '0D', borderColor: warningColor + '30' }]}
+          style={[styles.alertCard, {
+            backgroundColor: pendingCount > 0 ? warningColor + '0D' : successColor + '0D',
+            borderColor: pendingCount > 0 ? warningColor + '30' : successColor + '30',
+          }]}
         >
           <View style={styles.alertContent}>
-            <View style={[styles.alertIcon, { backgroundColor: warningColor + '20' }]}>
-              <IconSymbol name="person-add-outline" size={20} color={warningColor} />
+            <View style={[styles.alertIcon, {
+              backgroundColor: pendingCount > 0 ? warningColor + '20' : successColor + '20',
+            }]}>
+              <IconSymbol
+                name="person-add-outline"
+                size={20}
+                color={pendingCount > 0 ? warningColor : successColor}
+              />
             </View>
             <View style={{ flex: 1 }}>
-              <ThemedText type="labelLg">Pending Approvals</ThemedText>
-              <ThemedText type="caption" color="secondary">Staff awaiting unit assignment</ThemedText>
+              <ThemedText type="labelLg">
+                {pendingCount > 0 ? `${pendingCount} Pending Approval${pendingCount > 1 ? 's' : ''}` : 'No Pending Approvals'}
+              </ThemedText>
+              <ThemedText type="caption" color="secondary">
+                {pendingCount > 0 ? 'Staff awaiting unit assignment' : 'All staff assigned'}
+              </ThemedText>
             </View>
             <IconSymbol name="chevron.right" size={20} color={textSecondaryColor} />
           </View>
@@ -88,6 +128,12 @@ export function SupervisorDashboard() {
           label="Settings"
           icon="settings-outline"
           color="#6B7280"
+        />
+        <ActionItem
+          label="Cases"
+          icon="cross.case.fill"
+          color="#EB4D88"
+          onPress={() => router.push('/(app)/(tabs)/clinical')}
         />
         <ActionItem
           label="Identity Info"

@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { StyleSheet, View, Alert, Pressable, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, Pressable, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import { decode } from 'base64-arraybuffer';
 import { IconSymbol } from './ui/icon-symbol';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { useToast } from '@/context/toast';
 import { Radius } from '@/constants/theme';
 
 interface Props {
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export default function Avatar({ url, size = 150, onUpload }: Props) {
+  const { showToast } = useToast();
   const [uploading, setUploading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const avatarSize = { height: size, width: size };
@@ -41,7 +43,7 @@ export default function Avatar({ url, size = 150, onUpload }: Props) {
       fr.onload = () => {
         setAvatarUrl(fr.result as string);
       };
-    } catch (error) {
+    } catch {
       // Handled
     }
   }
@@ -80,7 +82,7 @@ export default function Avatar({ url, size = 150, onUpload }: Props) {
       onUpload(filePath);
     } catch (error) {
       if (error instanceof Error) {
-        Alert.alert(error.message);
+        showToast(error.message, 'error');
       } else {
         throw error;
       }

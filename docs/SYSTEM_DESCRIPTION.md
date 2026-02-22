@@ -42,7 +42,7 @@ graph TD
 | **Unit** | A subdivision within a facility (e.g., Maternity Ward A, Emergency Delivery Unit) |
 | **User Roles** | Admin, Supervisor, Midwife, Nurse, Student, User |
 | **Membership** | Users can belong to multiple units; memberships require supervisor approval |
-| **Facility Codes** | Role-specific 6-character codes used during registration to assign roles |
+| **Facility Codes** | Role-specific codes (e.g., `AKTH1-SUP`) used during registration to assign roles. Can be activated/deactivated. |
 
 ---
 
@@ -56,8 +56,11 @@ graph TD
 - Register with a facility access code to get role assignment
 - Join units within their facility (requires supervisor approval)
 - Access role-based staff dashboard with shift overview
-- Access clinical mode for PPH management (planned)
-- Complete E-MOTIVE checklists during deliveries (planned)
+- Access clinical mode for PPH management
+- Create maternal profiles with risk assessment
+- Record vital signs with live Shock Index calculation
+- Complete interactive E-MOTIVE checklists with timer
+- Manage case lifecycle (Pre-Delivery → Active → Monitoring → Closed)
 - Access training and simulation modules (planned)
 - Switch between units if member of multiple
 
@@ -111,11 +114,12 @@ sequenceDiagram
 **Primary Function:** System-wide configuration and cross-facility management
 
 **Capabilities:**
-- Global statistics view on admin dashboard
-- System administration actions (security, config, audit logs)
-- Access to all facilities and units (planned via Next.js web panel)
-
-> Administrator panel will be implemented separately using Next.js for web-based management.
+- Global statistics view on admin dashboard (facilities, staff, units, pending)
+- Manage facilities: create, edit, delete facilities
+- Manage registration codes: auto-generate, activate, deactivate
+- Manage units: create, edit, delete units within facilities
+- Quick action navigation cards for system management
+- Access to all facilities and units
 
 ---
 
@@ -131,8 +135,9 @@ sequenceDiagram
 │   - Full name, email, password                            │
 │   - Optionally toggles "Medical Staff" mode               │
 │     - Selects role: Midwife / Nurse / Student / Supervisor│
-│     - Enters 6-character facility access code             │
-│     - Code validated in real-time against facility_codes  │
+│     - Enters facility access code (e.g., AKTH1-SUP)      │
+│     - Code validated in real-time (debounced, 4+ chars)  │
+│     - Deactivated codes show specific error message       │
 │ Submits registration via supabase.auth.signUp()           │
 └──────────────────────────────────────────────────────────┘
                         ↓
@@ -186,46 +191,54 @@ sequenceDiagram
 └──────────────────────────────────────────────────────────┘
 ```
 
-### Workflow 3: Clinical Mode (Planned — Phase 3-4)
+### Workflow 3: Clinical Mode — IMPLEMENTED (Phase 3)
 
 ```
 ┌──────────────────────────────────────────────────────────┐
 │ STEP 1: Pre-Delivery Preparation                          │
 ├──────────────────────────────────────────────────────────┤
-│ Midwife selects active unit                               │
-│ Navigates to Clinical Mode                                │
-│ Enters maternal risk factors (age, parity, history)       │
-│ System calculates risk profile                            │
-│ Displays preparedness recommendations                     │
+│ Midwife navigates to Clinical tab → taps "New"           │
+│ Enters maternal data: age, gravida, parity, risk factors │
+│ System calculates risk level (Low/Medium/High/Critical)  │
+│ Live risk banner updates as toggles change               │
+│ Saves profile locally → queues sync to Supabase          │
+│ Case appears in Clinical tab case list                    │
 └──────────────────────────────────────────────────────────┘
                         ↓
 ┌──────────────────────────────────────────────────────────┐
-│ STEP 2: Delivery & Monitoring                             │
+│ STEP 2: Active Monitoring                                 │
 ├──────────────────────────────────────────────────────────┤
-│ Record delivery time                                      │
-│ PPH monitoring timer starts (1 hour)                      │
-│ Record initial vital signs                                │
-│ Estimate blood loss                                       │
+│ Change case status to "Active"                            │
+│ Record vital signs via quick-entry pad                    │
+│   HR, BP, Temperature, SpO2, Respiratory Rate            │
+│ Live Shock Index calculation (SI = HR / SBP)             │
+│   5 levels: Normal → Warning → Alert → Critical → Emerg │
+│ Blood loss estimation with method selection               │
+│ Vitals prompt banner reminds when overdue                 │
 └──────────────────────────────────────────────────────────┘
                         ↓
 ┌──────────────────────────────────────────────────────────┐
-│ STEP 3: E-MOTIVE Checklist (If PPH Detected)             │
+│ STEP 3: E-MOTIVE Bundle Checklist                         │
 ├──────────────────────────────────────────────────────────┤
-│ [ ] Early Detection (blood loss >500ml OR clinical signs) │
-│ [ ] Massage (uterine massage)                             │
-│ [ ] Oxytocics (Oxytocin/Misoprostol)                     │
-│ [ ] Tranexamic Acid (within 3 hours)                      │
-│ [ ] IV Fluids                                             │
-│ [ ] Examination (source identification)                   │
-│ [ ] Escalation (if not improving)                         │
+│ 60-minute elapsed timer starts from first step            │
+│ [✓] E  Early Detection    → auto-timestamp, notes        │
+│ [✓] M  Uterine Massage    → auto-timestamp, notes        │
+│ [✓] O  Oxytocin           → auto-timestamp, dose, notes  │
+│ [✓] T  Tranexamic Acid    → auto-timestamp, dose, notes  │
+│ [ ] I  IV Fluids           → volume, notes                │
+│ [ ] V/E Escalation         → notes                        │
+│ Accordion: one step expanded at a time                    │
+│ Progress bar shows X/6 completed                          │
 └──────────────────────────────────────────────────────────┘
                         ↓
 ┌──────────────────────────────────────────────────────────┐
-│ STEP 4: Documentation & Case Closure                      │
+│ STEP 4: Case Closure                                      │
 ├──────────────────────────────────────────────────────────┤
-│ System automatically logs all interventions               │
-│ Record final outcome (resolved/referred/death)            │
-│ Case report generated for audit                           │
+│ When all 6 E-MOTIVE steps complete → "Done" button        │
+│ Close case modal with outcome selection:                  │
+│   Normal | PPH Resolved | Referred | Other               │
+│ All data persisted offline, synced when online            │
+│ Case report generation (planned Phase 4)                  │
 └──────────────────────────────────────────────────────────┘
 ```
 
@@ -241,7 +254,7 @@ sequenceDiagram
 │               (Offline-First Design)                         │
 ├─────────────────────────────────────────────────────────────┤
 │  UI Layer          │ Expo Router v6 (file-based routing)    │
-│  State Layer       │ React Context (4 providers)            │
+│  State Layer       │ React Context (5 providers)            │
 │  Service Layer     │ lib/ (platform-specific modules)       │
 │  Local Storage     │ SQLite + SecureStore + AsyncStorage    │
 └─────────────────────────────────────────────────────────────┘

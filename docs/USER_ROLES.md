@@ -100,6 +100,11 @@ graph TD
 | View staff dashboard | - | yes | yes | yes | - | - |
 | View supervisor dashboard | - | - | - | - | yes | - |
 | View admin dashboard | - | - | - | - | - | yes |
+| **Facility Management** |
+| Create/edit/delete facilities | - | - | - | - | yes | yes |
+| Create/edit/delete units | - | - | - | - | yes | yes |
+| Manage registration codes | - | - | - | - | yes | yes |
+| Activate/deactivate codes | - | - | - | - | yes | yes |
 | **Unit Management** |
 | Switch active unit | - | yes | yes | yes | yes | yes |
 | Request unit membership | - | yes | yes | yes | yes | - |
@@ -108,12 +113,15 @@ graph TD
 | View own profile | yes | yes | yes | yes | yes | yes |
 | Edit own profile | yes | yes | yes | yes | yes | yes |
 | Upload avatar | yes | yes | yes | yes | yes | yes |
-| **Clinical Mode** (Planned) |
-| Activate clinical mode | - | yes | yes | yes | yes | - |
-| Enter maternal data | - | yes | yes | yes | yes | - |
+| **Clinical Mode** |
+| Access clinical tab | - | yes | yes | yes | yes | - |
+| Create maternal profiles | - | yes | yes | yes | yes | - |
+| Record vital signs | - | yes | yes | yes | yes | - |
 | Complete E-MOTIVE steps | - | yes | yes | yes | yes | - |
-| Trigger escalation | - | yes | yes | yes | yes | - |
-| View own cases | - | yes | yes | yes | yes | - |
+| Manage case lifecycle | - | yes | yes | yes | yes | - |
+| View own unit cases | - | yes | yes | yes | yes | - |
+| View all unit cases | - | - | - | - | yes | yes |
+| Trigger escalation (Planned) | - | yes | yes | yes | yes | - |
 | **Training Mode** (Planned) |
 | Access training | - | yes | yes | yes | yes | yes |
 | Take quizzes | - | yes | yes | yes | yes | yes |
@@ -198,11 +206,14 @@ CREATE TABLE public.facility_codes (
   facility_id UUID REFERENCES public.facilities(id) ON DELETE CASCADE,
   role        public.user_role NOT NULL,
   code        TEXT NOT NULL,
+  is_active   BOOLEAN DEFAULT true,
 
   UNIQUE(facility_id, role),  -- One code per role per facility
   UNIQUE(code)                -- Codes are globally unique
 );
 ```
+
+**Code Format:** Acronym-based codes derived from facility names (e.g., `AKTH1-SUP`, `SMSSH1-MID`).
 
 ### RLS Policies
 

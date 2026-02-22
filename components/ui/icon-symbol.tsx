@@ -67,6 +67,8 @@ const MAPPING = {
   'info.circle': 'information-circle-outline',
   'pause.circle': 'pause-circle-outline',
   'play.circle': 'play-circle-outline',
+  // Clinical / medical
+  'cross.case.fill': 'medkit-outline',
 } as IconMapping;
 
 export function IconSymbol({

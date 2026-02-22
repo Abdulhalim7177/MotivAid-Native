@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Alert } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/context/auth';
 import { supabase } from '@/lib/supabase';
@@ -62,7 +62,7 @@ export default function ProfileScreen() {
       }
     } catch (error: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Error', error.message);
+      showToast(error.message || 'Failed to update profile', 'error');
     } finally {
       setLoading(false);
     }

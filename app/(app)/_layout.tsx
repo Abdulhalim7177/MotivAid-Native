@@ -10,6 +10,9 @@ export default function AppLayout() {
     >
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="clinical/new-patient" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="clinical/patient-detail" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="clinical/record-vitals" options={{ animation: 'slide_from_right' }} />
     </Stack>
   );
 }

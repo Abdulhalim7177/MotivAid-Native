@@ -212,17 +212,48 @@ const { error } = await supabase
 ```typescript
 const { data, error } = await supabase
   .from('facility_codes')
-  .select('role, facilities(name)')
-  .eq('code', 'ABC123')
+  .select('role, is_active, facilities(name)')
+  .eq('code', 'AKTH1-SUP')
   .maybeSingle();
 ```
 
 **Response shape:**
 ```json
 {
-  "role": "midwife",
-  "facilities": { "name": "General Hospital" }
+  "role": "supervisor",
+  "is_active": true,
+  "facilities": { "name": "Aminu Kano Teaching Hospital (AKTH)" }
 }
+```
+
+### Toggle Code Activation
+
+```typescript
+const { error } = await supabase
+  .from('facility_codes')
+  .update({ is_active: false })
+  .eq('id', codeId);
+```
+
+### Create Facility with Codes
+
+```typescript
+// 1. Create facility
+const { data: facility, error } = await supabase
+  .from('facilities')
+  .insert({ name: 'New Hospital', location: 'City' })
+  .select('id, name')
+  .single();
+
+// 2. Insert pre-generated codes
+const { error: codeError } = await supabase
+  .from('facility_codes')
+  .insert([
+    { facility_id: facility.id, role: 'supervisor', code: 'NH1-SUP', is_active: true },
+    { facility_id: facility.id, role: 'midwife', code: 'NH1-MID', is_active: true },
+    { facility_id: facility.id, role: 'nurse', code: 'NH1-NUR', is_active: true },
+    { facility_id: facility.id, role: 'student', code: 'NH1-STU', is_active: true },
+  ]);
 ```
 
 ---

@@ -29,6 +29,7 @@ export default function SplashScreen() {
     // Text starts after 800ms (when logo finishes fading in)
     textOpacity.value = withDelay(800, withTiming(1, { duration: 800 }));
     textTranslateY.value = withDelay(800, withSpring(0, { damping: 14, stiffness: 120 }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

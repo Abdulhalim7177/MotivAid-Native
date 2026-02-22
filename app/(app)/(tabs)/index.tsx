@@ -51,7 +51,7 @@ export default function HomeScreen() {
       const fr = new FileReader();
       fr.readAsDataURL(data);
       fr.onload = () => setAvatarUrl(fr.result as string);
-    } catch (error) { }
+    } catch { }
   }
 
   const renderDashboard = () => {
