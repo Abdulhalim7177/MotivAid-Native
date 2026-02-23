@@ -5,17 +5,19 @@
  * blood loss tracker, and case status controls.
  */
 
+import { CaseTimeline } from '@/components/clinical/case-timeline';
 import { EmotiveChecklist } from '@/components/clinical/emotive-checklist';
+import { EscalationModal } from '@/components/clinical/escalation-modal';
 import { VitalsPromptBanner } from '@/components/clinical/vitals-prompt-banner';
 import { Colors, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
-import { useClinical, VitalSign } from '@/context/clinical';
+import { useClinical } from '@/context/clinical';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { RISK_COLORS, RISK_LABELS, RiskLevel } from '@/lib/risk-calculator';
 import { assessBloodLoss } from '@/lib/shock-index';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
     Modal,
     Pressable,
@@ -41,9 +43,16 @@ export default function PatientDetailScreen() {
         updateProfileStatus,
         isLoading,
         refreshProfiles,
+        caseEvents,
+        refreshCaseEvents,
+        addCaseEvent,
+        refreshEmergencyContacts,
+        user
     } = useClinical();
 
     const [showCloseModal, setShowCloseModal] = useState(false);
+    const [showEscalationModal, setShowEscalationModal] = useState(false);
+    const hasLoggedView = useRef(false);
 
     const profile = profiles.find(p => p.local_id === localId);
 
@@ -52,8 +61,21 @@ export default function PatientDetailScreen() {
             if (localId) {
                 setActiveProfileId(localId);
                 refreshVitals(localId);
+                refreshCaseEvents(localId);
+                refreshEmergencyContacts();
+
+                // Log view event only once per screen instance, not on every re-focus
+                if (!hasLoggedView.current) {
+                    hasLoggedView.current = true;
+                    addCaseEvent({
+                        maternal_profile_id: localId,
+                        event_type: 'note',
+                        event_label: 'Viewed patient detail',
+                        performed_by: user?.id,
+                    });
+                }
             }
-        }, [localId, setActiveProfileId, refreshVitals])
+        }, [localId, setActiveProfileId, refreshVitals, refreshCaseEvents, refreshEmergencyContacts, addCaseEvent, user?.id])
     );
 
     if (!profile) {
@@ -77,8 +99,8 @@ export default function PatientDetailScreen() {
     }
 
     const riskColors = RISK_COLORS[profile.risk_level as RiskLevel] ?? RISK_COLORS.low;
-    const totalBloodLoss = vitalSigns.reduce((sum, v) => Math.max(sum, v.estimated_blood_loss), 0);
-    const bloodLossAssessment = assessBloodLoss(totalBloodLoss);
+    const peakBloodLoss = vitalSigns.reduce((peak, v) => Math.max(peak, v.estimated_blood_loss), 0);
+    const bloodLossAssessment = assessBloodLoss(peakBloodLoss);
 
     const handleStatusChange = async (newStatus: string) => {
         if (newStatus === 'closed') {
@@ -126,7 +148,16 @@ export default function PatientDetailScreen() {
                         Age {profile.age} · G{profile.gravida}P{profile.parity}
                     </Text>
                 </View>
-                <View style={[styles.riskDot, { backgroundColor: riskColors.border }]} />
+                <TouchableOpacity
+                    onPress={() => {
+                        // Implement summary report logic
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    }}
+                    style={styles.backButton}
+                >
+                    <Ionicons name="document-text" size={24} color={colors.primary} />
+                </TouchableOpacity>
+                <View style={[styles.riskDot, { backgroundColor: riskColors.border, marginLeft: Spacing.sm }]} />
             </View>
 
             <ScrollView
@@ -184,11 +215,11 @@ export default function PatientDetailScreen() {
                         )}
                     </View>
 
-                    {/* Blood Loss */}
+                    {/* Peak Blood Loss */}
                     <View style={[styles.metricCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                        <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Blood Loss</Text>
+                        <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Peak Blood Loss</Text>
                         <Text style={[styles.metricValue, { color: bloodLossAssessment.bgColor }]}>
-                            {totalBloodLoss} mL
+                            {peakBloodLoss} mL
                         </Text>
                         <View style={[styles.metricBadge, { backgroundColor: bloodLossAssessment.bgColor }]}>
                             <Text style={[styles.metricBadgeText, { color: bloodLossAssessment.color }]}>
@@ -201,6 +232,14 @@ export default function PatientDetailScreen() {
                 {/* Quick Actions */}
                 <View style={styles.actionsRow}>
                     <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: colors.error }]}
+                        onPress={() => setShowEscalationModal(true)}
+                    >
+                        <Ionicons name="alert-circle" size={20} color="#FFF" />
+                        <Text style={styles.actionText}>Emergency</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
                         style={[styles.actionButton, { backgroundColor: colors.primary }]}
                         onPress={() => router.push({
                             pathname: '/(app)/clinical/record-vitals',
@@ -208,7 +247,7 @@ export default function PatientDetailScreen() {
                         })}
                     >
                         <Ionicons name="pulse" size={20} color="#FFF" />
-                        <Text style={styles.actionText}>Record Vitals</Text>
+                        <Text style={styles.actionText}>Vitals</Text>
                     </TouchableOpacity>
 
                     {profile.status === 'pre_delivery' && (
@@ -258,32 +297,24 @@ export default function PatientDetailScreen() {
                     </View>
                 )}
 
-                {/* Vital Signs Timeline */}
+                {/* Case Timeline */}
                 <View style={styles.timelineHeader}>
-                    <Text style={[styles.sectionTitle, { color: colors.text }]}>Vital Signs</Text>
+                    <Text style={[styles.sectionTitle, { color: colors.text }]}>Case Timeline</Text>
                     <Text style={[styles.timelineCount, { color: colors.textSecondary }]}>
-                        {vitalSigns.length} records
+                        {caseEvents.length} events
                     </Text>
                 </View>
 
-                {vitalSigns.length === 0 ? (
-                    <View style={[styles.emptyVitals, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                        <Ionicons name="pulse-outline" size={32} color={colors.textSecondary} />
-                        <Text style={[styles.emptyVitalsText, { color: colors.textSecondary }]}>
-                            No vital signs recorded yet
-                        </Text>
-                    </View>
-                ) : (
-                    vitalSigns.map((vital, index) => (
-                        <VitalSignCard key={vital.local_id} vital={vital} colors={colors} isLast={index === vitalSigns.length - 1} />
-                    ))
-                )}
+                <CaseTimeline />
 
                 <View style={{ height: 40 }} />
             </ScrollView>
 
             {/* Floating vitals reminder */}
             <VitalsPromptBanner />
+
+            {/* Emergency Escalation Modal */}
+            <EscalationModal visible={showEscalationModal} onClose={() => setShowEscalationModal(false)} />
 
             {/* Close Case Outcome Modal */}
             <Modal visible={showCloseModal} transparent animationType="fade" onRequestClose={() => setShowCloseModal(false)}>
@@ -326,83 +357,6 @@ export default function PatientDetailScreen() {
                 </Pressable>
             </Modal>
         </SafeAreaView>
-    );
-}
-
-// ── Vital Sign Card ──────────────────────────────────────────
-
-function VitalSignCard({ vital, colors, isLast }: { vital: VitalSign; colors: any; isLast: boolean }) {
-    return (
-        <View style={[styles.vitalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <View style={styles.vitalCardHeader}>
-                <Text style={[styles.vitalTime, { color: colors.textSecondary }]}>
-                    {new Date(vital.recorded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </Text>
-                {vital.shockResult && (
-                    <View style={[styles.shockBadge, { backgroundColor: vital.shockResult.bgColor }]}>
-                        <Text style={[styles.shockBadgeText, { color: vital.shockResult.color }]}>
-                            SI {vital.shockResult.value.toFixed(1)}
-                        </Text>
-                    </View>
-                )}
-            </View>
-
-            <View style={styles.vitalGrid}>
-                {vital.heart_rate != null && (
-                    <VitalItem label="HR" value={`${vital.heart_rate}`} unit="bpm" colors={colors} />
-                )}
-                {vital.systolic_bp != null && (
-                    <VitalItem
-                        label="BP"
-                        value={`${vital.systolic_bp}/${vital.diastolic_bp ?? '—'}`}
-                        unit="mmHg"
-                        colors={colors}
-                    />
-                )}
-                {vital.temperature != null && (
-                    <VitalItem label="Temp" value={`${vital.temperature}`} unit="°C" colors={colors} />
-                )}
-                {vital.spo2 != null && (
-                    <VitalItem label="SpO₂" value={`${vital.spo2}`} unit="%" colors={colors} />
-                )}
-                {vital.respiratory_rate != null && (
-                    <VitalItem label="RR" value={`${vital.respiratory_rate}`} unit="/min" colors={colors} />
-                )}
-                {vital.estimated_blood_loss > 0 && (
-                    <VitalItem label="EBL" value={`${vital.estimated_blood_loss}`} unit="mL" colors={colors} isWarning />
-                )}
-            </View>
-
-            {!vital.is_synced && (
-                <View style={styles.syncIndicator}>
-                    <Ionicons name="cloud-offline-outline" size={12} color={colors.warning} />
-                </View>
-            )}
-        </View>
-    );
-}
-
-function VitalItem({
-    label,
-    value,
-    unit,
-    colors,
-    isWarning = false,
-}: {
-    label: string;
-    value: string;
-    unit: string;
-    colors: any;
-    isWarning?: boolean;
-}) {
-    return (
-        <View style={styles.vitalItem}>
-            <Text style={[styles.vitalItemLabel, { color: colors.textSecondary }]}>{label}</Text>
-            <Text style={[styles.vitalItemValue, { color: isWarning ? '#C62828' : colors.text }]}>
-                {value}
-                <Text style={styles.vitalItemUnit}> {unit}</Text>
-            </Text>
-        </View>
     );
 }
 

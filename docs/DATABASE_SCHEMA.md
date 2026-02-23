@@ -18,6 +18,7 @@ MotivAid uses **Supabase** (PostgreSQL) as its primary database with **Row-Level
 | 6 | `20260218000000_facility_code_activation.sql` | `is_active` flag on codes, enhanced auto-generation with acronym logic |
 | 7 | `20260220000000_clinical_data_tables.sql` | Maternal profiles, vital signs, sync queue tables with RLS |
 | 8 | `20260222000000_emotive_checklists.sql` | E-MOTIVE checklist tracking table with RLS |
+| 9 | `20260224000000_emergency_and_timeline.sql` | Emergency contacts, case events (timeline), and audit logs |
 
 ---
 
@@ -34,14 +35,14 @@ MotivAid uses **Supabase** (PostgreSQL) as its primary database with **Row-Level
        │                      │               └──────────────────┘
        │ trigger              │
        ▼                      │
-┌──────────────┐       ┌──────┴───────┐
-│   profiles   │       │    units     │
-│──────────────│       │──────────────│
-│  id (PK/FK)  │       │  id (PK)     │
-│  username    │       │  facility_id │
-│  full_name   │       │  name        │
-│  avatar_url  │       │  description │
-│  website     │       └──────┬───────┘
+┌──────────────┐       ┌──────┴───────┐       ┌──────────────────────┐
+│   profiles   │       │    units     │       │  emergency_contacts  │
+│──────────────│       │──────────────│       │──────────────────────│
+│  id (PK/FK)  │       │  id (PK)     │◄──────│  unit_id (FK)        │
+│  username    │       │  facility_id │◄──────│  facility_id (FK)    │
+│  full_name   │       │  name        │       │  name, role, phone   │
+│  avatar_url  │       │  description │       │  tier (1, 2, 3)      │
+│  website     │       └──────┬───────┘       └──────────────────────┘
 │  role        │              │
 │  facility_id │              │
 └──┬───┬───────┘              │
@@ -68,14 +69,13 @@ MotivAid uses **Supabase** (PostgreSQL) as its primary database with **Row-Level
       └───────────┬───────────┘
                   │
                   ▼
-      ┌─────────────────────────┐
-      │     vital_signs         │
-      │─────────────────────────│
-      │  maternal_profile_id    │
-      │  heart_rate, bp, temp   │
-      │  spo2, rr, blood_loss   │
-      │  recorded_by (FK)       │
-      └─────────────────────────┘
+      ┌─────────────────────────┐       ┌─────────────────────────┐
+      │     vital_signs         │       │      case_events        │
+      │─────────────────────────│       │─────────────────────────│
+      │  maternal_profile_id    │◄──────│  maternal_profile_id    │
+      │  heart_rate, bp, temp   │       │  event_type, label      │
+      │  recorded_by (FK)       │       │  event_data (JSONB)     │
+      └─────────────────────────┘       └─────────────────────────┘
 ```
 
 ---
@@ -484,6 +484,67 @@ CREATE TABLE public.sync_queue (
   max_retries   INTEGER DEFAULT 3,
   synced_at     TIMESTAMPTZ,
   created_at    TIMESTAMPTZ DEFAULT now()
+);
+```
+
+---
+
+### `emergency_contacts`
+
+3-level hierarchy of medical and referral contacts.
+
+```sql
+CREATE TABLE public.emergency_contacts (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    facility_id   UUID REFERENCES public.facilities(id) ON DELETE CASCADE,
+    unit_id       UUID REFERENCES public.units(id) ON DELETE CASCADE,
+    name          TEXT NOT NULL,
+    role          TEXT NOT NULL,
+    phone         TEXT NOT NULL,
+    tier          INTEGER NOT NULL CHECK (tier IN (1, 2, 3)), -- 1: Unit, 2: Facility, 3: External
+    is_active     BOOLEAN DEFAULT true,
+    created_at    TIMESTAMPTZ DEFAULT now(),
+    updated_at    TIMESTAMPTZ DEFAULT now()
+);
+```
+
+---
+
+### `case_events`
+
+Unified event log for the patient timeline.
+
+```sql
+CREATE TABLE public.case_events (
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    maternal_profile_id UUID NOT NULL REFERENCES public.maternal_profiles(id) ON DELETE CASCADE,
+    event_type          TEXT NOT NULL, -- 'vitals', 'emotive_step', 'status_change', 'escalation'
+    event_label         TEXT NOT NULL,
+    event_data          JSONB,         -- Stores metric values
+    performed_by        UUID REFERENCES public.profiles(id),
+    occurred_at         TIMESTAMPTZ DEFAULT now(),
+    -- Sync tracking
+    local_id            TEXT,
+    is_synced           BOOLEAN DEFAULT false
+);
+```
+
+---
+
+### `audit_logs`
+
+System-wide activity logging for accountability.
+
+```sql
+CREATE TABLE public.audit_logs (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    actor_id      UUID REFERENCES public.profiles(id),
+    action        TEXT NOT NULL,
+    target_type   TEXT NOT NULL,
+    target_id     TEXT,
+    metadata      JSONB,
+    severity      TEXT DEFAULT 'info',
+    created_at    TIMESTAMPTZ DEFAULT now()
 );
 ```
 

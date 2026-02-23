@@ -140,6 +140,6 @@ This roadmap provides a phased timeline for the development of MotivAid. Each ph
 | 1. Security & Identity | 0–2 | ✅ Complete | Auth, offline sign-in, biometrics, theming |
 | 2. Facility & Unit Hierarchy | 3–4b | ✅ Complete | Roles, facilities CRUD, units CRUD, codes, dashboards, activation |
 | 3. Risk Assessment & Clinical Mode | 5–6 | ✅ Complete | Maternal profiles, vital signs, risk scoring, E-MOTIVE checklist, shock index, sync queue, offline clinical data |
-| 4. Timeline, Alerts & Escalation | 7–8 | 🔲 Next | Case timeline, alert thresholds, escalation, case reports, audit logs |
+| 4. Timeline, Alerts & Escalation | 7–8 | 🏗️ In Progress | Case timeline, emergency contacts, tiered escalation, audit logs |
 | 5. Training & Simulation | 9 | 🔲 Planned | PPH scenarios, quizzes, case studies, progress tracking |
 | 6. Polish & Deployment | 10 | 🔲 Planned | QA, analytics, localization, production launch |

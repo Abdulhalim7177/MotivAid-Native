@@ -116,6 +116,31 @@ export interface SyncQueueItem {
     synced_at?: string;
 }
 
+export interface LocalEmergencyContact {
+    id: string;
+    facility_id?: string;
+    unit_id?: string;
+    name: string;
+    role: string;
+    phone: string;
+    tier: number;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface LocalCaseEvent {
+    local_id: string;
+    remote_id?: string;
+    maternal_profile_id: string; // Links to the profile's local_id or remote_id
+    event_type: string;
+    event_label: string;
+    event_data?: string; // Stored as JSON string
+    performed_by?: string;
+    occurred_at: string;
+    is_synced: boolean;
+}
+
 // ── Database Init ────────────────────────────────────────────
 
 export const initClinicalDatabase = async () => {
@@ -222,6 +247,31 @@ export const initClinicalDatabase = async () => {
         error_message TEXT,
         created_at TEXT DEFAULT (datetime('now')),
         synced_at TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS emergency_contacts_local (
+        id TEXT PRIMARY KEY NOT NULL,
+        facility_id TEXT,
+        unit_id TEXT,
+        name TEXT NOT NULL,
+        role TEXT NOT NULL,
+        phone TEXT NOT NULL,
+        tier INTEGER NOT NULL,
+        is_active INTEGER DEFAULT 1,
+        created_at TEXT DEFAULT (datetime('now')),
+        updated_at TEXT DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS case_events_local (
+        local_id TEXT PRIMARY KEY NOT NULL,
+        remote_id TEXT,
+        maternal_profile_id TEXT NOT NULL,
+        event_type TEXT NOT NULL,
+        event_label TEXT NOT NULL,
+        event_data TEXT,
+        performed_by TEXT,
+        occurred_at TEXT DEFAULT (datetime('now')),
+        is_synced INTEGER DEFAULT 0
       );
     `);
 
@@ -369,7 +419,7 @@ export const saveVitalSign = async (vital: LocalVitalSign): Promise<void> => {
     try {
         const db = await SQLite.openDatabaseAsync(DB_NAME);
         await db.runAsync(
-            `INSERT INTO vital_signs_local (
+            `INSERT OR REPLACE INTO vital_signs_local (
         local_id, remote_id, maternal_profile_local_id, recorded_by,
         heart_rate, systolic_bp, diastolic_bp, temperature,
         respiratory_rate, spo2, shock_index,
@@ -400,13 +450,16 @@ export const saveVitalSign = async (vital: LocalVitalSign): Promise<void> => {
 };
 
 export const getVitalSigns = async (
-    maternalProfileLocalId: string
+    profileId: string
 ): Promise<LocalVitalSign[]> => {
     try {
         const db = await SQLite.openDatabaseAsync(DB_NAME);
         const rows = await db.getAllAsync<any>(
-            'SELECT * FROM vital_signs_local WHERE maternal_profile_local_id = ? ORDER BY recorded_at DESC',
-            [maternalProfileLocalId]
+            `SELECT * FROM vital_signs_local 
+             WHERE maternal_profile_local_id = ? 
+             OR maternal_profile_local_id = (SELECT remote_id FROM maternal_profiles_local WHERE local_id = ?) 
+             ORDER BY recorded_at DESC`,
+            [profileId, profileId]
         );
         return rows.map(rowToVital);
     } catch (error) {
@@ -485,13 +538,15 @@ export const saveEmotiveChecklist = async (checklist: LocalEmotiveChecklist): Pr
 };
 
 export const getEmotiveChecklist = async (
-    maternalProfileLocalId: string
+    profileId: string
 ): Promise<LocalEmotiveChecklist | null> => {
     try {
         const db = await SQLite.openDatabaseAsync(DB_NAME);
         const row = await db.getFirstAsync<any>(
-            'SELECT * FROM emotive_checklists_local WHERE maternal_profile_local_id = ?',
-            [maternalProfileLocalId]
+            `SELECT * FROM emotive_checklists_local 
+             WHERE maternal_profile_local_id = ? 
+             OR maternal_profile_local_id = (SELECT remote_id FROM maternal_profiles_local WHERE local_id = ?)`,
+            [profileId, profileId]
         );
         return row ? rowToChecklist(row) : null;
     } catch (error) {
@@ -603,6 +658,7 @@ export const markRecordSynced = async (
             maternal_profiles: 'maternal_profiles_local',
             vital_signs: 'vital_signs_local',
             emotive_checklists: 'emotive_checklists_local',
+            case_events: 'case_events_local',
         };
         const localTable = tableMap[tableName] ?? 'maternal_profiles_local';
         await db.runAsync(
@@ -661,6 +717,105 @@ function rowToChecklist(row: any): LocalEmotiveChecklist {
         txa_done: !!row.txa_done,
         iv_fluids_done: !!row.iv_fluids_done,
         escalation_done: !!row.escalation_done,
+        is_synced: !!row.is_synced,
+    };
+}
+
+// ── Emergency Contacts CRUD ──────────────────────────────────
+
+export const saveEmergencyContacts = async (contacts: LocalEmergencyContact[]): Promise<void> => {
+    try {
+        const db = await SQLite.openDatabaseAsync(DB_NAME);
+        for (const contact of contacts) {
+            await db.runAsync(
+                `INSERT OR REPLACE INTO emergency_contacts_local (
+          id, facility_id, unit_id, name, role, phone, tier, is_active, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                    contact.id,
+                    contact.facility_id ?? null,
+                    contact.unit_id ?? null,
+                    contact.name,
+                    contact.role,
+                    contact.phone,
+                    contact.tier,
+                    contact.is_active ? 1 : 0,
+                    contact.created_at,
+                    contact.updated_at,
+                ]
+            );
+        }
+    } catch (error) {
+        console.error('Error saving emergency contacts:', error);
+    }
+};
+
+export const getEmergencyContacts = async (facilityId?: string): Promise<LocalEmergencyContact[]> => {
+    try {
+        const db = await SQLite.openDatabaseAsync(DB_NAME);
+        let query = "SELECT * FROM emergency_contacts_local WHERE is_active = 1";
+        const params: any[] = [];
+
+        if (facilityId) {
+            query += " AND (facility_id = ? OR tier = 3)";
+            params.push(facilityId);
+        }
+
+        query += " ORDER BY tier ASC, name ASC";
+        const rows = await db.getAllAsync<any>(query, params);
+        return rows.map(row => ({
+            ...row,
+            is_active: !!row.is_active
+        }));
+    } catch (error) {
+        console.error('Error getting emergency contacts:', error);
+        return [];
+    }
+};
+
+// ── Case Events CRUD ─────────────────────────────────────────
+
+export const saveCaseEvent = async (event: LocalCaseEvent): Promise<void> => {
+    try {
+        const db = await SQLite.openDatabaseAsync(DB_NAME);
+        await db.runAsync(
+            `INSERT INTO case_events_local (
+        local_id, remote_id, maternal_profile_id, event_type, event_label, event_data, performed_by, occurred_at, is_synced
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+                event.local_id,
+                event.remote_id ?? null,
+                event.maternal_profile_id,
+                event.event_type,
+                event.event_label,
+                event.event_data ?? null,
+                event.performed_by ?? null,
+                event.occurred_at,
+                event.is_synced ? 1 : 0,
+            ]
+        );
+    } catch (error) {
+        console.error('Error saving case event:', error);
+    }
+};
+
+export const getCaseEvents = async (profileId: string): Promise<LocalCaseEvent[]> => {
+    try {
+        const db = await SQLite.openDatabaseAsync(DB_NAME);
+        const rows = await db.getAllAsync<any>(
+            'SELECT * FROM case_events_local WHERE maternal_profile_id = ? OR maternal_profile_id = (SELECT remote_id FROM maternal_profiles_local WHERE local_id = ?) ORDER BY occurred_at DESC',
+            [profileId, profileId]
+        );
+        return rows.map(rowToEvent);
+    } catch (error) {
+        console.error('Error getting case events:', error);
+        return [];
+    }
+};
+
+function rowToEvent(row: any): LocalCaseEvent {
+    return {
+        ...row,
         is_synced: !!row.is_synced,
     };
 }

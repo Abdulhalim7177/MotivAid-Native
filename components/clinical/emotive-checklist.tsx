@@ -12,6 +12,7 @@
 import { Colors, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 import { EmotiveStep, useClinical } from '@/context/clinical';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { EscalationModal } from './escalation-modal';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
@@ -98,11 +99,20 @@ export function EmotiveChecklist() {
     const colorScheme = useColorScheme();
     const colors = Colors[colorScheme ?? 'light'];
     const isDark = colorScheme === 'dark';
-    const { emotiveChecklist, toggleEmotiveStep, activeProfile, updateProfileStatus } = useClinical();
+    const { 
+        emotiveChecklist, 
+        toggleEmotiveStep, 
+        activeProfile, 
+        updateProfileStatus,
+        addCaseEvent,
+        user
+    } = useClinical();
 
     const [sectionExpanded, setSectionExpanded] = useState(true);
     const [expandedStep, setExpandedStep] = useState<EmotiveStep | null>(null);
     const [showCloseModal, setShowCloseModal] = useState(false);
+    const [stillBleeding, setStillBleeding] = useState<boolean | null>(null);
+    const [showEscalationModal, setShowEscalationModal] = useState(false);
 
     // ── Timer ────────────────────────────────────────────────
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -131,10 +141,9 @@ export function EmotiveChecklist() {
         return (emotiveChecklist as any)[`${s.key}_done`];
     }).length;
 
-    // Start/stop timer based on whether the bundle has started but not all completed
+    // Restore Timer Effect
     useEffect(() => {
         if (firstStepTime && !allDone) {
-            // Timer is running
             const updateElapsed = () => {
                 setElapsedSeconds(Math.floor((Date.now() - firstStepTime.getTime()) / 1000));
             };
@@ -144,7 +153,6 @@ export function EmotiveChecklist() {
                 if (timerRef.current) clearInterval(timerRef.current);
             };
         } else if (firstStepTime && allDone) {
-            // Freeze timer at final elapsed
             setElapsedSeconds(Math.floor((Date.now() - firstStepTime.getTime()) / 1000));
             if (timerRef.current) clearInterval(timerRef.current);
         } else {
@@ -152,6 +160,24 @@ export function EmotiveChecklist() {
             if (timerRef.current) clearInterval(timerRef.current);
         }
     }, [firstStepTime, allDone]);
+
+    const handleDiagnostics = async () => {
+        if (!activeProfile) return;
+        await addCaseEvent({
+            maternal_profile_id: activeProfile.local_id,
+            event_type: 'note',
+            event_label: 'Diagnostics Phase Initiated',
+            event_data: JSON.stringify({ note: 'Persistent bleeding after E-MOTIVE bundle' }),
+            performed_by: user?.id,
+        });
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        // Reset states
+        setStillBleeding(null);
+    };
+
+    const handleEscalation = () => {
+        setShowEscalationModal(true);
+    };
 
     const elapsedMinutes = Math.floor(elapsedSeconds / 60);
     const elapsedSecs = elapsedSeconds % 60;
@@ -284,21 +310,78 @@ export function EmotiveChecklist() {
                         />
                     ))}
 
-                    {/* Done button — shown when all steps are complete */}
+                    {/* Post-Bundle Flow */}
                     {allDone && (
-                        <TouchableOpacity
-                            style={[styles.doneButton, { backgroundColor: colors.success }]}
-                            onPress={() => {
-                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                                setShowCloseModal(true);
-                            }}
-                        >
-                            <Ionicons name="checkmark-done" size={20} color="#FFF" />
-                            <Text style={styles.doneButtonText}>Bundle Complete — Close Case</Text>
-                        </TouchableOpacity>
+                        <View style={[styles.postBundleContainer, { borderTopColor: colors.border }]}>
+                            {stillBleeding === null ? (
+                                <View style={styles.questionSection}>
+                                    <Text style={[styles.questionText, { color: colors.text }]}>Still bleeding?</Text>
+                                    <View style={styles.choiceRow}>
+                                        <TouchableOpacity 
+                                            style={[styles.choiceButton, { backgroundColor: colors.success }]}
+                                            onPress={() => {
+                                                setStillBleeding(false);
+                                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                            }}
+                                        >
+                                            <Text style={styles.choiceButtonText}>No</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity 
+                                            style={[styles.choiceButton, { backgroundColor: colors.error }]}
+                                            onPress={() => {
+                                                setStillBleeding(true);
+                                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                            }}
+                                        >
+                                            <Text style={styles.choiceButtonText}>Yes</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            ) : stillBleeding === false ? (
+                                <TouchableOpacity
+                                    style={[styles.doneButton, { backgroundColor: colors.success }]}
+                                    onPress={() => {
+                                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                        setShowCloseModal(true);
+                                    }}
+                                >
+                                    <Ionicons name="checkmark-done" size={20} color="#FFF" />
+                                    <Text style={styles.doneButtonText}>Bleeding Stopped — Close Case</Text>
+                                </TouchableOpacity>
+                            ) : (
+                                <View style={styles.actionSection}>
+                                    <Text style={[styles.actionPrompt, { color: colors.error }]}>Persistent Bleeding Detected</Text>
+                                    <View style={styles.actionRow}>
+                                        <TouchableOpacity 
+                                            style={[styles.actionSubButton, { backgroundColor: colors.primary }]}
+                                            onPress={handleDiagnostics}
+                                        >
+                                            <Ionicons name="search" size={18} color="#FFF" />
+                                            <Text style={styles.actionSubButtonText}>Diagnostics Phase</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity 
+                                            style={[styles.actionSubButton, { backgroundColor: colors.error }]}
+                                            onPress={handleEscalation}
+                                        >
+                                            <Ionicons name="alert-circle" size={18} color="#FFF" />
+                                            <Text style={styles.actionSubButtonText}>Escalation</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                    <TouchableOpacity 
+                                        style={styles.resetLink}
+                                        onPress={() => setStillBleeding(null)}
+                                    >
+                                        <Text style={[styles.resetLinkText, { color: colors.textSecondary }]}>Change Answer</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            )}
+                        </View>
                     )}
                 </View>
             )}
+
+            {/* Emergency Escalation Modal */}
+            <EscalationModal visible={showEscalationModal} onClose={() => setShowEscalationModal(false)} />
 
             {/* Close Case Outcome Modal */}
             <Modal visible={showCloseModal} transparent animationType="fade" onRequestClose={() => setShowCloseModal(false)}>
@@ -655,6 +738,68 @@ const styles = StyleSheet.create({
     doneButtonText: {
         color: '#FFF',
         ...Typography.buttonMd,
+    },
+
+    // Post-bundle styles
+    postBundleContainer: {
+        padding: Spacing.md,
+        borderTopWidth: 1,
+        marginTop: Spacing.sm,
+    },
+    questionSection: {
+        alignItems: 'center',
+        gap: Spacing.md,
+    },
+    questionText: {
+        ...Typography.headingSm,
+    },
+    choiceRow: {
+        flexDirection: 'row',
+        gap: Spacing.lg,
+    },
+    choiceButton: {
+        paddingHorizontal: Spacing.xl,
+        paddingVertical: Spacing.sm,
+        borderRadius: Radius.md,
+        minWidth: 100,
+        alignItems: 'center',
+    },
+    choiceButtonText: {
+        color: '#FFF',
+        ...Typography.buttonLg,
+    },
+    actionSection: {
+        alignItems: 'center',
+        gap: Spacing.md,
+    },
+    actionPrompt: {
+        ...Typography.labelLg,
+        fontWeight: '700',
+    },
+    actionRow: {
+        flexDirection: 'row',
+        gap: Spacing.sm,
+    },
+    actionSubButton: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        paddingVertical: Spacing.md,
+        borderRadius: Radius.md,
+    },
+    actionSubButtonText: {
+        color: '#FFF',
+        ...Typography.buttonMd,
+        fontSize: 12,
+    },
+    resetLink: {
+        marginTop: Spacing.xs,
+    },
+    resetLinkText: {
+        ...Typography.caption,
+        textDecorationLine: 'underline',
     },
 
     // Close modal

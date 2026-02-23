@@ -140,10 +140,10 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
 |-------|--------|------------------|
 | 1. Security & Identity | ✅ Complete | Auth, offline sign-in, biometrics, theming |
 | 2. Facility & Unit Hierarchy | ✅ Complete | Roles, facilities, units, memberships, dashboards |
-| 3. Risk Assessment & Clinical Data | 🔲 Planned | Maternal data, vital signs, risk scoring |
-| 4. Active Clinical Mode (E-MOTIVE) | 🔲 Planned | PPH workflow, cases, interventions, case timeline |
-| 5. Alerts & Reports | 🔲 Planned | Escalation, case reports, adherence metrics |
-| 6. Training & Deployment | 🔲 Planned | Simulation scenarios, quizzes, QA, production launch |
+| 3. Risk Assessment & Clinical Data | ✅ Complete | Maternal data, vital signs, risk scoring, E-MOTIVE checklist |
+| 4. Timeline, Alerts & Escalation | 🏗️ In Progress | Case timeline, emergency contacts, tiered escalation, audit |
+| 5. Training & Simulation | 🔲 Planned | Simulation scenarios, quizzes, progress tracking |
+| 6. Polish & Deployment | 🔲 Planned | QA, localization, production launch |
 
 See [IMPLEMENTATION_ROADMAP.md](docs/IMPLEMENTATION_ROADMAP.md) for detailed sprint breakdowns.
 

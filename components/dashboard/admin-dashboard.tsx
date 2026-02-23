@@ -103,18 +103,18 @@ export function AdminDashboard() {
       onPress: () => { },
     },
     {
-      label: 'Audit Log',
-      description: 'View system activity, changes and security events',
+      label: 'Clinical Audit',
+      description: 'Monitor all clinical cases and interventions across facility',
       icon: 'clock.arrow.circlepath' as const,
       color: '#8B5CF6',
-      onPress: () => { },
+      onPress: () => router.push('/(app)/(tabs)/clinical'),
     },
     {
-      label: 'System Settings',
-      description: 'Configure application settings and preferences',
-      icon: 'gearshape.fill' as const,
-      color: '#6B7280',
-      onPress: () => { },
+      label: 'Emerg. Contacts',
+      description: 'Manage 3-level emergency contact hierarchy',
+      icon: 'phone.fill' as const,
+      color: '#0EA5E9',
+      onPress: () => router.push('/(app)/management/emergency-contacts'),
     },
   ];
 

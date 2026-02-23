@@ -10,8 +10,8 @@ import { useAuth } from '@/context/auth';
 import { MaternalProfile, useClinical } from '@/context/clinical';
 import { useUnits } from '@/context/unit';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { calculateRisk, RISK_COLORS, RISK_LABELS, RiskLevel } from '@/lib/risk-calculator';
-import { supabase } from '@/lib/supabase';
+import { RISK_COLORS, RISK_LABELS, RiskLevel } from '@/lib/risk-calculator';
+import { Dropdown } from '@/components/ui/dropdown';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
@@ -19,7 +19,6 @@ import {
     ActivityIndicator,
     FlatList,
     RefreshControl,
-    ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
@@ -37,73 +36,42 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: string
 export default function ClinicalScreen() {
     const colorScheme = useColorScheme();
     const colors = Colors[colorScheme ?? 'light'];
-    const { profiles, isLoading, refreshProfiles, isSyncing, syncNow } = useClinical();
+    const { profiles, allProfiles, isLoading, refreshProfiles, fetchAllFacilityProfiles, isSyncing, syncNow, user } = useClinical();
     const { activeUnit, availableUnits } = useUnits();
     const { profile: authProfile } = useAuth();
 
     const [filter, setFilter] = useState<string | null>(null);
+    const [showMyCasesOnly, setShowMyCasesOnly] = useState(false);
 
-    // ── Supervisor multi-unit ──────────────────────────────────
+    // ── Supervisor & Admin monitoring ─────────────────────────
     const isSupervisor = authProfile?.role === 'supervisor';
-    const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null); // null = "All Units"
-    const [allUnitProfiles, setAllUnitProfiles] = useState<MaternalProfile[]>([]);
-    const [isLoadingAllUnits, setIsLoadingAllUnits] = useState(false);
-
-    // For supervisors: fetch profiles from ALL their units via Supabase
-    const fetchAllUnitProfiles = useCallback(async () => {
-        if (!isSupervisor || availableUnits.length === 0) return;
-        setIsLoadingAllUnits(true);
-        try {
-            const unitIds = availableUnits.map(u => u.id);
-            const { data, error } = await supabase
-                .from('maternal_profiles')
-                .select('*')
-                .in('unit_id', unitIds)
-                .order('updated_at', { ascending: false });
-
-            if (!error && data) {
-                const enriched: MaternalProfile[] = data.map((p: any) => ({
-                    ...p,
-                    local_id: p.local_id || p.id,
-                    is_synced: true,
-                    riskResult: calculateRiskFromRaw(p),
-                }));
-                setAllUnitProfiles(enriched);
-            }
-        } catch (e) {
-            console.error('Error fetching all-unit profiles:', e);
-        } finally {
-            setIsLoadingAllUnits(false);
-        }
-    }, [isSupervisor, availableUnits]);
+    const isAdmin = authProfile?.role === 'admin';
+    const [monitoringMode, setMonitoringMode] = useState(isSupervisor || isAdmin);
+    const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
 
     useFocusEffect(
         useCallback(() => {
             refreshProfiles();
-            if (isSupervisor) fetchAllUnitProfiles();
-        }, [isSupervisor, refreshProfiles, fetchAllUnitProfiles])
+            if (isSupervisor || isAdmin) fetchAllFacilityProfiles();
+        }, [isSupervisor, isAdmin, refreshProfiles, fetchAllFacilityProfiles])
     );
 
     // Decide which profile list to use
     const baseProfiles = useMemo(() => {
-        if (!isSupervisor) return profiles;
+        let list = monitoringMode ? allProfiles : profiles;
 
-        // Supervisor: merge context profiles (local offline) with remote all-unit profiles
-        const localMap = new Map(profiles.map(p => [p.local_id, p]));
-        const merged = [...profiles];
-        for (const rp of allUnitProfiles) {
-            if (!localMap.has(rp.local_id)) {
-                merged.push(rp);
-            }
+        if (showMyCasesOnly && user?.id) {
+            list = list.filter(p => p.created_by === user.id);
         }
-        return merged;
-    }, [isSupervisor, profiles, allUnitProfiles]);
 
-    // Apply unit filter (supervisor only)
+        return list;
+    }, [monitoringMode, allProfiles, profiles, showMyCasesOnly, user?.id]);
+
+    // Apply unit filter
     const unitFilteredProfiles = useMemo(() => {
-        if (!isSupervisor || !selectedUnitId) return baseProfiles;
+        if (!selectedUnitId) return baseProfiles;
         return baseProfiles.filter(p => p.unit_id === selectedUnitId);
-    }, [baseProfiles, selectedUnitId, isSupervisor]);
+    }, [baseProfiles, selectedUnitId]);
 
     // Apply status filter
     const filteredProfiles = useMemo(() => {
@@ -123,6 +91,22 @@ export default function ClinicalScreen() {
         }
         return map;
     }, [availableUnits]);
+
+    const unitOptions = useMemo(() => {
+        return availableUnits.map(unit => ({
+            label: unit.name,
+            value: unit.id,
+            count: baseProfiles.filter(p => p.unit_id === unit.id).length
+        }));
+    }, [availableUnits, baseProfiles]);
+
+    const statusOptions = useMemo(() => {
+        return Object.entries(STATUS_CONFIG).map(([key, config]) => ({
+            label: config.label,
+            value: key,
+            count: unitFilteredProfiles.filter(p => p.status === key).length
+        }));
+    }, [unitFilteredProfiles]);
 
     const renderProfile = ({ item }: { item: MaternalProfile }) => {
         const riskColors = RISK_COLORS[item.risk_level as RiskLevel] ?? RISK_COLORS.low;
@@ -199,10 +183,10 @@ export default function ClinicalScreen() {
         );
     };
 
-    const headerSubtitle = isSupervisor
+    const headerSubtitle = monitoringMode
         ? selectedUnitId
             ? `${unitNameMap.get(selectedUnitId) ?? 'Unit'} · ${activeCount} active`
-            : `All Units (${availableUnits.length}) · ${activeCount} active`
+            : `Facility Overview (${availableUnits.length} Units) · ${activeCount} active`
         : `${activeUnit?.name ?? 'Select a unit'} · ${activeCount} active`;
 
     return (
@@ -217,11 +201,11 @@ export default function ClinicalScreen() {
                 </View>
                 <View style={styles.headerActions}>
                     <TouchableOpacity
-                        onPress={() => { syncNow(); if (isSupervisor) fetchAllUnitProfiles(); }}
+                        onPress={() => { syncNow(); if (isSupervisor || isAdmin) fetchAllFacilityProfiles(); }}
                         style={[styles.syncButton, { borderColor: colors.border }]}
                         disabled={isSyncing}
                     >
-                        {isSyncing || isLoadingAllUnits ? (
+                        {isSyncing ? (
                             <ActivityIndicator size="small" color={colors.primary} />
                         ) : (
                             <Ionicons name="sync-outline" size={20} color={colors.primary} />
@@ -239,88 +223,52 @@ export default function ClinicalScreen() {
                 </View>
             </View>
 
-            {/* Unit filter (supervisor only) */}
-            {isSupervisor && availableUnits.length > 1 && (
-                <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.unitFilterRow}
-                >
+            {/* Monitoring & Personal Filters */}
+            <View style={styles.topFilterBar}>
+                {(isSupervisor || isAdmin) && (
                     <TouchableOpacity
-                        style={[
-                            styles.unitFilterChip,
-                            !selectedUnitId
-                                ? { backgroundColor: colors.primary, borderColor: colors.primary }
-                                : { borderColor: colors.border },
-                        ]}
-                        onPress={() => setSelectedUnitId(null)}
+                        style={[styles.modeToggle, { borderColor: colors.border, backgroundColor: monitoringMode ? colors.primary + '15' : 'transparent' }]}
+                        onPress={() => { setMonitoringMode(!monitoringMode); setSelectedUnitId(null); }}
                     >
-                        <Ionicons
-                            name="globe-outline"
-                            size={14}
-                            color={!selectedUnitId ? '#FFF' : colors.textSecondary}
-                        />
-                        <Text style={[styles.unitFilterText, !selectedUnitId ? { color: '#FFF' } : { color: colors.textSecondary }]}>
-                            All Units
+                        <Ionicons name={monitoringMode ? "business" : "business-outline"} size={16} color={monitoringMode ? colors.primary : colors.textSecondary} />
+                        <Text style={[styles.modeToggleText, { color: monitoringMode ? colors.primary : colors.textSecondary }]}>
+                            {monitoringMode ? 'Facility View' : 'Unit View'}
                         </Text>
                     </TouchableOpacity>
+                )}
 
-                    {availableUnits.map(unit => {
-                        const isActive = selectedUnitId === unit.id;
-                        const count = baseProfiles.filter(p => p.unit_id === unit.id).length;
-                        return (
-                            <TouchableOpacity
-                                key={unit.id}
-                                style={[
-                                    styles.unitFilterChip,
-                                    isActive
-                                        ? { backgroundColor: colors.primary, borderColor: colors.primary }
-                                        : { borderColor: colors.border },
-                                ]}
-                                onPress={() => setSelectedUnitId(isActive ? null : unit.id)}
-                            >
-                                <Text style={[styles.unitFilterText, isActive ? { color: '#FFF' } : { color: colors.textSecondary }]}>
-                                    {unit.name} ({count})
-                                </Text>
-                            </TouchableOpacity>
-                        );
-                    })}
-                </ScrollView>
-            )}
-
-            {/* Status filter chips */}
-            <View style={styles.filterRow}>
                 <TouchableOpacity
-                    style={[
-                        styles.filterChip,
-                        !filter && { backgroundColor: colors.primary, borderColor: colors.primary },
-                        filter && { borderColor: colors.border },
-                    ]}
-                    onPress={() => setFilter(null)}
+                    style={[styles.modeToggle, { borderColor: colors.border, backgroundColor: showMyCasesOnly ? colors.primary + '15' : 'transparent' }]}
+                    onPress={() => setShowMyCasesOnly(!showMyCasesOnly)}
                 >
-                    <Text style={[styles.filterText, !filter ? { color: '#FFF' } : { color: colors.textSecondary }]}>
-                        All ({unitFilteredProfiles.length})
+                    <Ionicons name={showMyCasesOnly ? "person" : "person-outline"} size={16} color={showMyCasesOnly ? colors.primary : colors.textSecondary} />
+                    <Text style={[styles.modeToggleText, { color: showMyCasesOnly ? colors.primary : colors.textSecondary }]}>
+                        My Cases
                     </Text>
                 </TouchableOpacity>
-                {Object.entries(STATUS_CONFIG).map(([key, config]) => {
-                    const count = unitFilteredProfiles.filter(p => p.status === key).length;
-                    const isActive = filter === key;
-                    return (
-                        <TouchableOpacity
-                            key={key}
-                            style={[
-                                styles.filterChip,
-                                isActive && { backgroundColor: config.color, borderColor: config.color },
-                                !isActive && { borderColor: colors.border },
-                            ]}
-                            onPress={() => setFilter(isActive ? null : key)}
-                        >
-                            <Text style={[styles.filterText, isActive ? { color: '#FFF' } : { color: colors.textSecondary }]}>
-                                {config.label} ({count})
-                            </Text>
-                        </TouchableOpacity>
-                    );
-                })}
+            </View>
+
+            {/* Filters Row */}
+            <View style={styles.dropdownRow}>
+                {(monitoringMode || availableUnits.length > 1) && (
+                    <Dropdown
+                        label="Filter by Unit"
+                        value={selectedUnitId}
+                        options={unitOptions}
+                        onSelect={setSelectedUnitId}
+                        allLabel={monitoringMode ? 'All Units' : 'Current Unit'}
+                        icon="grid-outline"
+                    />
+                )}
+                
+                <Dropdown
+                    label="Case Status"
+                    value={filter}
+                    options={statusOptions}
+                    onSelect={setFilter}
+                    allLabel={`All Cases (${unitFilteredProfiles.length})`}
+                    icon="funnel-outline"
+                />
             </View>
 
             {/* Profile list */}
@@ -331,8 +279,8 @@ export default function ClinicalScreen() {
                 contentContainerStyle={styles.list}
                 refreshControl={
                     <RefreshControl
-                        refreshing={isLoading || isLoadingAllUnits}
-                        onRefresh={() => { refreshProfiles(); if (isSupervisor) fetchAllUnitProfiles(); }}
+                        refreshing={isLoading}
+                        onRefresh={() => { refreshProfiles(); if (isSupervisor || isAdmin) fetchAllFacilityProfiles(); }}
                         tintColor={colors.primary}
                     />
                 }
@@ -353,28 +301,6 @@ export default function ClinicalScreen() {
 }
 
 // ── Helpers ──────────────────────────────────────────────────
-
-function calculateRiskFromRaw(p: any) {
-    return calculateRisk({
-        age: p.age,
-        parity: p.parity,
-        gestationalAgeWeeks: p.gestational_age_weeks ?? undefined,
-        isMultipleGestation: p.is_multiple_gestation,
-        hasPriorCesarean: p.has_prior_cesarean,
-        hasPlacentaPrevia: p.has_placenta_previa,
-        hasLargeFibroids: p.has_large_fibroids,
-        hasAnemia: p.has_anemia,
-        hasPphHistory: p.has_pph_history,
-        hasIntraamnioticInfection: p.has_intraamniotic_infection,
-        hasSevereAnemia: p.has_severe_anemia,
-        hasCoagulopathy: p.has_coagulopathy,
-        hasSeverePphHistory: p.has_severe_pph_history,
-        hasPlacentaAccreta: p.has_placenta_accreta,
-        hasActiveBleeding: p.has_active_bleeding,
-        hasMorbidObesity: p.has_morbid_obesity,
-        hemoglobinLevel: p.hemoglobin_level ?? undefined,
-    });
-}
 
 function formatTimeAgo(dateStr: string): string {
     const now = Date.now();
@@ -399,6 +325,22 @@ const styles = StyleSheet.create({
     headerTitle: { ...Typography.headingLg },
     headerSubtitle: { ...Typography.bodySm, marginTop: 2 },
     headerActions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+    topFilterBar: {
+        flexDirection: 'row',
+        paddingHorizontal: Spacing.md,
+        paddingBottom: Spacing.md,
+        gap: Spacing.sm,
+    },
+    modeToggle: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: Spacing.smd,
+        paddingVertical: 6,
+        borderRadius: Radius.md,
+        borderWidth: 1,
+        gap: 6,
+    },
+    modeToggleText: { ...Typography.labelSm },
     syncButton: {
         width: 40,
         height: 40,
@@ -417,38 +359,13 @@ const styles = StyleSheet.create({
     },
     newButtonText: { color: '#FFF', ...Typography.buttonMd },
 
-    // Unit filter (supervisor)
-    unitFilterRow: {
-        paddingHorizontal: Spacing.md,
-        paddingBottom: Spacing.sm,
-        gap: Spacing.xs,
-    },
-    unitFilterChip: {
+    dropdownRow: {
         flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: Spacing.smd,
-        paddingVertical: Spacing.xs,
-        borderRadius: Radius.full,
-        borderWidth: 1,
-        gap: 4,
+        paddingHorizontal: Spacing.md,
+        paddingBottom: Spacing.md,
+        gap: Spacing.sm,
     },
-    unitFilterText: { ...Typography.labelSm },
 
-    // Status filter
-    filterRow: {
-        flexDirection: 'row',
-        paddingHorizontal: Spacing.md,
-        paddingBottom: Spacing.sm,
-        gap: Spacing.xs,
-        flexWrap: 'wrap',
-    },
-    filterChip: {
-        paddingHorizontal: Spacing.smd,
-        paddingVertical: Spacing.xs,
-        borderRadius: Radius.full,
-        borderWidth: 1,
-    },
-    filterText: { ...Typography.labelSm },
     list: { paddingHorizontal: Spacing.md, paddingBottom: 100 },
     card: {
         borderRadius: Radius.lg,

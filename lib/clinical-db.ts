@@ -111,6 +111,31 @@ export interface SyncQueueItem {
     [key: string]: any;
 }
 
+export interface LocalEmergencyContact {
+    id: string;
+    facility_id?: string;
+    unit_id?: string;
+    name: string;
+    role: string;
+    phone: string;
+    tier: number;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface LocalCaseEvent {
+    local_id: string;
+    remote_id?: string;
+    maternal_profile_id: string;
+    event_type: string;
+    event_label: string;
+    event_data?: string;
+    performed_by?: string;
+    occurred_at: string;
+    is_synced: boolean;
+}
+
 // ── localStorage-backed helpers ──────────────────────────────
 
 const STORAGE_KEYS = {
@@ -118,6 +143,8 @@ const STORAGE_KEYS = {
     vitals: 'motivaid_vitals',
     emotiveChecklists: 'motivaid_emotive_checklists',
     syncQueue: 'motivaid_sync_queue',
+    emergencyContacts: 'motivaid_emergency_contacts',
+    caseEvents: 'motivaid_case_events',
 } as const;
 
 function loadMap<T>(key: string): Map<string, T> {
@@ -146,6 +173,8 @@ let _profiles: Map<string, LocalMaternalProfile> | null = null;
 let _vitals: Map<string, LocalVitalSign> | null = null;
 let _emotiveChecklists: Map<string, LocalEmotiveChecklist> | null = null;
 let _syncQueue: Map<string, SyncQueueItem> | null = null;
+let _emergencyContacts: Map<string, LocalEmergencyContact> | null = null;
+let _caseEvents: Map<string, LocalCaseEvent> | null = null;
 
 function getProfileStore(): Map<string, LocalMaternalProfile> {
     if (!_profiles) _profiles = loadMap<LocalMaternalProfile>(STORAGE_KEYS.profiles);
@@ -163,11 +192,21 @@ function getSyncQueueStore(): Map<string, SyncQueueItem> {
     if (!_syncQueue) _syncQueue = loadMap<SyncQueueItem>(STORAGE_KEYS.syncQueue);
     return _syncQueue;
 }
+function getEmergencyContactStore(): Map<string, LocalEmergencyContact> {
+    if (!_emergencyContacts) _emergencyContacts = loadMap<LocalEmergencyContact>(STORAGE_KEYS.emergencyContacts);
+    return _emergencyContacts;
+}
+function getCaseEventStore(): Map<string, LocalCaseEvent> {
+    if (!_caseEvents) _caseEvents = loadMap<LocalCaseEvent>(STORAGE_KEYS.caseEvents);
+    return _caseEvents;
+}
 
 function flushProfiles() { saveMap(STORAGE_KEYS.profiles, getProfileStore()); }
 function flushVitals() { saveMap(STORAGE_KEYS.vitals, getVitalStore()); }
 function flushEmotive() { saveMap(STORAGE_KEYS.emotiveChecklists, getEmotiveStore()); }
 function flushSyncQueue() { saveMap(STORAGE_KEYS.syncQueue, getSyncQueueStore()); }
+function flushEmergencyContacts() { saveMap(STORAGE_KEYS.emergencyContacts, getEmergencyContactStore()); }
+function flushCaseEvents() { saveMap(STORAGE_KEYS.caseEvents, getCaseEventStore()); }
 
 // ── Init ─────────────────────────────────────────────────────
 
@@ -177,6 +216,8 @@ export const initClinicalDatabase = async () => {
     getVitalStore();
     getEmotiveStore();
     getSyncQueueStore();
+    getEmergencyContactStore();
+    getCaseEventStore();
     return null;
 };
 
@@ -241,7 +282,7 @@ export const getVitalSigns = async (
     maternalProfileLocalId: string
 ): Promise<LocalVitalSign[]> => {
     return Array.from(getVitalStore().values())
-        .filter(v => v.maternal_profile_local_id === maternalProfileLocalId)
+        .filter(v => v.maternal_profile_local_id === maternalProfileLocalId || v.maternal_profile_id === maternalProfileLocalId)
         .sort((a, b) =>
             new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime()
         );
@@ -265,7 +306,7 @@ export const getEmotiveChecklist = async (
     maternalProfileLocalId: string
 ): Promise<LocalEmotiveChecklist | null> => {
     for (const checklist of getEmotiveStore().values()) {
-        if (checklist.maternal_profile_local_id === maternalProfileLocalId) {
+        if (checklist.maternal_profile_local_id === maternalProfileLocalId || checklist.maternal_profile_id === maternalProfileLocalId) {
             return checklist;
         }
     }
@@ -354,6 +395,15 @@ export const markRecordSynced = async (
             store.set(localId, checklist);
             flushEmotive();
         }
+    } else if (tableName === 'case_events') {
+        const store = getCaseEventStore();
+        const event = store.get(localId);
+        if (event) {
+            event.is_synced = true;
+            event.remote_id = remoteId;
+            store.set(localId, event);
+            flushCaseEvents();
+        }
     }
 };
 
@@ -365,4 +415,46 @@ export const clearSyncedItems = async () => {
         }
     }
     flushSyncQueue();
+};
+
+// ── Emergency Contacts CRUD ──────────────────────────────────
+
+export const saveEmergencyContacts = async (contacts: LocalEmergencyContact[]) => {
+    const store = getEmergencyContactStore();
+    for (const contact of contacts) {
+        store.set(contact.id, { ...contact });
+    }
+    flushEmergencyContacts();
+};
+
+export const getEmergencyContacts = async (facilityId?: string): Promise<LocalEmergencyContact[]> => {
+    let results = Array.from(getEmergencyContactStore().values())
+        .filter(c => !!c.is_active);
+
+    if (facilityId) {
+        results = results.filter(c => c.facility_id === facilityId || c.tier === 3);
+    }
+
+    results.sort((a, b) => (a.tier || 0) - (b.tier || 0) || (a.name || '').localeCompare(b.name || ''));
+    return results;
+};
+
+// ── Case Events CRUD ─────────────────────────────────────────
+
+export const saveCaseEvent = async (event: LocalCaseEvent) => {
+    getCaseEventStore().set(event.local_id, { ...event });
+    flushCaseEvents();
+};
+
+export const getCaseEvents = async (maternalProfileId: string): Promise<LocalCaseEvent[]> => {
+    return Array.from(getCaseEventStore().values())
+        .filter(e => e.maternal_profile_id === maternalProfileId)
+        .sort((a, b) =>
+            new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime()
+        );
+};
+
+export const fetchFacilityStaff = async (): Promise<any[]> => {
+    // Web monitoring/management usually uses direct Supabase access
+    return [];
 };

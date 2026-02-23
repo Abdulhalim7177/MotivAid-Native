@@ -150,7 +150,7 @@ This workplan outlines the functional blocks required to implement the MotivAid 
 
 ---
 
-## Block 4: Timeline, Escalation & Reports - PLANNED (Next)
+## Block 4: Timeline, Escalation & Reports - IN PROGRESS
 
 **Objective:** Implement the case timeline, emergency escalation, and case reporting.
 
@@ -229,10 +229,10 @@ This workplan outlines the functional blocks required to implement the MotivAid 
 | Block | Status | Phase | Sprints | Key Output |
 |-------|--------|-------|---------|------------|
 | 1. Organizational Hierarchy | Complete | Phase 1-2 | 0-4 | Roles, facilities, units, memberships |
-| 2. Clinical Schema | Planned | Phase 3 | 5-6 | Maternal profiles, vital signs, risk scoring |
-| 3. E-MOTIVE Workflow | Planned | Phase 4 | 7-8 | PPH cases, interventions, clinical mode |
-| 4. Escalation & Comms | Planned | Phase 5 | 9 | Alerts, emergency contacts, audit |
-| 5. Analytics & Training | Planned | Phase 6 | 10 | Reports, scenarios, quizzes |
+| 2. Clinical Schema | Complete | Phase 3 | 5-6 | Maternal profiles, vital signs, risk scoring |
+| 3. E-MOTIVE Workflow | Complete | Phase 4 | 7-8 | PPH cases, interventions, clinical mode |
+| 4. Escalation & Comms | 🏗️ In Progress | Phase 5 | 9 | Alerts, emergency contacts, audit |
+| 5. Analytics & Training | 🔲 Planned | Phase 6 | 10 | Reports, scenarios, quizzes |
 
 ---
 

@@ -105,24 +105,35 @@ async function syncInsert(
     payload: Record<string, any>
 ): Promise<string> {
     // Remove local-only fields
-    const { local_id, remote_id, is_synced, maternal_profile_local_id, ...data } = payload;
+    const { local_id, remote_id, is_synced, ...data } = payload;
 
     // Set local_id on the remote record for reference
     data.local_id = localId;
 
-    // For vital_signs and emotive_checklists: resolve maternal_profile_local_id → maternal_profile_id
-    if ((tableName === 'vital_signs' || tableName === 'emotive_checklists') && maternal_profile_local_id) {
+    // For tables that link to maternal_profiles: resolve local profile reference to remote profile UUID
+    // They might use 'maternal_profile_id' or 'maternal_profile_local_id' in the payload
+    const profileLocalId = data.maternal_profile_id || data.maternal_profile_local_id;
+
+    if ((tableName === 'vital_signs' || tableName === 'emotive_checklists' || tableName === 'case_events') && profileLocalId) {
         // Look up the remote ID for this maternal profile
         const { data: profileData } = await supabase
             .from('maternal_profiles')
             .select('id')
-            .eq('local_id', maternal_profile_local_id)
+            .eq('local_id', profileLocalId)
             .maybeSingle();
 
         if (profileData?.id) {
             data.maternal_profile_id = profileData.id;
+            // Remove local-only reference fields
+            delete data.maternal_profile_local_id;
         } else {
-            throw new Error(`Cannot sync ${tableName}: maternal profile "${maternal_profile_local_id}" not yet synced`);
+            // Check if profileLocalId is actually already a remote UUID (sometimes happens if data was merged)
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(profileLocalId);
+            if (isUuid) {
+                data.maternal_profile_id = profileLocalId;
+            } else {
+                throw new Error(`Cannot sync ${tableName}: maternal profile "${profileLocalId}" not yet synced`);
+            }
         }
     }
 
@@ -140,7 +151,7 @@ async function syncUpdate(
     tableName: string,
     payload: Record<string, any>
 ): Promise<void> {
-    const { local_id, remote_id, is_synced, id, maternal_profile_local_id, ...data } = payload;
+    const { local_id, remote_id, is_synced, id, ...data } = payload;
 
     // Resolve the remote UUID — try remote_id, then id, then look up by local_id
     let updateId = remote_id || id;
@@ -155,6 +166,25 @@ async function syncUpdate(
 
     if (!updateId) {
         throw new Error(`Cannot sync update: record "${local_id}" not yet synced to Supabase`);
+    }
+
+    // Handle maternal_profile_id resolution for updates too
+    const profileLocalId = data.maternal_profile_id || data.maternal_profile_local_id;
+    if ((tableName === 'vital_signs' || tableName === 'emotive_checklists' || tableName === 'case_events') && profileLocalId) {
+        const { data: profileData } = await supabase
+            .from('maternal_profiles')
+            .select('id')
+            .eq('local_id', profileLocalId)
+            .maybeSingle();
+        if (profileData?.id) {
+            data.maternal_profile_id = profileData.id;
+            delete data.maternal_profile_local_id;
+        } else {
+            // Check if it's already a UUID
+            if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(profileLocalId)) {
+                data.maternal_profile_id = profileLocalId;
+            }
+        }
     }
 
     const { error } = await supabase

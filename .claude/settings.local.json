@@ -10,7 +10,10 @@
       "WebSearch",
       "Bash(cat:*)",
       "WebFetch(domain:motivaid.com.ng)",
-      "Bash(npm run lint)"
+      "Bash(npm run lint)",
+      "Bash(ls:*)",
+      "Bash(git checkout:*)",
+      "Bash(find:*)"
     ]
   }
 }

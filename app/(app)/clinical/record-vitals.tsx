@@ -41,7 +41,7 @@ export default function RecordVitalsScreen() {
     const { localId } = useLocalSearchParams<{ localId: string }>();
     const colorScheme = useColorScheme();
     const colors = Colors[colorScheme ?? 'light'];
-    const { recordVitals, profiles } = useClinical();
+    const { recordVitals, profiles, emotiveChecklist, startEmotiveBundle } = useClinical();
     const { showToast } = useToast();
 
     const profile = profiles.find(p => p.local_id === localId);
@@ -56,6 +56,8 @@ export default function RecordVitalsScreen() {
     const [bloodLoss, setBloodLoss] = useState('0');
     const [bloodLossMethod, setBloodLossMethod] = useState<'visual' | 'drape' | 'weighed'>('visual');
     const [isSaving, setIsSaving] = useState(false);
+
+    const isClosed = profile?.status === 'closed';
 
     // Pulse animation for critical SI
     const pulseScale = useSharedValue(1);
@@ -89,6 +91,14 @@ export default function RecordVitalsScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [heartRate, systolicBp]);
 
+    const isPphSuspected = useMemo(() => {
+        const ebl = parseInt(bloodLoss) || 0;
+        const si = shockResult?.value || 0;
+        return ebl > 0 || si >= 0.9;
+    }, [bloodLoss, shockResult]);
+
+    const shouldShowStartBundle = isPphSuspected && !emotiveChecklist && !isClosed;
+
     // Blood loss assessment
     const bloodLossResult = useMemo(() => {
         const ebl = parseInt(bloodLoss) || 0;
@@ -115,6 +125,10 @@ export default function RecordVitalsScreen() {
                 bloodLossMethod,
             });
 
+            if (shouldShowStartBundle && localId) {
+                await startEmotiveBundle(localId);
+            }
+
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             if (router.canGoBack()) {
                 router.back();
@@ -140,10 +154,12 @@ export default function RecordVitalsScreen() {
                         <Ionicons name="arrow-back" size={24} color={colors.text} />
                     </TouchableOpacity>
                     <View style={styles.headerCenter}>
-                        <Text style={[styles.headerTitle, { color: colors.text }]}>Record Vitals</Text>
+                        <Text style={[styles.headerTitle, { color: colors.text }]}>
+                            {isClosed ? 'Recent Vitals' : 'Record Vitals'}
+                        </Text>
                         {profile && (
                             <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
-                                {profile.patient_id || 'Patient'} · Age {profile.age} · G{profile.gravida}P{profile.parity}
+                                {profile.patient_id || 'Patient'} · Age {profile.age} {isClosed && '· (View Only)'}
                             </Text>
                         )}
                     </View>
@@ -205,6 +221,7 @@ export default function RecordVitalsScreen() {
                                 iconColor="#EF4444"
                                 colors={colors}
                                 placeholder="72"
+                                editable={!isClosed}
                             />
                             <VitalInput
                                 label="SpO₂"
@@ -215,6 +232,7 @@ export default function RecordVitalsScreen() {
                                 iconColor="#3B82F6"
                                 colors={colors}
                                 placeholder="98"
+                                editable={!isClosed}
                             />
                         </View>
 
@@ -229,6 +247,7 @@ export default function RecordVitalsScreen() {
                                 iconColor="#9B51E0"
                                 colors={colors}
                                 placeholder="120"
+                                editable={!isClosed}
                             />
                             <VitalInput
                                 label="Diastolic BP"
@@ -239,6 +258,7 @@ export default function RecordVitalsScreen() {
                                 iconColor="#9B51E0"
                                 colors={colors}
                                 placeholder="80"
+                                editable={!isClosed}
                             />
                         </View>
 
@@ -254,6 +274,7 @@ export default function RecordVitalsScreen() {
                                 colors={colors}
                                 placeholder="36.5"
                                 isDecimal
+                                editable={!isClosed}
                             />
                             <VitalInput
                                 label="Resp. Rate"
@@ -264,6 +285,7 @@ export default function RecordVitalsScreen() {
                                 iconColor="#10B981"
                                 colors={colors}
                                 placeholder="16"
+                                editable={!isClosed}
                             />
                         </View>
                     </View>
@@ -272,7 +294,14 @@ export default function RecordVitalsScreen() {
                     <Text style={[styles.sectionTitle, { color: colors.text }]}>Blood Loss Estimation</Text>
                     <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
                         {/* Main blood loss input */}
-                        <View style={[styles.bloodLossInputRow, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}>
+                        <View style={[
+                            styles.bloodLossInputRow, 
+                            { 
+                                backgroundColor: isClosed ? colors.border + '10' : colors.inputBackground, 
+                                borderColor: colors.inputBorder,
+                                opacity: isClosed ? 0.7 : 1
+                            }
+                        ]}>
                             <Ionicons name="water" size={22} color={parseInt(bloodLoss) > 500 ? '#EF4444' : colors.textSecondary} />
                             <TextInput
                                 style={[styles.bloodLossValue, { color: colors.text }]}
@@ -282,45 +311,48 @@ export default function RecordVitalsScreen() {
                                 maxLength={5}
                                 placeholder="0"
                                 placeholderTextColor={colors.placeholder}
+                                editable={!isClosed}
                             />
                             <Text style={[styles.bloodLossUnit, { color: colors.textSecondary }]}>mL</Text>
                         </View>
 
                         {/* Blood loss quick buttons */}
-                        <View style={styles.quickButtons}>
-                            {[100, 250, 500, 1000].map((amount) => (
+                        {!isClosed && (
+                            <View style={styles.quickButtons}>
+                                {[100, 250, 500, 1000].map((amount) => (
+                                    <TouchableOpacity
+                                        key={amount}
+                                        style={[styles.quickButton, {
+                                            borderColor: colors.border,
+                                            backgroundColor: colors.inputBackground,
+                                        }]}
+                                        onPress={() => {
+                                            const current = parseInt(bloodLoss) || 0;
+                                            setBloodLoss(String(current + amount));
+                                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                        }}
+                                        activeOpacity={0.6}
+                                    >
+                                        <Text style={[styles.quickButtonText, { color: colors.primary }]}>
+                                            +{amount}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
                                 <TouchableOpacity
-                                    key={amount}
                                     style={[styles.quickButton, {
-                                        borderColor: colors.border,
-                                        backgroundColor: colors.inputBackground,
+                                        borderColor: colors.error + '40',
+                                        backgroundColor: colors.error + '08',
                                     }]}
                                     onPress={() => {
-                                        const current = parseInt(bloodLoss) || 0;
-                                        setBloodLoss(String(current + amount));
+                                        setBloodLoss('0');
                                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                                     }}
                                     activeOpacity={0.6}
                                 >
-                                    <Text style={[styles.quickButtonText, { color: colors.primary }]}>
-                                        +{amount}
-                                    </Text>
+                                    <Text style={[styles.quickButtonText, { color: colors.error }]}>Reset</Text>
                                 </TouchableOpacity>
-                            ))}
-                            <TouchableOpacity
-                                style={[styles.quickButton, {
-                                    borderColor: colors.error + '40',
-                                    backgroundColor: colors.error + '08',
-                                }]}
-                                onPress={() => {
-                                    setBloodLoss('0');
-                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                }}
-                                activeOpacity={0.6}
-                            >
-                                <Text style={[styles.quickButtonText, { color: colors.error }]}>Reset</Text>
-                            </TouchableOpacity>
-                        </View>
+                            </View>
+                        )}
 
                         {/* Method selector */}
                         <Text style={[styles.methodLabel, { color: colors.textSecondary }]}>Method</Text>
@@ -334,9 +366,11 @@ export default function RecordVitalsScreen() {
                                             styles.methodChip,
                                             isActive && { backgroundColor: colors.primary + '15', borderColor: colors.primary },
                                             !isActive && { borderColor: colors.border, backgroundColor: colors.inputBackground },
+                                            isClosed && { opacity: isActive ? 1 : 0.5 }
                                         ]}
-                                        onPress={() => setBloodLossMethod(method.key)}
+                                        onPress={() => !isClosed && setBloodLossMethod(method.key)}
                                         activeOpacity={0.7}
+                                        disabled={isClosed}
                                     >
                                         <Ionicons
                                             name={method.icon as any}
@@ -366,14 +400,26 @@ export default function RecordVitalsScreen() {
 
                     {/* Save Button */}
                     <TouchableOpacity
-                        style={[styles.saveButton, { backgroundColor: colors.primary, opacity: isSaving ? 0.6 : 1 }]}
+                        style={[
+                            styles.saveButton,
+                            { 
+                                backgroundColor: isClosed ? colors.border : (shouldShowStartBundle ? colors.error : colors.primary), 
+                                opacity: (isSaving || isClosed) ? 0.6 : 1 
+                            }
+                        ]}
                         onPress={handleSave}
-                        disabled={isSaving}
+                        disabled={isSaving || isClosed}
                         activeOpacity={0.8}
                     >
-                        <Ionicons name="save-outline" size={20} color="#FFF" />
-                        <Text style={styles.saveButtonText}>
-                            {isSaving ? 'Saving...' : 'Save Vital Signs'}
+                        <Ionicons name={isClosed ? "lock-closed-outline" : (shouldShowStartBundle ? "alert-circle-outline" : "save-outline")} size={20} color={isClosed ? colors.textSecondary : "#FFF"} />
+                        <Text style={[styles.saveButtonText, isClosed && { color: colors.textSecondary }]}>
+                            {isSaving 
+                                ? 'Saving...' 
+                                : isClosed
+                                    ? 'Case Closed (View Only)'
+                                    : shouldShowStartBundle 
+                                        ? 'Save & Start Bundle' 
+                                        : 'Save Vital Signs'}
                         </Text>
                     </TouchableOpacity>
 
@@ -396,6 +442,7 @@ function VitalInput({
     colors,
     placeholder,
     isDecimal = false,
+    editable = true,
 }: {
     label: string;
     value: string;
@@ -406,6 +453,7 @@ function VitalInput({
     colors: any;
     placeholder: string;
     isDecimal?: boolean;
+    editable?: boolean;
 }) {
     const [isFocused, setIsFocused] = useState(false);
 
@@ -418,9 +466,10 @@ function VitalInput({
             <View style={[
                 styles.vitalInputRow,
                 {
-                    backgroundColor: colors.inputBackground,
+                    backgroundColor: editable ? colors.inputBackground : colors.border + '10',
                     borderColor: isFocused ? colors.primary : colors.inputBorder,
                     borderWidth: isFocused ? 1.5 : 1,
+                    opacity: editable ? 1 : 0.7,
                 },
             ]}>
                 <TextInput
@@ -437,6 +486,7 @@ function VitalInput({
                     onFocus={() => setIsFocused(true)}
                     onBlur={() => setIsFocused(false)}
                     textAlign="center"
+                    editable={editable}
                 />
                 <Text style={[styles.vitalInputUnit, { color: colors.textSecondary }]}>{unit}</Text>
             </View>

@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>APC Campaign AI: Strategic Proposal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        /* Custom Styling for specific needs not covered by default Tailwind utilities */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #FAFAF9; /* Warm neutral (Stone-50) */
+            color: #1C1917; /* Stone-900 */
+        }
+
+        /* Chart Container Strict Styling */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 100%; /* Responsive base */
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px; /* Default height */
+            max-height: 400px;
+        }
+
+        @media (min-width: 768px) {
+            .chart-container {
+                max-width: 600px; /* Constrain on tablet+ */
+                height: 400px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .chart-container {
+                max-width: 100%; /* Allow fill in grid cells */
+            }
+        }
+
+        /* Mockup for WhatsApp Interface */
+        .wa-bg {
+            background-color: #E5DDD5;
+            background-image: linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .wa-message-in {
+            background-color: white;
+            border-radius: 0 10px 10px 10px;
+            box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+        }
+
+        .wa-message-out {
+            background-color: #D9FDD3;
+            border-radius: 10px 0 10px 10px;
+            box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+        }
+
+        /* Interactive Element Highlights */
+        .interactive-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .tab-active {
+            border-bottom: 2px solid #0F766E; /* Teal-700 */
+            color: #0F766E;
+            font-weight: 600;
+        }
+
+        /* AI Typing Indicator */
+        .typing-dot {
+            animation: typing 1.4s infinite ease-in-out both;
+            height: 6px;
+            width: 6px;
+            border-radius: 50%;
+            background-color: #0F766E;
+            display: inline-block;
+            margin: 0 1px;
+        }
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+    </style>
+
+    <!-- Chosen Palette: Warm Neutrals (Stone) with Political Teal/Green Accents -->
+    <!-- Application Structure Plan: 
+         1. Hero Section: Hook based on "Meeting Voters Where They Are".
+         2. Problem/Solution Grid: Interactive cards to explain the "Gap" and the "AI Solution".
+         3. Feature & Cost Simulator: A tabbed interface to explore the 3 Phases (Awareness, Engagement, Mobilization). 
+            Interactive charts update based on the active tab to show cost vs. feature set.
+         4. ROI Dashboard: A visualization of "Massive Reach at Micro Costs" comparing AI to traditional rallies.
+         5. Tech Stack: Simple layout explaining the Supabase/Infrastructure advantage.
+         Rationale: The user needs to understand the *value* before the *price*. We build the case for the problem, 
+         show the solution, then break down the investment tiers interactively.
+    -->
+    <!-- Visualization & Content Choices:
+         1. Phase Cost Analysis: Chart.js Bar Chart. Goal: Compare One-time vs Monthly costs across phases.
+         2. ROI Comparison: Chart.js Pie/Donut. Goal: Visualizing the reach (100k voters) vs traditional methods.
+         3. Feature Matrix: HTML Table/Grid with JS toggles. Goal: Clearly delineate what is included in each phase.
+         4. WhatsApp Mockup: HTML/CSS. Goal: Demonstrate the "Zero Friction" user experience.
+         CONFIRMATION: NO SVG graphics used. NO Mermaid JS used.
+    -->
+</head>
+<body class="bg-stone-50 text-stone-800 antialiased selection:bg-teal-100 selection:text-teal-900">
+
+    <!-- Navigation (Simulated) -->
+    <nav class="bg-white border-b border-stone-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 flex items-center gap-2">
+                        <span class="text-2xl font-bold text-teal-700">APC<span class="text-stone-500 font-light">AI</span></span>
+                    </div>
+                </div>
+                <div class="hidden sm:flex sm:items-center sm:space-x-8">
+                    <button onclick="scrollToSection('challenge')" class="text-stone-500 hover:text-teal-700 px-3 py-2 rounded-md text-sm font-medium">The Challenge</button>
+                    <button onclick="scrollToSection('solution')" class="text-stone-500 hover:text-teal-700 px-3 py-2 rounded-md text-sm font-medium">The Solution</button>
+                    <button onclick="scrollToSection('packages')" class="text-stone-500 hover:text-teal-700 px-3 py-2 rounded-md text-sm font-medium">Investment Packages</button>
+                    <button onclick="scrollToSection('roi')" class="text-stone-500 hover:text-teal-700 px-3 py-2 rounded-md text-sm font-medium">ROI</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Wrapper -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-20">
+
+        <!-- Hero Section -->
+        <section class="text-center space-y-6">
+            <h1 class="text-4xl md:text-5xl font-bold tracking-tight text-stone-900">
+                Next-Gen Grassroots Mobilization<br>
+                <span class="text-teal-600">Directly on WhatsApp</span>
+            </h1>
+            <p class="max-w-3xl mx-auto text-xl text-stone-600">
+                A custom-trained AI Campaign Assistant for the APC. Bridge the information gap, counter fake news, and mobilize voters in Kano, Nassarawa LG, and across Nigeria—24/7.
+            </p>
+            <div class="flex justify-center gap-4">
+                <button onclick="scrollToSection('packages')" class="bg-teal-700 hover:bg-teal-800 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition duration-300">
+                    View Investment Packages
+                </button>
+                <button onclick="scrollToSection('solution')" class="bg-white border border-stone-300 hover:bg-stone-50 text-stone-700 font-bold py-3 px-8 rounded-lg shadow-sm transition duration-300">
+                    See How It Works
+                </button>
+            </div>
+        </section>
+
+        <!-- Section 1: The Challenge (Problem Context) -->
+        <section id="challenge" class="bg-white rounded-2xl shadow-sm p-8 border border-stone-100">
+            <div class="mb-8">
+                <h2 class="text-3xl font-bold text-stone-900 mb-4">The Political Challenge</h2>
+                <p class="text-stone-600">
+                    Despite tremendous work by APC officials from the Presidency to the Local Government, a disconnect remains. Our analysis identifies three critical barriers to securing the mandate.
+                </p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Card 1 -->
+                <div class="interactive-card p-6 bg-stone-50 rounded-xl border border-stone-200">
+                    <div class="text-4xl mb-4">📢</div>
+                    <h3 class="text-xl font-bold text-stone-800 mb-2">The Information Gap</h3>
+                    <p class="text-sm text-stone-600">
+                        Grassroots voters are often unaware of specific projects in Nassarawa LG or Kano State. The "Renewed Hope" message needs to reach the last mile instantly.
+                    </p>
+                </div>
+                <!-- Card 2 -->
+                <div class="interactive-card p-6 bg-stone-50 rounded-xl border border-stone-200">
+                    <div class="text-4xl mb-4">🛡️</div>
+                    <h3 class="text-xl font-bold text-stone-800 mb-2">Viral Misinformation</h3>
+                    <p class="text-sm text-stone-600">
+                        Traditional media is too slow. We need an instant, always-on fact-checker to debunk opposition rumors with verified data and photos.
+                    </p>
+                </div>
+                <!-- Card 3 -->
+                <div class="interactive-card p-6 bg-stone-50 rounded-xl border border-stone-200">
+                    <div class="text-4xl mb-4">🚧</div>
+                    <h3 class="text-xl font-bold text-stone-800 mb-2">Logistical Friction</h3>
+                    <p class="text-sm text-stone-600">
+                        Physical rallies are expensive. Engaging 100,000 voters personally is geographically impossible without scalable technology.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 2: The Solution (Interactive Demo) -->
+        <section id="solution" class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div class="space-y-6">
+                <h2 class="text-3xl font-bold text-stone-900">The Solution: Meet Voters Where They Are</h2>
+                <p class="text-stone-600 text-lg">
+                    An intelligent bot living inside WhatsApp. It doesn't guess; it uses verified party data to educate, engage, and mobilize.
+                </p>
+                <ul class="space-y-4">
+                    <li class="flex items-start">
+                        <span class="flex-shrink-0 h-6 w-6 flex items-center justify-center rounded-full bg-teal-100 text-teal-800 font-bold text-sm mr-3">✓</span>
+                        <span class="text-stone-700"><strong>Always Accurate:</strong> Trained exclusively on official APC achievements and manifestos.</span>
+                    </li>
+                    <li class="flex items-start">
+                        <span class="flex-shrink-0 h-6 w-6 flex items-center justify-center rounded-full bg-teal-100 text-teal-800 font-bold text-sm mr-3">✓</span>
+                        <span class="text-stone-700"><strong>Instant Fact-Checker:</strong> Debunks fake news 24/7 with hard facts.</span>
+                    </li>
+                    <li class="flex items-start">
+                        <span class="flex-shrink-0 h-6 w-6 flex items-center justify-center rounded-full bg-teal-100 text-teal-800 font-bold text-sm mr-3">✓</span>
+                        <span class="text-stone-700"><strong>Zero Friction:</strong> No app downloads. Just text a number.</span>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- WhatsApp Mockup -->
+            <div class="mx-auto w-full max-w-sm bg-white rounded-3xl shadow-xl overflow-hidden border border-stone-200 h-[500px] flex flex-col">
+                <div class="bg-teal-700 p-4 text-white flex items-center gap-3">
+                    <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center text-teal-700 font-bold">A</div>
+                    <div>
+                        <div class="font-bold">APC Campaign Assistant</div>
+                        <div class="text-xs text-teal-100">Online 24/7</div>
+                    </div>
+                </div>
+                <div class="flex-1 wa-bg p-4 space-y-4 overflow-y-auto font-sans text-sm relative" id="chat-container">
+                    <!-- Dynamic Messages will be injected here by JS -->
+                </div>
+                <div class="bg-stone-100 p-3 border-t border-stone-200 flex items-center gap-2">
+                    <input type="text" id="chat-input" placeholder="Ask about APC achievements..." class="flex-1 bg-white rounded-full px-4 py-2 text-stone-800 border border-stone-200 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500" onkeypress="handleChatKeyPress(event)">
+                    <button id="chat-send" onclick="sendChatMessage()" class="w-10 h-10 bg-teal-700 hover:bg-teal-800 transition-colors rounded-full flex items-center justify-center text-white cursor-pointer shadow-md">➤</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3: Investment Packages (Analysis) -->
+        <section id="packages" class="bg-stone-50">
+            <div class="mb-10 text-center">
+                <h2 class="text-3xl font-bold text-stone-900 mb-4">Strategic Phased Rollout</h2>
+                <p class="max-w-2xl mx-auto text-stone-600">
+                    Choose a starting point. We have structured development into three phases to ensure swift launch and clear cost control.
+                </p>
+            </div>
+
+            <!-- Tabs -->
+            <div class="flex justify-center border-b border-stone-200 mb-8">
+                <button id="tab-phase1" class="tab-active px-6 py-3 text-lg focus:outline-none transition-colors" onclick="switchPhase(1)">Phase 1: Awareness</button>
+                <button id="tab-phase2" class="px-6 py-3 text-lg text-stone-500 hover:text-stone-700 focus:outline-none transition-colors" onclick="switchPhase(2)">Phase 2: Engagement</button>
+                <button id="tab-phase3" class="px-6 py-3 text-lg text-stone-500 hover:text-stone-700 focus:outline-none transition-colors" onclick="switchPhase(3)">Phase 3: Mobilization</button>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Content Panel -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-200">
+                    <h3 id="package-title" class="text-2xl font-bold text-teal-800 mb-2">Phase 1: The "Awareness" AI</h3>
+                    <p id="package-desc" class="text-stone-600 italic mb-6">The foundation. Focused strictly on instantly showcasing the APC's track record.</p>
+                    
+                    <div class="space-y-4 mb-6">
+                        <h4 class="font-bold text-stone-900 uppercase text-xs tracking-wider">Included Features</h4>
+                        <ul id="package-features" class="space-y-2 text-sm text-stone-700">
+                            <!-- Features injected by JS -->
+                        </ul>
+                    </div>
+
+                    <div class="p-4 bg-orange-50 rounded-lg border border-orange-100 mb-4">
+                        <h4 class="font-bold text-orange-800 uppercase text-xs tracking-wider mb-2">Limitations</h4>
+                        <p id="package-limits" class="text-sm text-orange-700">No media sharing, data logging, or proactive messaging.</p>
+                    </div>
+
+                    <div class="flex items-center justify-between mt-8 pt-6 border-t border-stone-100">
+                        <div>
+                            <span class="block text-xs text-stone-500 uppercase">Development</span>
+                            <span id="price-dev" class="text-2xl font-bold text-stone-900">₦3.5M</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="block text-xs text-stone-500 uppercase">Monthly Maintenance</span>
+                            <span id="price-month" class="text-xl font-bold text-stone-900">₦150k</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Visualization Panel -->
+                <div class="space-y-6">
+                    <!-- Cost Chart -->
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-stone-200">
+                        <h4 class="text-sm font-bold text-stone-500 mb-4 text-center">Cost Analysis (Development vs. Annual Maintenance)</h4>
+                        <div class="chart-container">
+                            <canvas id="costChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: AI Broadcast Generator (NEW Gemini Feature) -->
+        <section id="ai-tools" class="bg-gradient-to-br from-teal-800 to-stone-900 rounded-2xl shadow-xl p-8 border border-teal-900 text-white my-12 relative overflow-hidden">
+            <div class="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                <div>
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-900/50 border border-teal-700 text-teal-300 text-xs font-bold uppercase tracking-wider mb-4">
+                        <span>✨ Live AI Demo</span>
+                    </div>
+                    <h2 class="text-3xl font-bold mb-4">Generate a Campaign Broadcast</h2>
+                    <p class="text-teal-100/80 mb-6">
+                        Experience the power of the Phase 3 "Mobilization" agent. Enter a recent achievement and let the AI draft a targeted, persuasive WhatsApp broadcast message ready for distribution.
+                    </p>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-teal-200 mb-1">Topic or Achievement</label>
+                            <input type="text" id="broadcast-topic" placeholder="e.g., Opened 3 new boreholes in Nassarawa LG..." class="w-full bg-stone-800/50 border border-teal-700/50 rounded-lg px-4 py-3 text-white placeholder-stone-500 focus:outline-none focus:border-teal-400">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-teal-200 mb-1">Target Audience</label>
+                            <select id="broadcast-audience" class="w-full bg-stone-800/50 border border-teal-700/50 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-teal-400">
+                                <option value="General Voters">General Voters</option>
+                                <option value="Youth">Youth & Students</option>
+                                <option value="Market Women">Market Women</option>
+                                <option value="Community Elders">Community Elders</option>
+                            </select>
+                        </div>
+                        <button onclick="generateBroadcast()" id="generate-btn" class="w-full bg-teal-500 hover:bg-teal-400 text-stone-900 font-bold py-3 px-4 rounded-lg transition-colors flex justify-center items-center gap-2 shadow-lg">
+                            <span>✨ Generate Message</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="bg-stone-50 rounded-xl p-6 text-stone-800 shadow-inner h-full min-h-[300px] flex flex-col">
+                    <h3 class="font-bold text-stone-500 text-sm uppercase tracking-wider mb-4 border-b border-stone-200 pb-2">AI Output Preview</h3>
+                    <div id="broadcast-output" class="flex-1 whitespace-pre-wrap font-sans text-sm leading-relaxed text-stone-700">
+                        <div class="h-full flex items-center justify-center text-stone-400 italic text-center">
+                            Your AI-generated WhatsApp broadcast will appear here.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 4: ROI & Technical Advantage -->
+        <section id="roi" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- ROI Card -->
+            <div class="lg:col-span-2 bg-white p-8 rounded-2xl shadow-sm border border-stone-200">
+                <h2 class="text-2xl font-bold text-stone-900 mb-6">Return on Investment: Massive Reach</h2>
+                <p class="text-stone-600 mb-6">
+                    Comparison of engaging **100,000 voters**. Physical rallies are expensive and localized. The AI scales instantly for a fraction of the cost per interaction.
+                </p>
+                <div class="chart-container h-64 md:h-80">
+                    <canvas id="roiChart"></canvas>
+                </div>
+                <div class="mt-4 text-center text-sm text-stone-500">
+                    *Based on estimated cost per voter interaction (flyers/rally logistics vs. AI processing)
+                </div>
+            </div>
+
+            <!-- Technical Advantage Card -->
+            <div class="bg-stone-900 text-white p-8 rounded-2xl shadow-lg flex flex-col justify-center">
+                <h3 class="text-xl font-bold text-teal-400 mb-4">The Data Moat</h3>
+                <p class="text-stone-300 mb-6 leading-relaxed">
+                    Our competitive advantage is the infrastructure.
+                </p>
+                <ul class="space-y-4">
+                    <li class="flex gap-3">
+                        <span class="text-teal-400 font-bold">01.</span>
+                        <div>
+                            <strong class="block text-white">Unified Cloud (Supabase)</strong>
+                            <span class="text-sm text-stone-400">One secure platform for data, chat history, and AI memory. Cuts server costs.</span>
+                        </div>
+                    </li>
+                    <li class="flex gap-3">
+                        <span class="text-teal-400 font-bold">02.</span>
+                        <div>
+                            <strong class="block text-white">Proprietary Training</strong>
+                            <span class="text-sm text-stone-400">Powered by *our* Nassarawa LG and Kano State verified records. Uncopyable.</span>
+                        </div>
+                    </li>
+                    <li class="flex gap-3">
+                        <span class="text-teal-400 font-bold">03.</span>
+                        <div>
+                            <strong class="block text-white">Cost-Efficient Models</strong>
+                            <span class="text-sm text-stone-400">Education per voter costs fractions of a cent.</span>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="text-center py-10 text-stone-500 text-sm border-t border-stone-200">
+            <p>Prepared for APC Stakeholders & Investors.</p>
+            <p class="mt-2">Generated based on strategic proposal documents.</p>
+        </footer>
+
+    </main>
+
+    <script>
+        // --- Data Source ---
+        const phases = {
+            1: {
+                title: 'Phase 1: The "Awareness" AI',
+                desc: 'The foundation. Focused strictly on instantly showcasing the APC\'s track record and defending the party narrative.',
+                features: [
+                    'Digital Portfolio: Q&A on Renewed Hope & Kano Projects',
+                    'Instant Fact-Checking: Debunk fake news',
+                    'Basic Multilingual: English & Hausa',
+                    'Zero-Cost Conversations (24h window)'
+                ],
+                limits: 'No media sharing, data logging, or proactive messaging.',
+                devCost: 3500000,
+                devCostMin: 2500000,
+                monthlyCost: 150000
+            },
+            2: {
+                title: 'Phase 2: The "Engagement" Assistant',
+                desc: 'Upgrading the bot from a broadcaster to a listener. Best for data collection and deep constituent engagement.',
+                features: [
+                    'Voter Sentiment & Grievance Logging',
+                    'Volunteer Onboarding (Name/Ward collection)',
+                    'Targeted Media Sharing (Videos/PDFs)',
+                    'Advanced NLP (Hausa Slang/Political Nuance)'
+                ],
+                limits: 'No automated bulk messaging or live human-agent takeover.',
+                devCost: 6500000,
+                devCostMin: 5000000,
+                monthlyCost: 250000
+            },
+            3: {
+                title: 'Phase 3: The "Mobilization" Agent',
+                desc: 'Full-scale political automation, Get-Out-The-Vote (GOTV) mechanics, and command center oversight.',
+                features: [
+                    'Proactive Campaign Outreach (Broadcasts)',
+                    'Election Day Mobilization & Alerts',
+                    'Human Handoff Dashboard for VIPs',
+                    'Advanced Analytics & Real-time Dashboards'
+                ],
+                limits: 'Requires separate Meta API budget for outbound broadcasts (₦20-30/msg).',
+                devCost: 12000000,
+                devCostMin: 8500000,
+                monthlyCost: 500000
+            }
+        };
+
+        // --- Gemini API Setup ---
+        const apiKey = ""; // API key is injected by the environment
+        
+        async function callGeminiAPI(prompt, systemPrompt) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] }
+            };
+
+            let retries = 5;
+            let delay = 1000;
+
+            while (retries > 0) {
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    
+                    const data = await response.json();
+                    return data.candidates?.[0]?.content?.parts?.[0]?.text || "No response generated.";
+                } catch (error) {
+                    retries--;
+                    if (retries === 0) {
+                        console.error("Gemini API Error after retries:", error);
+                        return "Sorry, the AI system is currently unavailable. Please try again later.";
+                    }
+                    await new Promise(res => setTimeout(res, delay));
+                    delay *= 2;
+                }
+            }
+        }
+
+        // --- State Management ---
+        let currentPhase = 1;
+        let costChartInstance = null;
+        let roiChartInstance = null;
+        let isChatWaiting = false;
+
+        // --- Core Logic ---
+
+        function init() {
+            renderCostChart();
+            renderROIChart();
+            switchPhase(1); // Default load
+            
+            // Initial greeting for the live chat demo
+            appendMessage("Welcome to the live APC Campaign AI demo! ✨ Ask me a question about our achievements in Kano or Nassarawa LG.", "out");
+        }
+
+        // 1. Live Interactive WhatsApp Chat (Gemini Powered)
+        function appendMessage(text, type, isTyping = false) {
+            const container = document.getElementById('chat-container');
+            const wrapper = document.createElement('div');
+            wrapper.className = `flex w-full ${type === 'in' ? 'justify-end' : 'justify-start'} mb-4`;
+            
+            const div = document.createElement('div');
+            div.className = `p-3 text-sm max-w-[85%] ${type === 'in' ? 'wa-message-out' : 'wa-message-in'}`;
+            
+            if (isTyping) {
+                div.id = 'typing-indicator';
+                div.innerHTML = `<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>`;
+            } else {
+                div.innerText = text;
+            }
+            
+            wrapper.appendChild(div);
+            container.appendChild(wrapper);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function removeTypingIndicator() {
+            const indicator = document.getElementById('typing-indicator');
+            if (indicator && indicator.parentElement) {
+                indicator.parentElement.remove();
+            }
+        }
+
+        function handleChatKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendChatMessage();
+            }
+        }
+
+        async function sendChatMessage() {
+            if (isChatWaiting) return;
+            
+            const inputField = document.getElementById('chat-input');
+            const message = inputField.value.trim();
+            if (!message) return;
+
+            // User message
+            appendMessage(message, 'in');
+            inputField.value = '';
+            isChatWaiting = true;
+
+            // Show typing indicator
+            appendMessage('', 'out', true);
+
+            const systemPrompt = `You are an intelligent, polite WhatsApp Campaign Assistant for the APC (All Progressives Congress) party in Nigeria, specifically focusing on Kano State and Nassarawa Local Government Area. 
+            Keep your answers concise, friendly, and formatted for WhatsApp (use emojis sparingly, use bullet points if needed).
+            If asked about achievements, invent realistic but positive infrastructure, education, or economic projects done by the APC in Kano or Nassarawa LG.
+            If asked to fact-check a negative rumor, politely debunk it with a "verified fact".
+            Do not break character. Do not admit you are an AI if possible, act as the digital assistant.`;
+
+            const aiResponse = await callGeminiAPI(message, systemPrompt);
+            
+            removeTypingIndicator();
+            appendMessage(aiResponse, 'out');
+            isChatWaiting = false;
+        }
+
+        // 2. Broadcast Message Generator (Gemini Powered)
+        async function generateBroadcast() {
+            const topicInput = document.getElementById('broadcast-topic').value.trim();
+            const audience = document.getElementById('broadcast-audience').value;
+            const outputDiv = document.getElementById('broadcast-output');
+            const btn = document.getElementById('generate-btn');
+
+            if (!topicInput) {
+                outputDiv.innerHTML = '<span class="text-red-500 font-bold">Please enter a topic or achievement first.</span>';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<div class="typing-dot bg-stone-900"></div><div class="typing-dot bg-stone-900"></div><div class="typing-dot bg-stone-900"></div>';
+            outputDiv.innerHTML = '<div class="h-full flex items-center justify-center text-stone-400 italic">Generating broadcast...</div>';
+
+            const prompt = `Write a WhatsApp campaign broadcast message for the APC party in Nigeria. 
+            Topic/Achievement: ${topicInput}. 
+            Target Audience: ${audience}. 
+            Make it engaging, persuasive, and culturally relevant to Nigeria (especially Kano/Nassarawa area if applicable). 
+            Use appropriate emojis. Include a clear call to action at the end to support the party.`;
+            
+            const systemPrompt = "You are an expert political copywriter for WhatsApp. Output only the message content, no extra commentary.";
+
+            const result = await callGeminiAPI(prompt, systemPrompt);
+            
+            outputDiv.innerHTML = result;
+            btn.disabled = false;
+            btn.innerHTML = '<span>✨ Generate Message</span>';
+        }
+
+        // 3. Tab Switching Logic
+        function switchPhase(phaseId) {
+            currentPhase = phaseId;
+            const data = phases[phaseId];
+
+            // Update Tabs UI
+            document.querySelectorAll('[id^="tab-phase"]').forEach(btn => {
+                btn.classList.remove('tab-active', 'text-teal-700', 'font-bold');
+                btn.classList.add('text-stone-500');
+            });
+            const activeTab = document.getElementById(`tab-phase${phaseId}`);
+            activeTab.classList.add('tab-active', 'text-teal-700');
+            activeTab.classList.remove('text-stone-500');
+
+            // Update Text Content
+            document.getElementById('package-title').innerText = data.title;
+            document.getElementById('package-desc').innerText = data.desc;
+            document.getElementById('package-limits').innerText = data.limits;
+            
+            // Update Features List
+            const featureList = document.getElementById('package-features');
+            featureList.innerHTML = '';
+            data.features.forEach(feat => {
+                const li = document.createElement('li');
+                li.className = 'flex items-start';
+                li.innerHTML = `<span class="text-teal-600 mr-2">▪</span> ${feat}`;
+                featureList.appendChild(li);
+            });
+
+            // Update Prices
+            document.getElementById('price-dev').innerText = `₦${(data.devCost / 1000000).toFixed(1)}M`;
+            document.getElementById('price-month').innerText = `₦${(data.monthlyCost / 1000).toFixed(0)}k`;
+
+            // Update Chart Highlight
+            updateCostChart(phaseId);
+        }
+
+        // 3. Chart.js Implementations
+
+        function renderCostChart() {
+            const ctx = document.getElementById('costChart').getContext('2d');
+            
+            const config = {
+                type: 'bar',
+                data: {
+                    labels: ['Phase 1: Awareness', 'Phase 2: Engagement', 'Phase 3: Mobilization'],
+                    datasets: [
+                        {
+                            label: 'Development Cost (Upper Estimate)',
+                            data: [phases[1].devCost, phases[2].devCost, phases[3].devCost],
+                            backgroundColor: '#0F766E', // Teal 700
+                            borderRadius: 6,
+                            order: 1
+                        },
+                        {
+                            label: 'Annual Maintenance (Monthly x 12)',
+                            data: [phases[1].monthlyCost * 12, phases[2].monthlyCost * 12, phases[3].monthlyCost * 12],
+                            backgroundColor: '#F97316', // Orange 500
+                            borderRadius: 6,
+                            order: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += '₦' + context.parsed.y.toLocaleString();
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '₦' + (value / 1000000) + 'M';
+                                }
+                            },
+                            grid: { color: '#E7E5E4' }
+                        },
+                        x: { grid: { display: false } }
+                    }
+                }
+            };
+
+            costChartInstance = new Chart(ctx, config);
+        }
+
+        function updateCostChart(activePhase) {
+            if(!costChartInstance) return;
+
+            // Highlight logic: Opacity based on selection
+            const activeColorDev = '#0F766E';
+            const passiveColorDev = '#cbd5e1'; // Slate 300
+            
+            const colorsDev = [passiveColorDev, passiveColorDev, passiveColorDev];
+            colorsDev[activePhase - 1] = activeColorDev;
+
+            costChartInstance.data.datasets[0].backgroundColor = colorsDev;
+            costChartInstance.update();
+        }
+
+        function renderROIChart() {
+            const ctx = document.getElementById('roiChart').getContext('2d');
+
+            // Data Logic: Compare reaching 100k people. 
+            // Traditional: Cost of rally/flyers ~₦100 per person interaction? High friction.
+            // AI: Cost ~₦0.5 per interaction.
+            
+            const config = {
+                type: 'doughnut',
+                data: {
+                    labels: ['Cost-Efficiency Advantage', 'Traditional Cost'],
+                    datasets: [{
+                        label: 'Cost Efficiency',
+                        data: [95, 5], // 95% savings implied
+                        backgroundColor: [
+                            '#0F766E', // AI (Teal)
+                            '#D6D3D1'  // Traditional (Grey)
+                        ],
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.label === 'Cost-Efficiency Advantage' 
+                                        ? 'AI Efficiency: 20x cheaper per interaction' 
+                                        : 'Traditional Campaign Costs';
+                                }
+                            }
+                        }
+                    }
+                },
+                plugins: [{
+                    id: 'textCenter',
+                    beforeDraw: function(chart) {
+                        var width = chart.width,
+                            height = chart.height,
+                            ctx = chart.ctx;
+                        ctx.restore();
+                        var fontSize = (height / 114).toFixed(2);
+                        ctx.font = "bold " + fontSize + "em sans-serif";
+                        ctx.textBaseline = "middle";
+                        ctx.fillStyle = "#0F766E";
+                        var text = "20x",
+                            textX = Math.round((width - ctx.measureText(text).width) / 2),
+                            textY = height / 2;
+                        ctx.fillText(text, textX, textY);
+                        
+                        ctx.font = "normal " + (fontSize*0.4).toFixed(2) + "em sans-serif";
+                        ctx.fillStyle = "#78716C";
+                        var subtext = "More Efficient",
+                            subtextX = Math.round((width - ctx.measureText(subtext).width) / 2),
+                            subtextY = height / 2 + 25;
+                        ctx.fillText(subtext, subtextX, subtextY);
+                        ctx.save();
+                    }
+                }]
+            };
+
+            roiChartInstance = new Chart(ctx, config);
+        }
+
+        function scrollToSection(id) {
+            document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Initialize on load
+        window.addEventListener('load', init);
+
+    </script>
+</body>
+</html>

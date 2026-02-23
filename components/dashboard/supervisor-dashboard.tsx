@@ -21,20 +21,20 @@ export function SupervisorDashboard() {
   const successColor = useThemeColor({}, 'success');
   const warningColor = useThemeColor({}, 'warning');
   const textSecondaryColor = useThemeColor({}, 'textSecondary');
-  const { profiles } = useClinical();
+  const { allProfiles } = useClinical();
 
-  // Real clinical stats
+  // Real clinical stats — monitor whole facility
   const clinicalStats = useMemo(() => {
-    const activeCases = profiles.filter(p => p.status !== 'closed');
+    const activeCases = allProfiles.filter(p => p.status !== 'closed');
     const highRiskCases = activeCases.filter(p => p.risk_level === 'high');
-    const closedToday = profiles.filter(p => {
+    const closedToday = allProfiles.filter(p => {
       if (p.status !== 'closed') return false;
       const closedDate = new Date(p.updated_at);
       const today = new Date();
       return closedDate.toDateString() === today.toDateString();
     });
     return { activeCases: activeCases.length, highRisk: highRiskCases.length, closedToday: closedToday.length };
-  }, [profiles]);
+  }, [allProfiles]);
 
   // Pending approvals count from Supabase
   const [pendingCount, setPendingCount] = useState(0);
@@ -136,9 +136,10 @@ export function SupervisorDashboard() {
           onPress={() => router.push('/(app)/(tabs)/clinical')}
         />
         <ActionItem
-          label="Identity Info"
-          icon="id-card-outline"
+          label="Emerg. Contacts"
+          icon="call-outline"
           color="#0EA5E9"
+          onPress={() => router.push('/(app)/management/emergency-contacts')}
         />
       </View>
     </View>
