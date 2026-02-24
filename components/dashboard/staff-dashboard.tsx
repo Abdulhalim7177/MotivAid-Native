@@ -151,18 +151,6 @@ export function StaffDashboard() {
           onPress={() => router.push('/(app)/(tabs)/clinical')}
         />
         <ActionItem
-          label="Schedule"
-          icon="calendar-outline"
-          color="#10B981"
-          onPress={() => { }}
-        />
-        <ActionItem
-          label="Protocols"
-          icon="document-text-outline"
-          color="#8B5CF6"
-          onPress={() => { }}
-        />
-        <ActionItem
           label="Reports"
           icon="bar-chart-outline"
           color="#F59E0B"

@@ -93,6 +93,9 @@ export interface LocalEmotiveChecklist {
     escalation_time?: string;
     escalation_notes?: string;
 
+    diagnostics_causes?: string[];
+    diagnostics_notes?: string;
+
     is_synced: boolean;
     created_at: string;
     updated_at: string;
@@ -120,6 +123,8 @@ export interface LocalEmergencyContact {
     phone: string;
     tier: number;
     is_active: boolean;
+    is_synced?: boolean;
+    is_deleted?: boolean;
     created_at: string;
     updated_at: string;
 }
@@ -271,6 +276,17 @@ export const updateMaternalProfileStatus = async (
     }
 };
 
+export const updateDeliveryTime = async (localId: string, deliveryTime: string) => {
+    const store = getProfileStore();
+    const profile = store.get(localId);
+    if (profile) {
+        profile.delivery_time = deliveryTime;
+        profile.updated_at = new Date().toISOString();
+        store.set(localId, profile);
+        flushProfiles();
+    }
+};
+
 // ── Vital Sign CRUD ──────────────────────────────────────────
 
 export const saveVitalSign = async (vital: LocalVitalSign) => {
@@ -404,6 +420,20 @@ export const markRecordSynced = async (
             store.set(localId, event);
             flushCaseEvents();
         }
+    } else if (tableName === 'emergency_contacts') {
+        const store = getEmergencyContactStore();
+        const contact = store.get(localId);
+        if (contact) {
+            if (contact.is_deleted) {
+                // Now that it's synced to Supabase (deleted there), 
+                // we can safely remove it from local storage too.
+                store.delete(localId);
+            } else {
+                contact.is_synced = true;
+                store.set(localId, contact);
+            }
+            flushEmergencyContacts();
+        }
     }
 };
 
@@ -427,9 +457,20 @@ export const saveEmergencyContacts = async (contacts: LocalEmergencyContact[]) =
     flushEmergencyContacts();
 };
 
+export const deleteEmergencyContact = async (id: string) => {
+    const store = getEmergencyContactStore();
+    const contact = store.get(id);
+    if (contact) {
+        contact.is_deleted = true;
+        contact.is_synced = false;
+        store.set(id, contact);
+        flushEmergencyContacts();
+    }
+};
+
 export const getEmergencyContacts = async (facilityId?: string): Promise<LocalEmergencyContact[]> => {
     let results = Array.from(getEmergencyContactStore().values())
-        .filter(c => !!c.is_active);
+        .filter(c => !!c.is_active && !c.is_deleted);
 
     if (facilityId) {
         results = results.filter(c => c.facility_id === facilityId || c.tier === 3);

@@ -75,9 +75,12 @@ function getEventColor(type: string, colors: any) {
     }
 }
 
-function formatEventData(type: string, dataStr: string) {
+function formatEventData(type: string, dataInput: any) {
+    if (!dataInput) return '';
+    
     try {
-        const data = JSON.parse(dataStr);
+        const data = typeof dataInput === 'string' ? JSON.parse(dataInput) : dataInput;
+        
         if (type === 'vitals') {
             return `HR: ${data.hr || '—'} bpm, BP: ${data.bp || '—'} mmHg, SI: ${data.si?.toFixed(1) || '—'}`;
         }
@@ -88,9 +91,20 @@ function formatEventData(type: string, dataStr: string) {
             if (data.notes) parts.push(`Notes: ${data.notes}`);
             return parts.join(', ') || 'Step completed';
         }
-        return JSON.stringify(data);
+        if (type === 'status_change') {
+            const oldS = String(data.old_status || 'unknown').split('_').join(' ');
+            const newS = String(data.new_status || 'unknown').split('_').join(' ');
+            return `From ${oldS} to ${newS}${data.outcome ? ` (Outcome: ${data.outcome})` : ''}`;
+        }
+        if (type === 'note') {
+            if (data.causes && Array.isArray(data.causes)) {
+                return `Causes: ${data.causes.join(', ')}${data.notes ? ` · Notes: ${data.notes}` : ''}`;
+            }
+            return data.notes || data.message || (typeof data === 'string' ? data : JSON.stringify(data));
+        }
+        return typeof data === 'string' ? data : JSON.stringify(data);
     } catch {
-        return dataStr;
+        return typeof dataInput === 'string' ? dataInput : JSON.stringify(dataInput);
     }
 }
 

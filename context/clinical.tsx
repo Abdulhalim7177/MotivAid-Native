@@ -26,6 +26,8 @@ import {
     saveEmotiveChecklist,
     saveMaternalProfile,
     saveVitalSign,
+    deleteEmergencyContact,
+    updateDeliveryTime,
     updateEmotiveStep,
     updateMaternalProfileStatus
 } from '@/lib/clinical-db';
@@ -65,6 +67,7 @@ type ClinicalContextType = {
     // Actions
     createProfile: (input: CreateProfileInput) => Promise<string>;
     updateProfileStatus: (localId: string, status: string, outcome?: string) => Promise<void>;
+    updateDeliveryTime: (localId: string, deliveryTime: string) => Promise<void>;
     recordVitals: (input: RecordVitalsInput) => Promise<void>;
     setActiveProfileId: (localId: string | null) => void;
     refreshProfiles: () => Promise<void>;
@@ -76,6 +79,7 @@ type ClinicalContextType = {
     emotiveChecklist: LocalEmotiveChecklist | null;
     startEmotiveBundle: (profileLocalId: string) => Promise<void>;
     toggleEmotiveStep: (step: EmotiveStep, done: boolean, details?: { dose?: string; volume?: string; notes?: string }) => Promise<void>;
+    saveDiagnostics: (profileLocalId: string, causes: string[], notes?: string) => Promise<void>;
     refreshEmotiveChecklist: (profileLocalId: string) => Promise<void>;
 
     // Timeline & Escalation
@@ -84,6 +88,8 @@ type ClinicalContextType = {
     addCaseEvent: (event: Omit<LocalCaseEvent, 'local_id' | 'is_synced' | 'occurred_at'>) => Promise<void>;
     emergencyContacts: LocalEmergencyContact[];
     refreshEmergencyContacts: () => Promise<void>;
+    deleteContact: (id: string) => Promise<void>;
+    saveContact: (contact: Partial<LocalEmergencyContact>) => Promise<void>;
     fetchFacilityStaff: () => Promise<any[]>;
 
     // Auto-prompt
@@ -102,6 +108,7 @@ export interface CreateProfileInput {
     gestationalAgeWeeks?: number;
     riskInput: MaternalRiskInput;
     hemoglobinLevel?: number;
+    deliveryTime?: string;
     notes?: string;
 }
 
@@ -151,20 +158,36 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
     const refreshProfiles = useCallback(async () => {
         setIsLoading(true);
         try {
+            const isSupervisor = authProfile?.role === 'supervisor' || authProfile?.role === 'admin';
+            
             // First try local data
-            const localProfiles = await getMaternalProfiles(activeUnit?.id);
+            const localProfiles = await getMaternalProfiles(isSupervisor ? undefined : activeUnit?.id);
 
             // Try to fetch from Supabase if online
             const netState = await NetInfo.fetch();
-            if (netState.isConnected && activeUnit) {
+            if (netState.isConnected) {
                 try {
-                    const { data, error } = await supabase
+                    let query = supabase
                         .from('maternal_profiles')
-                        .select('*')
-                        .eq('unit_id', activeUnit.id)
-                        .order('updated_at', { ascending: false });
+                        .select('*');
+                    
+                    if (isSupervisor && authProfile?.facility_id) {
+                        query = query.eq('facility_id', authProfile.facility_id);
+                    } else if (activeUnit) {
+                        query = query.eq('unit_id', activeUnit.id);
+                    } else {
+                        // If no active unit and not supervisor, just return local
+                        const enriched = localProfiles.map(p => ({
+                            ...p,
+                            riskResult: calculateRiskFromProfile(p),
+                        }));
+                        setProfiles(enriched);
+                        return;
+                    }
 
-                    if (!error && data && data.length > 0) {
+                    const { data, error } = await query.order('updated_at', { ascending: false });
+
+                    if (!error && data) {
                         // Merge remote data with local data
                         const merged = mergeRemoteIntoLocal(localProfiles, data);
                         const enriched = merged.map(p => ({
@@ -189,7 +212,7 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
         } finally {
             setIsLoading(false);
         }
-    }, [activeUnit?.id]);
+    }, [activeUnit, authProfile?.role, authProfile?.facility_id]);
 
     const fetchAllFacilityProfiles = useCallback(async () => {
         if (!authProfile?.facility_id) return;
@@ -248,6 +271,7 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
             hemoglobin_level: input.hemoglobinLevel,
             risk_level: riskResult.level,
             risk_score: riskResult.score,
+            delivery_time: input.deliveryTime,
             status: 'pre_delivery',
             notes: input.notes,
             is_synced: false,
@@ -268,6 +292,14 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
         outcome?: string
     ) => {
         const oldProfile = profiles.find(p => p.local_id === localId);
+        
+        // If case is already closed, don't allow changing status back (unless it's an admin/fix?)
+        // The user wants cases strictly closed.
+        if (oldProfile?.status === 'closed' && status !== 'closed') {
+            console.warn('[Clinical] Cannot reopen a closed case');
+            return;
+        }
+
         const oldStatus = oldProfile?.status;
 
         await updateMaternalProfileStatus(localId, status, outcome);
@@ -296,12 +328,46 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
         await refreshProfiles();
     }, [refreshProfiles]);
 
+    const updateDeliveryTimeCallback = useCallback(async (localId: string, deliveryTime: string) => {
+        await updateDeliveryTime(localId, deliveryTime);
+        const updated = await getMaternalProfile(localId);
+        if (updated) {
+            await queueOperation('maternal_profiles', localId, 'update', updated);
+        }
+        await refreshProfiles();
+    }, [refreshProfiles]);
+
     // ── Timeline & Escalation Operations ────────────────────
 
     const refreshCaseEvents = useCallback(async (profileLocalId: string) => {
         try {
-            const events = await getCaseEvents(profileLocalId);
-            setCaseEvents(events);
+            // First try local
+            const local = await getCaseEvents(profileLocalId);
+            setCaseEvents(local);
+
+            // Try remote if online
+            const netState = await NetInfo.fetch();
+            if (netState.isConnected) {
+                // Find remote profile ID
+                const { data: profileData } = await supabase
+                    .from('maternal_profiles')
+                    .select('id')
+                    .or(`local_id.eq.${profileLocalId},id.eq.${profileLocalId}`)
+                    .maybeSingle();
+
+                if (profileData?.id) {
+                    const { data, error } = await supabase
+                        .from('case_events')
+                        .select('*')
+                        .eq('maternal_profile_id', profileData.id)
+                        .order('occurred_at', { ascending: false });
+
+                    if (!error && data) {
+                        const merged = mergeRemoteItems(local, data, 'occurred_at');
+                        setCaseEvents(merged);
+                    }
+                }
+            }
         } catch (error) {
             console.error('Error refreshing case events:', error);
         }
@@ -310,6 +376,18 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
     const addCaseEvent = useCallback(async (
         eventInput: Omit<LocalCaseEvent, 'local_id' | 'is_synced' | 'occurred_at'>
     ) => {
+        // Find the profile to check creator and status
+        const profile = profiles.find(p => p.local_id === eventInput.maternal_profile_id);
+        
+        // MANDATE: Stop recording case timeline after the case has been closed.
+        if (profile?.status === 'closed') return;
+
+        // MANDATE: Stop recording any case timeline by a user that is not the one who created the case
+        // (e.g. supervisor viewing a case). 
+        // Note: We allow 'status_change' even if not creator if user is supervisor/admin? 
+        // User said: "stop recoring any case timeline by a user that hes not the one who creaed the case"
+        if (profile && profile.created_by !== user?.id) return;
+
         const localId = generateUUID();
         const now = new Date().toISOString();
 
@@ -323,7 +401,7 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
         await saveCaseEvent(event);
         await queueOperation('case_events', localId, 'insert', event);
         await refreshCaseEvents(eventInput.maternal_profile_id);
-    }, [refreshCaseEvents]);
+    }, [refreshCaseEvents, profiles, user?.id]);
 
     const refreshEmergencyContacts = useCallback(async () => {
         try {
@@ -354,31 +432,87 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
         }
     }, [authProfile?.facility_id]);
 
+    const deleteContact = useCallback(async (id: string) => {
+        // Delete locally
+        await deleteEmergencyContact(id);
+        
+        // Queue sync delete
+        await queueOperation('emergency_contacts', id, 'delete', { id });
+        
+        // Refresh state
+        await refreshEmergencyContacts();
+    }, [refreshEmergencyContacts]);
+
+    const saveContact = useCallback(async (contactInput: Partial<LocalEmergencyContact>) => {
+        const id = contactInput.id || generateUUID();
+        const now = new Date().toISOString();
+        
+        const contact: LocalEmergencyContact = {
+            id,
+            name: contactInput.name || '',
+            role: contactInput.role || '',
+            phone: contactInput.phone || '',
+            tier: contactInput.tier || 1,
+            facility_id: contactInput.facility_id || authProfile?.facility_id,
+            unit_id: contactInput.unit_id,
+            is_active: contactInput.is_active ?? true,
+            created_at: contactInput.created_at || now,
+            updated_at: now,
+        };
+
+        // Save locally
+        await saveEmergencyContacts([contact]);
+        
+        // Queue sync
+        await queueOperation(
+            'emergency_contacts', 
+            id, 
+            contactInput.id ? 'update' : 'insert', 
+            contact
+        );
+        
+        // Refresh state
+        await refreshEmergencyContacts();
+    }, [authProfile?.facility_id, refreshEmergencyContacts]);
+
     const fetchFacilityStaff = useCallback(async () => {
         if (!authProfile?.facility_id) return [];
         try {
-            // Fetch staff with their approved unit memberships
-            const { data, error } = await supabase
+            // Fetch all staff in the facility (include admin — they can be emergency contacts too)
+            const { data: staffData, error: staffError } = await supabase
                 .from('profiles')
-                .select(`
-                    id, 
-                    full_name, 
-                    role, 
-                    phone,
-                    facility_id,
-                    unit_memberships(unit_id)
-                `)
+                .select('id, full_name, role, phone, facility_id')
                 .eq('facility_id', authProfile.facility_id)
-                .eq('unit_memberships.status', 'approved')
-                .in('role', ['midwife', 'nurse', 'student', 'supervisor'])
+                .in('role', ['midwife', 'nurse', 'student', 'supervisor', 'admin'])
                 .order('full_name', { ascending: true });
 
-            if (error) throw error;
-            
-            // Map to simplify structure
-            return (data || []).map(staff => ({
+            if (staffError) throw staffError;
+
+            // Bug fix: fetch approved memberships separately so we can join them properly.
+            // Using .eq('unit_memberships.status', 'approved') on an embedded select only
+            // filters the embedded rows — it does NOT exclude profiles with no approved memberships.
+            // A separate query lets us do a real inner-join equivalent.
+            const staffIds = (staffData || []).map(s => s.id);
+            let unitByStaff: Record<string, string> = {};
+
+            if (staffIds.length > 0) {
+                const { data: memberships } = await supabase
+                    .from('unit_memberships')
+                    .select('profile_id, unit_id')
+                    .in('profile_id', staffIds)
+                    .eq('status', 'approved');
+
+                (memberships || []).forEach(m => {
+                    // Keep the first approved unit per staff member
+                    if (!unitByStaff[m.profile_id]) {
+                        unitByStaff[m.profile_id] = m.unit_id;
+                    }
+                });
+            }
+
+            return (staffData || []).map(staff => ({
                 ...staff,
-                unit_id: staff.unit_memberships?.[0]?.unit_id || null
+                unit_id: unitByStaff[staff.id] || null,
             }));
         } catch (error) {
             console.error('Error fetching facility staff:', error);
@@ -390,8 +524,34 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
 
     const refreshVitals = useCallback(async (profileLocalId: string) => {
         try {
-            const vitals = await getVitalSigns(profileLocalId);
-            const enriched: VitalSign[] = vitals.map(v => ({
+            // First try local
+            const local = await getVitalSigns(profileLocalId);
+            
+            let finalVitals = local;
+
+            // Try remote if online
+            const netState = await NetInfo.fetch();
+            if (netState.isConnected) {
+                const { data: profileData } = await supabase
+                    .from('maternal_profiles')
+                    .select('id')
+                    .or(`local_id.eq.${profileLocalId},id.eq.${profileLocalId}`)
+                    .maybeSingle();
+
+                if (profileData?.id) {
+                    const { data, error } = await supabase
+                        .from('vital_signs')
+                        .select('*')
+                        .eq('maternal_profile_id', profileData.id)
+                        .order('recorded_at', { ascending: false });
+
+                    if (!error && data) {
+                        finalVitals = mergeRemoteItems(local, data, 'recorded_at');
+                    }
+                }
+            }
+
+            const enriched: VitalSign[] = finalVitals.map(v => ({
                 ...v,
                 shockResult: v.heart_rate && v.systolic_bp
                     ? calculateShockIndex(v.heart_rate, v.systolic_bp)
@@ -400,8 +560,8 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
             setVitalSigns(enriched);
 
             // Update last vitals time
-            if (vitals.length > 0) {
-                setLastVitalsTime(new Date(vitals[0].recorded_at));
+            if (enriched.length > 0) {
+                setLastVitalsTime(new Date(enriched[0].recorded_at));
             }
         } catch (error) {
             console.error('Error refreshing vitals:', error);
@@ -409,6 +569,12 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
     }, []);
 
     const recordVitals = useCallback(async (input: RecordVitalsInput) => {
+        const profile = profiles.find(p => p.local_id === input.maternalProfileLocalId);
+        if (profile?.status === 'closed') {
+            console.warn('[Clinical] Cannot record vitals for a closed case');
+            return;
+        }
+
         const localId = generateUUID();
         const now = new Date().toISOString();
 
@@ -436,7 +602,7 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
         await saveVitalSign(vital);
         await queueOperation('vital_signs', localId, 'insert', vital);
 
-        // Auto-log event
+        // Auto-log event (addCaseEvent has its own closed-case guard)
         await addCaseEvent({
             maternal_profile_id: input.maternalProfileLocalId,
             event_type: 'vitals',
@@ -454,7 +620,7 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
         setIsVitalsPromptDue(false);
 
         await refreshVitals(input.maternalProfileLocalId);
-    }, [user, refreshVitals]);
+    }, [user, refreshVitals, profiles, addCaseEvent]);
 
     const dismissVitalsPrompt = useCallback(() => {
         setIsVitalsPromptDue(false);
@@ -464,8 +630,38 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
 
     const refreshEmotiveChecklist = useCallback(async (profileLocalId: string) => {
         try {
-            const checklist = await getEmotiveChecklist(profileLocalId);
-            setEmotiveChecklist(checklist);
+            // First try local
+            const local = await getEmotiveChecklist(profileLocalId);
+            setEmotiveChecklist(local);
+
+            // Try remote if online
+            const netState = await NetInfo.fetch();
+            if (netState.isConnected) {
+                const { data: profileData } = await supabase
+                    .from('maternal_profiles')
+                    .select('id')
+                    .or(`local_id.eq.${profileLocalId},id.eq.${profileLocalId}`)
+                    .maybeSingle();
+
+                if (profileData?.id) {
+                    const { data, error } = await supabase
+                        .from('emotive_checklists')
+                        .select('*')
+                        .eq('maternal_profile_id', profileData.id)
+                        .maybeSingle();
+
+                    if (!error && data) {
+                        // For a single item, remote is authoritative if local is synced or empty
+                        if (!local || local.is_synced) {
+                            setEmotiveChecklist({
+                                ...data,
+                                local_id: local?.local_id || data.local_id || data.id,
+                                is_synced: true,
+                            });
+                        }
+                    }
+                }
+            }
         } catch (error) {
             console.error('Error refreshing emotive checklist:', error);
         }
@@ -594,6 +790,57 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
         }
     }, [activeProfileId, emotiveChecklist, user, addCaseEvent]);
 
+    const saveDiagnostics = useCallback(async (
+        profileLocalId: string,
+        causes: string[],
+        notes?: string
+    ) => {
+        if (!emotiveChecklist) {
+            // If no bundle started, create one (shouldn't really happen but for safety)
+            const localId = generateUUID();
+            const now = new Date().toISOString();
+            const newChecklist: LocalEmotiveChecklist = {
+                local_id: localId,
+                maternal_profile_local_id: profileLocalId,
+                performed_by: user?.id,
+                early_detection_done: false,
+                massage_done: false,
+                oxytocin_done: false,
+                txa_done: false,
+                iv_fluids_done: false,
+                escalation_done: false,
+                diagnostics_causes: causes,
+                diagnostics_notes: notes,
+                is_synced: false,
+                created_at: now,
+                updated_at: now,
+            };
+            await saveEmotiveChecklist(newChecklist);
+            await queueOperation('emotive_checklists', localId, 'insert', newChecklist);
+            setEmotiveChecklist(newChecklist);
+        } else {
+            const fields: Partial<LocalEmotiveChecklist> = {
+                diagnostics_causes: causes,
+                diagnostics_notes: notes,
+            };
+            await updateEmotiveStep(emotiveChecklist.local_id, fields);
+            const updated = await getEmotiveChecklist(profileLocalId);
+            if (updated) {
+                await queueOperation('emotive_checklists', emotiveChecklist.local_id, 'update', updated);
+                setEmotiveChecklist(updated);
+            }
+        }
+
+        // Also log as case event
+        await addCaseEvent({
+            maternal_profile_id: profileLocalId,
+            event_type: 'note',
+            event_label: 'Diagnostics Phase Recorded',
+            event_data: JSON.stringify({ causes, notes }),
+            performed_by: user?.id,
+        });
+    }, [emotiveChecklist, user?.id, addCaseEvent]);
+
     // ── Sync ─────────────────────────────────────────────────
 
     const syncNow = useCallback(async () => {
@@ -679,6 +926,7 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
                 isSyncing,
                 createProfile,
                 updateProfileStatus,
+                updateDeliveryTime: updateDeliveryTimeCallback,
                 recordVitals,
                 setActiveProfileId,
                 refreshProfiles,
@@ -688,12 +936,15 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
                 emotiveChecklist,
                 startEmotiveBundle,
                 toggleEmotiveStep,
+                saveDiagnostics,
                 refreshEmotiveChecklist,
                 caseEvents,
                 refreshCaseEvents,
                 addCaseEvent,
                 emergencyContacts,
                 refreshEmergencyContacts,
+                deleteContact,
+                saveContact,
                 fetchFacilityStaff,
                 vitalsPromptInterval,
                 setVitalsPromptInterval,
@@ -798,13 +1049,60 @@ function mergeRemoteContacts(
             result.push({
                 ...r,
                 is_active: !!r.is_active,
+                is_synced: true,
             });
         } else {
             // Update existing with latest remote data
             const idx = result.findIndex(l => l.id === r.id);
-            result[idx] = { ...r, is_active: !!r.is_active };
+            result[idx] = { ...r, is_active: !!r.is_active, is_synced: true };
         }
     }
 
     return result.sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name));
+}
+
+function mergeRemoteItems<T extends { local_id: string; remote_id?: string; is_synced: boolean; [key: string]: any }>(
+    local: T[],
+    remote: any[],
+    sortField: string
+): T[] {
+    const localByRemoteId = new Map(local.filter(l => l.remote_id).map(l => [l.remote_id, l]));
+    const localByLocalId = new Map(local.map(l => [l.local_id, l]));
+    const result: T[] = [];
+    const handledLocalIds = new Set<string>();
+
+    for (const r of remote) {
+        const existing = localByRemoteId.get(r.id) ?? (r.local_id ? localByLocalId.get(r.local_id) : undefined);
+
+        if (!existing) {
+            result.push({
+                ...r,
+                local_id: r.local_id || r.id,
+                remote_id: r.id,
+                is_synced: true,
+            } as unknown as T);
+        } else if (existing.is_synced) {
+            result.push({
+                ...existing,
+                ...r,
+                local_id: existing.local_id,
+                remote_id: r.id,
+                is_synced: true,
+            });
+            handledLocalIds.add(existing.local_id);
+        } else {
+            result.push(existing);
+            handledLocalIds.add(existing.local_id);
+        }
+    }
+
+    for (const l of local) {
+        if (!handledLocalIds.has(l.local_id)) {
+            result.push(l);
+        }
+    }
+
+    return result.sort((a, b) =>
+        new Date(b[sortField]).getTime() - new Date(a[sortField]).getTime()
+    );
 }

@@ -4,12 +4,8 @@ import { DashboardHeader } from '@/components/dashboard/dashboard-header';
 import { StaffDashboard } from '@/components/dashboard/staff-dashboard';
 import { SupervisorDashboard } from '@/components/dashboard/supervisor-dashboard';
 import { UserDashboard } from '@/components/dashboard/user-dashboard';
-import { ThemedText } from '@/components/themed-text';
-import { Card } from '@/components/ui/card';
-import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ScreenContainer } from '@/components/ui/screen-container';
 import UnitSelector from '@/components/unit-selector';
-import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { useUnits } from '@/context/unit';
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -22,7 +18,6 @@ export default function HomeScreen() {
   const { user, profile } = useAuth();
   const { activeUnit, isLoading: unitsLoading } = useUnits();
   const [isOffline, setIsOffline] = useState(false);
-  const tint = useThemeColor({}, 'tint');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const isWeb = Platform.OS === 'web';
 
@@ -84,22 +79,7 @@ export default function HomeScreen() {
         ) : (
           <>
             <UnitSelector />
-
             {renderDashboard()}
-
-            <Card style={styles.infoCard}>
-              <ThemedText type="overline" color="secondary" style={styles.infoLabel}>Identity Information</ThemedText>
-              <View style={styles.infoRow}>
-                <IconSymbol size={20} name="mail-outline" color={tint} />
-                <ThemedText type="bodyMd">{user?.email}</ThemedText>
-              </View>
-              <View style={styles.infoRow}>
-                <IconSymbol size={20} name="time-outline" color={tint} />
-                <ThemedText type="bodyMd">
-                  Joined {new Date(user?.created_at || '').toLocaleDateString()}
-                </ThemedText>
-              </View>
-            </Card>
           </>
         )}
       </View>
@@ -112,17 +92,5 @@ const styles = StyleSheet.create({
     maxWidth: 1200,
     alignSelf: 'center' as any,
     width: '100%',
-  },
-  infoCard: {
-    marginTop: Spacing.lg,
-  },
-  infoLabel: {
-    marginBottom: Spacing.md,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.smd,
-    gap: Spacing.smd,
   },
 });

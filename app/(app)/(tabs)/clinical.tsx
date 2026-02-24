@@ -52,20 +52,22 @@ export default function ClinicalScreen() {
     useFocusEffect(
         useCallback(() => {
             refreshProfiles();
-            if (isSupervisor || isAdmin) fetchAllFacilityProfiles();
-        }, [isSupervisor, isAdmin, refreshProfiles, fetchAllFacilityProfiles])
+            fetchAllFacilityProfiles();
+        }, [refreshProfiles, fetchAllFacilityProfiles])
     );
 
     // Decide which profile list to use
     const baseProfiles = useMemo(() => {
-        let list = monitoringMode ? allProfiles : profiles;
+        // For supervisors, use allProfiles if monitoringMode is true, otherwise use profiles
+        // Actually, with the new refreshProfiles, profiles already contains facility-wide for supervisors
+        let list = (isSupervisor || isAdmin) ? allProfiles : profiles;
 
         if (showMyCasesOnly && user?.id) {
             list = list.filter(p => p.created_by === user.id);
         }
 
         return list;
-    }, [monitoringMode, allProfiles, profiles, showMyCasesOnly, user?.id]);
+    }, [isSupervisor, isAdmin, allProfiles, profiles, showMyCasesOnly, user?.id]);
 
     // Apply unit filter
     const unitFilteredProfiles = useMemo(() => {

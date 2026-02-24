@@ -236,6 +236,10 @@ const styles = StyleSheet.create({
         ...Typography.bodySm,
         marginTop: 2,
     },
+    contactPhone: {
+        ...Typography.labelSm,
+        marginTop: 2,
+    },
     callButton: {
         width: 36,
         height: 36,

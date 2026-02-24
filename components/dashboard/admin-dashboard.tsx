@@ -2,11 +2,13 @@ import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Colors, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
+import { MaternalProfile, useClinical } from '@/context/clinical';
 import { useAppTheme } from '@/context/theme';
+import { RISK_COLORS, RISK_LABELS, RiskLevel } from '@/lib/risk-calculator';
 import { supabase } from '@/lib/supabase';
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Platform, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 const isWeb = Platform.OS === 'web';
@@ -21,8 +23,29 @@ type SystemStats = {
 export function AdminDashboard() {
   const { theme } = useAppTheme();
   const themeColors = Colors[theme];
+  const { allProfiles, fetchAllFacilityProfiles } = useClinical();
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchAllFacilityProfiles();
+  }, []);
+
+  const recentCases = useMemo(() => {
+    return allProfiles
+      .filter(p => p.status !== 'closed')
+      .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+      .slice(0, 5);
+  }, [allProfiles]);
+
+  const getTimeAgo = (dateStr: string): string => {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `${mins}m`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h`;
+    return `${Math.floor(hours / 24)}d`;
+  };
 
   useEffect(() => {
     fetchStats();
@@ -222,7 +245,86 @@ export function AdminDashboard() {
           </Animated.View>
         ))}
       </View>
+
+      {/* Recent Active Cases */}
+      <View style={styles.sectionHeaderRow}>
+        <ThemedText style={[Typography.headingMd, { color: themeColors.text }]}>Recent Cases</ThemedText>
+        <TouchableOpacity onPress={() => router.push('/(app)/(tabs)/clinical')}>
+          <Text style={[styles.viewAll, { color: themeColors.primary }]}>View All</Text>
+        </TouchableOpacity>
+      </View>
+
+      {recentCases.length === 0 ? (
+        <View style={[styles.emptyState, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+          <IconSymbol name="cross.case.fill" size={28} color={themeColors.textSecondary} />
+          <ThemedText type="bodySm" color="secondary" style={{ marginTop: Spacing.xs }}>No active cases</ThemedText>
+        </View>
+      ) : (
+        <View style={styles.casesList}>
+          {recentCases.map(profile => (
+            <AdminCaseCard
+              key={profile.local_id}
+              profile={profile}
+              themeColors={themeColors}
+              timeAgo={getTimeAgo(profile.updated_at)}
+            />
+          ))}
+        </View>
+      )}
     </View>
+  );
+}
+
+// ── Case card shared component ────────────────────────────────
+
+function AdminCaseCard({
+  profile,
+  themeColors,
+  timeAgo,
+}: {
+  profile: MaternalProfile;
+  themeColors: any;
+  timeAgo: string;
+}) {
+  const riskColors = RISK_COLORS[profile.risk_level as RiskLevel] ?? RISK_COLORS.low;
+  return (
+    <TouchableOpacity
+      style={[styles.caseCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }, Shadows.sm]}
+      activeOpacity={0.7}
+      onPress={() => router.push({
+        pathname: '/(app)/clinical/patient-detail',
+        params: { localId: profile.local_id },
+      })}
+    >
+      <View style={styles.caseRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.patientName, { color: themeColors.text }]}>
+            {profile.patient_id || 'Patient'}
+          </Text>
+          <Text style={[styles.patientMeta, { color: themeColors.textSecondary }]}>
+            {profile.age} yrs · G{profile.gravida}P{profile.parity}
+          </Text>
+        </View>
+        <View style={[styles.riskBadge, { backgroundColor: riskColors.bg }]}>
+          <Text style={[styles.riskText, { color: riskColors.text }]}>
+            {RISK_LABELS[profile.risk_level as RiskLevel]}
+          </Text>
+        </View>
+      </View>
+      <View style={styles.caseFooter}>
+        <View style={[styles.statusChip, {
+          backgroundColor: profile.status === 'active' ? '#E8F5E9' : '#FFF3E0',
+        }]}>
+          <Text style={[styles.statusChipText, {
+            color: profile.status === 'active' ? '#2E7D32' : '#E65100',
+          }]}>
+            {profile.status === 'active' ? 'Active' : profile.status === 'monitoring' ? 'Monitoring' : profile.status}
+          </Text>
+        </View>
+        <Text style={[styles.timeAgo, { color: themeColors.textSecondary }]}>{timeAgo} ago</Text>
+        <Text style={[styles.detailsLink, { color: themeColors.primary }]}>Details →</Text>
+      </View>
+    </TouchableOpacity>
   );
 }
 
@@ -326,4 +428,52 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 4,
   },
+
+  /* Recent Cases */
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: Spacing.xl,
+    marginBottom: Spacing.md,
+    gap: Spacing.sm,
+  },
+  viewAll: { ...Typography.labelSm, flex: 1, textAlign: 'right' },
+  emptyState: {
+    padding: Spacing.xl,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  casesList: { gap: Spacing.sm },
+  caseCard: {
+    padding: Spacing.md,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+  },
+  caseRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: Spacing.sm,
+  },
+  patientName: { ...Typography.labelMd },
+  patientMeta: { ...Typography.bodySm, fontSize: 12 },
+  riskBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: Radius.full,
+  },
+  riskText: { fontSize: 10, fontWeight: '700' },
+  caseFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  statusChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: Radius.full,
+  },
+  statusChipText: { fontSize: 10, fontWeight: '600' },
+  timeAgo: { ...Typography.caption, flex: 1 },
+  detailsLink: { ...Typography.labelSm },
 });

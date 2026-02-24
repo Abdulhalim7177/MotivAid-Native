@@ -12,7 +12,7 @@
 import { Colors, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 import { EmotiveStep, useClinical } from '@/context/clinical';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { EscalationModal } from './escalation-modal';
+import { DiagnosticsModal } from './diagnostics-modal';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
@@ -95,24 +95,25 @@ const TARGET_MINUTES = 60;
 
 // ── Component ────────────────────────────────────────────────
 
-export function EmotiveChecklist() {
+export function EmotiveChecklist({ onEscalate }: { onEscalate?: () => void }) {
     const colorScheme = useColorScheme();
     const colors = Colors[colorScheme ?? 'light'];
     const isDark = colorScheme === 'dark';
-    const { 
-        emotiveChecklist, 
-        toggleEmotiveStep, 
-        activeProfile, 
+    const {
+        emotiveChecklist,
+        toggleEmotiveStep,
+        activeProfile,
         updateProfileStatus,
-        addCaseEvent,
-        user
     } = useClinical();
 
     const [sectionExpanded, setSectionExpanded] = useState(true);
     const [expandedStep, setExpandedStep] = useState<EmotiveStep | null>(null);
     const [showCloseModal, setShowCloseModal] = useState(false);
+    const [showDiagnosticsModal, setShowDiagnosticsModal] = useState(false);
     const [stillBleeding, setStillBleeding] = useState<boolean | null>(null);
-    const [showEscalationModal, setShowEscalationModal] = useState(false);
+    // Local flag so post-bundle UI shows immediately after last step toggle
+    // without waiting for context async re-render
+    const [localAllDone, setLocalAllDone] = useState(false);
 
     // ── Timer ────────────────────────────────────────────────
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -131,10 +132,17 @@ export function EmotiveChecklist() {
         return earliest ? new Date(earliest) : null;
     }, [emotiveChecklist]);
 
-    const allDone = STEPS.every(s => {
+    const allDoneFromContext = STEPS.every(s => {
         if (!emotiveChecklist) return false;
         return (emotiveChecklist as any)[`${s.key}_done`];
     });
+    const allDone = allDoneFromContext || localAllDone;
+    const isCreator = activeProfile?.created_by === useClinical().user?.id;
+
+    // Sync localAllDone upward when context catches up
+    useEffect(() => {
+        if (allDoneFromContext) setLocalAllDone(true);
+    }, [allDoneFromContext]);
 
     const completedCount = STEPS.filter(s => {
         if (!emotiveChecklist) return false;
@@ -161,22 +169,12 @@ export function EmotiveChecklist() {
         }
     }, [firstStepTime, allDone]);
 
-    const handleDiagnostics = async () => {
-        if (!activeProfile) return;
-        await addCaseEvent({
-            maternal_profile_id: activeProfile.local_id,
-            event_type: 'note',
-            event_label: 'Diagnostics Phase Initiated',
-            event_data: JSON.stringify({ note: 'Persistent bleeding after E-MOTIVE bundle' }),
-            performed_by: user?.id,
-        });
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        // Reset states
-        setStillBleeding(null);
+    const handleDiagnostics = () => {
+        setShowDiagnosticsModal(true);
     };
 
     const handleEscalation = () => {
-        setShowEscalationModal(true);
+        onEscalate?.();
     };
 
     const elapsedMinutes = Math.floor(elapsedSeconds / 60);
@@ -193,6 +191,16 @@ export function EmotiveChecklist() {
     const handleStepPress = useCallback((stepKey: EmotiveStep) => {
         setExpandedStep(prev => prev === stepKey ? null : stepKey);
     }, []);
+
+    const handleStepToggled = useCallback((stepKey: EmotiveStep, nowDone: boolean) => {
+        if (!nowDone) return;
+        // Check if this is the last remaining step
+        const othersDone = STEPS.filter(s => s.key !== stepKey).every(s => {
+            if (!emotiveChecklist) return false;
+            return (emotiveChecklist as any)[`${s.key}_done`];
+        });
+        if (othersDone) setLocalAllDone(true);
+    }, [emotiveChecklist]);
 
     // ── Close Case ───────────────────────────────────────────
     const handleCloseWithOutcome = async (outcome: 'normal' | 'pph_resolved' | 'referred') => {
@@ -304,9 +312,11 @@ export function EmotiveChecklist() {
                             isDark={isDark}
                             checklist={emotiveChecklist}
                             onToggle={toggleEmotiveStep}
+                            onToggled={handleStepToggled}
                             isLast={index === STEPS.length - 1 && !allDone}
                             isExpanded={expandedStep === step.key}
                             onPress={() => handleStepPress(step.key)}
+                            isCreator={isCreator}
                         />
                     ))}
 
@@ -318,8 +328,9 @@ export function EmotiveChecklist() {
                                     <Text style={[styles.questionText, { color: colors.text }]}>Still bleeding?</Text>
                                     <View style={styles.choiceRow}>
                                         <TouchableOpacity 
-                                            style={[styles.choiceButton, { backgroundColor: colors.success }]}
+                                            style={[styles.choiceButton, { backgroundColor: colors.success, opacity: isCreator ? 1 : 0.5 }]}
                                             onPress={() => {
+                                                if (!isCreator) return;
                                                 setStillBleeding(false);
                                                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                                             }}
@@ -327,8 +338,9 @@ export function EmotiveChecklist() {
                                             <Text style={styles.choiceButtonText}>No</Text>
                                         </TouchableOpacity>
                                         <TouchableOpacity 
-                                            style={[styles.choiceButton, { backgroundColor: colors.error }]}
+                                            style={[styles.choiceButton, { backgroundColor: colors.error, opacity: isCreator ? 1 : 0.5 }]}
                                             onPress={() => {
+                                                if (!isCreator) return;
                                                 setStillBleeding(true);
                                                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                                             }}
@@ -339,8 +351,9 @@ export function EmotiveChecklist() {
                                 </View>
                             ) : stillBleeding === false ? (
                                 <TouchableOpacity
-                                    style={[styles.doneButton, { backgroundColor: colors.success }]}
+                                    style={[styles.doneButton, { backgroundColor: colors.success, opacity: isCreator ? 1 : 0.5 }]}
                                     onPress={() => {
+                                        if (!isCreator) return;
                                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                                         setShowCloseModal(true);
                                     }}
@@ -352,27 +365,40 @@ export function EmotiveChecklist() {
                                 <View style={styles.actionSection}>
                                     <Text style={[styles.actionPrompt, { color: colors.error }]}>Persistent Bleeding Detected</Text>
                                     <View style={styles.actionRow}>
-                                        <TouchableOpacity 
-                                            style={[styles.actionSubButton, { backgroundColor: colors.primary }]}
-                                            onPress={handleDiagnostics}
+                                        <TouchableOpacity
+                                            style={[styles.actionSubButton, { backgroundColor: colors.primary, opacity: isCreator ? 1 : 0.5 }]}
+                                            onPress={() => isCreator && handleDiagnostics()}
                                         >
                                             <Ionicons name="search" size={18} color="#FFF" />
                                             <Text style={styles.actionSubButtonText}>Diagnostics Phase</Text>
                                         </TouchableOpacity>
-                                        <TouchableOpacity 
-                                            style={[styles.actionSubButton, { backgroundColor: colors.error }]}
-                                            onPress={handleEscalation}
+                                        <TouchableOpacity
+                                            style={[styles.actionSubButton, { backgroundColor: colors.error, opacity: isCreator ? 1 : 0.5 }]}
+                                            onPress={() => isCreator && handleEscalation()}
                                         >
                                             <Ionicons name="alert-circle" size={18} color="#FFF" />
                                             <Text style={styles.actionSubButtonText}>Escalation</Text>
                                         </TouchableOpacity>
                                     </View>
-                                    <TouchableOpacity 
-                                        style={styles.resetLink}
-                                        onPress={() => setStillBleeding(null)}
+                                    <TouchableOpacity
+                                        style={[styles.closeAfterAction, { borderColor: colors.border, opacity: isCreator ? 1 : 0.5 }]}
+                                        onPress={() => {
+                                            if (!isCreator) return;
+                                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                            setShowCloseModal(true);
+                                        }}
                                     >
-                                        <Text style={[styles.resetLinkText, { color: colors.textSecondary }]}>Change Answer</Text>
+                                        <Ionicons name="close-circle-outline" size={16} color={colors.textSecondary} />
+                                        <Text style={[styles.closeAfterActionText, { color: colors.textSecondary }]}>Close Case</Text>
                                     </TouchableOpacity>
+                                    {isCreator && (
+                                        <TouchableOpacity
+                                            style={styles.resetLink}
+                                            onPress={() => setStillBleeding(null)}
+                                        >
+                                            <Text style={[styles.resetLinkText, { color: colors.textSecondary }]}>Change Answer</Text>
+                                        </TouchableOpacity>
+                                    )}
                                 </View>
                             )}
                         </View>
@@ -380,8 +406,15 @@ export function EmotiveChecklist() {
                 </View>
             )}
 
-            {/* Emergency Escalation Modal */}
-            <EscalationModal visible={showEscalationModal} onClose={() => setShowEscalationModal(false)} />
+            {/* Diagnostics Phase Modal */}
+            <DiagnosticsModal
+                visible={showDiagnosticsModal}
+                onClose={() => setShowDiagnosticsModal(false)}
+                onSaved={() => {
+                    setShowDiagnosticsModal(false);
+                    setShowCloseModal(true);
+                }}
+            />
 
             {/* Close Case Outcome Modal */}
             <Modal visible={showCloseModal} transparent animationType="fade" onRequestClose={() => setShowCloseModal(false)}>
@@ -437,6 +470,7 @@ function StepRow({
     isDark,
     checklist,
     onToggle,
+    onToggled,
     isLast,
     isExpanded,
     onPress,
@@ -446,9 +480,11 @@ function StepRow({
     isDark: boolean;
     checklist: any;
     onToggle: (step: EmotiveStep, done: boolean, details?: { dose?: string; volume?: string; notes?: string }) => Promise<void>;
+    onToggled: (stepKey: EmotiveStep, nowDone: boolean) => void;
     isLast: boolean;
     isExpanded: boolean;
     onPress: () => void;
+    isCreator: boolean;
 }) {
     const done = checklist?.[`${step.key}_done`] ?? false;
     const time = checklist?.[`${step.key}_time`] as string | undefined;
@@ -463,6 +499,7 @@ function StepRow({
     const doneText = isDark ? '#66BB6A' : '#2E7D32';
 
     const handleToggle = async () => {
+        if (!isCreator) return;
         const newDone = !done;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
@@ -472,6 +509,7 @@ function StepRow({
         } else {
             await onToggle(step.key, false);
         }
+        onToggled(step.key, newDone);
     };
 
     const handleDetailBlur = async () => {

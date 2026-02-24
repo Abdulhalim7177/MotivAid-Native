@@ -16,7 +16,9 @@ import { router } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import {
     KeyboardAvoidingView,
+    Modal,
     Platform,
+    Pressable,
     ScrollView,
     StyleSheet,
     Switch,
@@ -61,6 +63,10 @@ export default function NewPatientScreen() {
         hasMorbidObesity: false,
     });
 
+    const [deliveryTime, setDeliveryTime] = useState<Date | null>(null);
+    const [showDeliveryPicker, setShowDeliveryPicker] = useState(false);
+    const [deliveryDateInput, setDeliveryDateInput] = useState('');
+    const [deliveryTimeInput, setDeliveryTimeInput] = useState('');
     const [isSaving, setIsSaving] = useState(false);
 
     // Live risk calculation
@@ -106,6 +112,7 @@ export default function NewPatientScreen() {
                 gestationalAgeWeeks: gestationalAge ? parseInt(gestationalAge) : undefined,
                 riskInput: finalInput,
                 hemoglobinLevel: hemoglobin ? parseFloat(hemoglobin) : undefined,
+                deliveryTime: deliveryTime?.toISOString() ?? undefined,
                 notes: notes.trim() || undefined,
             });
 
@@ -229,6 +236,42 @@ export default function NewPatientScreen() {
                                 />
                             </View>
                         </View>
+                        {/* Delivery Time */}
+                        <View style={styles.inputRow}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Delivery Time (optional)</Text>
+                                <TouchableOpacity
+                                    style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, justifyContent: 'center' }]}
+                                    onPress={() => {
+                                        if (deliveryTime) {
+                                            const d = deliveryTime;
+                                            setDeliveryDateInput(`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`);
+                                            setDeliveryTimeInput(`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`);
+                                        } else {
+                                            const now = new Date();
+                                            setDeliveryDateInput(`${String(now.getDate()).padStart(2,'0')}/${String(now.getMonth()+1).padStart(2,'0')}/${now.getFullYear()}`);
+                                            setDeliveryTimeInput(`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`);
+                                        }
+                                        setShowDeliveryPicker(true);
+                                    }}
+                                >
+                                    <Text style={{ color: deliveryTime ? colors.text : colors.placeholder }}>
+                                        {deliveryTime
+                                            ? deliveryTime.toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })
+                                            : 'Not yet delivered'}
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                            {deliveryTime && (
+                                <TouchableOpacity
+                                    style={{ paddingTop: 22, paddingLeft: 8 }}
+                                    onPress={() => setDeliveryTime(null)}
+                                >
+                                    <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
+                                </TouchableOpacity>
+                            )}
+                        </View>
+
                         <View style={styles.inputRow}>
                             <View style={styles.inputHalf}>
                                 <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Hemoglobin (g/dL)</Text>
@@ -388,6 +431,71 @@ export default function NewPatientScreen() {
                     <View style={{ height: 40 }} />
                 </ScrollView>
             </KeyboardAvoidingView>
+
+            {/* Delivery Time Entry Modal */}
+            <Modal visible={showDeliveryPicker} transparent animationType="fade" onRequestClose={() => setShowDeliveryPicker(false)}>
+                <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }} onPress={() => setShowDeliveryPicker(false)}>
+                    <Pressable style={{ backgroundColor: colors.card, padding: Spacing.lg, borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, gap: Spacing.md }}>
+                        <Text style={{ color: colors.text, ...Typography.labelLg }}>Delivery Time</Text>
+                        <View style={{ flexDirection: 'row', gap: Spacing.md }}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={{ color: colors.textSecondary, ...Typography.labelSm, marginBottom: 4 }}>Date (DD/MM/YYYY)</Text>
+                                <TextInput
+                                    style={{ borderWidth: 1, borderColor: colors.border, borderRadius: Radius.md, padding: Spacing.sm, color: colors.text, backgroundColor: colors.inputBackground, ...Typography.bodySm }}
+                                    value={deliveryDateInput}
+                                    onChangeText={setDeliveryDateInput}
+                                    placeholder="e.g. 24/02/2026"
+                                    placeholderTextColor={colors.placeholder}
+                                    keyboardType="numeric"
+                                    maxLength={10}
+                                />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={{ color: colors.textSecondary, ...Typography.labelSm, marginBottom: 4 }}>Time (HH:MM)</Text>
+                                <TextInput
+                                    style={{ borderWidth: 1, borderColor: colors.border, borderRadius: Radius.md, padding: Spacing.sm, color: colors.text, backgroundColor: colors.inputBackground, ...Typography.bodySm }}
+                                    value={deliveryTimeInput}
+                                    onChangeText={setDeliveryTimeInput}
+                                    placeholder="e.g. 14:30"
+                                    placeholderTextColor={colors.placeholder}
+                                    keyboardType="numeric"
+                                    maxLength={5}
+                                />
+                            </View>
+                        </View>
+                        <View style={{ flexDirection: 'row', gap: Spacing.md }}>
+                            <TouchableOpacity
+                                style={{ flex: 1, alignItems: 'center', paddingVertical: Spacing.smd, borderRadius: Radius.md, borderWidth: 1, borderColor: colors.border }}
+                                onPress={() => setShowDeliveryPicker(false)}
+                            >
+                                <Text style={{ color: colors.textSecondary, ...Typography.buttonMd }}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={{ flex: 1, alignItems: 'center', paddingVertical: Spacing.smd, borderRadius: Radius.md, backgroundColor: colors.primary }}
+                                onPress={() => {
+                                    const [day, month, year] = deliveryDateInput.split('/').map(Number);
+                                    const [hour, minute] = deliveryTimeInput.split(':').map(Number);
+                                    if (day && month && year && !isNaN(hour) && !isNaN(minute)) {
+                                        const d = new Date(year, month - 1, day, hour, minute);
+                                        if (!isNaN(d.getTime())) {
+                                            setDeliveryTime(d);
+                                            setShowDeliveryPicker(false);
+                                            return;
+                                        }
+                                    }
+                                    // fallback: try parsing date only
+                                    if (day && month && year) {
+                                        const d = new Date(year, month - 1, day);
+                                        if (!isNaN(d.getTime())) { setDeliveryTime(d); setShowDeliveryPicker(false); }
+                                    }
+                                }}
+                            >
+                                <Text style={{ color: '#FFF', ...Typography.buttonMd }}>Confirm</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </Pressable>
+                </Pressable>
+            </Modal>
         </SafeAreaView>
     );
 }

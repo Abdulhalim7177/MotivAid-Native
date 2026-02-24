@@ -25,6 +25,7 @@ import {
     ScrollView,
     StyleSheet,
     Text,
+    TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
@@ -47,35 +48,32 @@ export default function PatientDetailScreen() {
         refreshCaseEvents,
         addCaseEvent,
         refreshEmergencyContacts,
+        updateDeliveryTime,
         user
     } = useClinical();
 
     const [showCloseModal, setShowCloseModal] = useState(false);
     const [showEscalationModal, setShowEscalationModal] = useState(false);
-    const hasLoggedView = useRef(false);
+    const [showDeliveryPicker, setShowDeliveryPicker] = useState(false);
+    const [deliveryDateInput, setDeliveryDateInput] = useState('');
+    const [deliveryTimeInput, setDeliveryTimeInput] = useState('');
 
     const profile = profiles.find(p => p.local_id === localId);
+    const isCreator = profile?.created_by === user?.id;
 
     useFocusEffect(
         useCallback(() => {
             if (localId) {
                 setActiveProfileId(localId);
-                refreshVitals(localId);
-                refreshCaseEvents(localId);
-                refreshEmergencyContacts();
-
-                // Log view event only once per screen instance, not on every re-focus
-                if (!hasLoggedView.current) {
-                    hasLoggedView.current = true;
-                    addCaseEvent({
-                        maternal_profile_id: localId,
-                        event_type: 'note',
-                        event_label: 'Viewed patient detail',
-                        performed_by: user?.id,
-                    });
-                }
+                
+                // Refresh immediately to ensure we have the latest data
+                refreshProfiles().then(() => {
+                    refreshVitals(localId);
+                    refreshCaseEvents(localId);
+                    refreshEmergencyContacts();
+                });
             }
-        }, [localId, setActiveProfileId, refreshVitals, refreshCaseEvents, refreshEmergencyContacts, addCaseEvent, user?.id])
+        }, [localId, setActiveProfileId, refreshProfiles, refreshVitals, refreshCaseEvents, refreshEmergencyContacts])
     );
 
     if (!profile) {
@@ -149,10 +147,10 @@ export default function PatientDetailScreen() {
                     </Text>
                 </View>
                 <TouchableOpacity
-                    onPress={() => {
-                        // Implement summary report logic
-                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                    }}
+                    onPress={() => router.push({
+                        pathname: '/(app)/clinical/case-summary',
+                        params: { localId: localId! },
+                    })}
                     style={styles.backButton}
                 >
                     <Ionicons name="document-text" size={24} color={colors.primary} />
@@ -230,50 +228,186 @@ export default function PatientDetailScreen() {
                 </View>
 
                 {/* Quick Actions */}
-                <View style={styles.actionsRow}>
-                    <TouchableOpacity
-                        style={[styles.actionButton, { backgroundColor: colors.error }]}
-                        onPress={() => setShowEscalationModal(true)}
-                    >
-                        <Ionicons name="alert-circle" size={20} color="#FFF" />
-                        <Text style={styles.actionText}>Emergency</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={[styles.actionButton, { backgroundColor: colors.primary }]}
-                        onPress={() => router.push({
-                            pathname: '/(app)/clinical/record-vitals',
-                            params: { localId: localId! },
-                        })}
-                    >
-                        <Ionicons name="pulse" size={20} color="#FFF" />
-                        <Text style={styles.actionText}>Vitals</Text>
-                    </TouchableOpacity>
-
-                    {profile.status === 'pre_delivery' && (
+                {isCreator && profile.status !== 'closed' && (
+                    <View style={styles.actionsRow}>
                         <TouchableOpacity
-                            style={[styles.actionButton, { backgroundColor: '#10B981' }]}
-                            onPress={() => handleStatusChange('active')}
+                            style={[styles.actionButton, { backgroundColor: colors.error }]}
+                            onPress={() => setShowEscalationModal(true)}
                         >
-                            <Ionicons name="play" size={18} color="#FFF" />
-                            <Text style={styles.actionText}>Start</Text>
+                            <Ionicons name="alert-circle" size={20} color="#FFF" />
+                            <Text style={styles.actionText}>Emergency</Text>
                         </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.actionButton, { backgroundColor: colors.primary }]}
+                            onPress={() => router.push({
+                                pathname: '/(app)/clinical/record-vitals',
+                                params: { localId: localId! },
+                            })}
+                        >
+                            <Ionicons name="pulse" size={20} color="#FFF" />
+                            <Text style={styles.actionText}>Vitals</Text>
+                        </TouchableOpacity>
+
+                        {profile.status === 'pre_delivery' && (
+                            <TouchableOpacity
+                                style={[styles.actionButton, { backgroundColor: '#10B981' }]}
+                                onPress={() => handleStatusChange('active')}
+                            >
+                                <Ionicons name="play" size={18} color="#FFF" />
+                                <Text style={styles.actionText}>Start</Text>
+                            </TouchableOpacity>
+                        )}
+
+                        {(profile.status === 'active' || profile.status === 'monitoring') && (
+                            <TouchableOpacity
+                                style={[styles.actionButton, { backgroundColor: '#6B7280' }]}
+                                onPress={() => handleStatusChange('closed')}
+                            >
+                                <Ionicons name="checkmark-circle" size={18} color="#FFF" />
+                                <Text style={styles.actionText}>Close</Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                )}
+
+                {(!isCreator || profile.status === 'closed') && (
+                    <View style={[styles.viewOnlyBadge, { backgroundColor: colors.border + '20' }]}>
+                        <Ionicons name="eye-outline" size={16} color={colors.textSecondary} />
+                        <Text style={[styles.viewOnlyText, { color: colors.textSecondary }]}>
+                            {profile.status === 'closed' ? 'Case Closed — View Only' : 'Viewing Case (Creator Only Actions)'}
+                        </Text>
+                    </View>
+                )}
+
+                {/* Delivery Time */}
+                <TouchableOpacity
+                    style={[styles.deliveryTimeRow, { backgroundColor: colors.card, borderColor: colors.border }]}
+                    onPress={() => {
+                        if (!isCreator || profile.status === 'closed') return;
+                        const base = profile.delivery_time ? new Date(profile.delivery_time) : new Date();
+                        setDeliveryDateInput(`${String(base.getDate()).padStart(2,'0')}/${String(base.getMonth()+1).padStart(2,'0')}/${base.getFullYear()}`);
+                        setDeliveryTimeInput(`${String(base.getHours()).padStart(2,'0')}:${String(base.getMinutes()).padStart(2,'0')}`);
+                        setShowDeliveryPicker(true);
+                    }}
+                    activeOpacity={isCreator && profile.status !== 'closed' ? 0.7 : 1}
+                >
+                    <Ionicons name="time-outline" size={18} color={colors.primary} />
+                    <Text style={[styles.deliveryTimeLabel, { color: colors.text }]}>Delivery Time:</Text>
+                    <Text style={[styles.deliveryTimeValue, { color: profile.delivery_time ? colors.text : colors.textSecondary }]}>
+                        {profile.delivery_time
+                            ? new Date(profile.delivery_time).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })
+                            : 'Not set'}
+                    </Text>
+                    {isCreator && profile.status !== 'closed' && (
+                        <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} style={{ marginLeft: 'auto' }} />
                     )}
+                </TouchableOpacity>
 
-                    {(profile.status === 'active' || profile.status === 'monitoring') && (
-                        <TouchableOpacity
-                            style={[styles.actionButton, { backgroundColor: '#6B7280' }]}
-                            onPress={() => handleStatusChange('closed')}
-                        >
-                            <Ionicons name="checkmark-circle" size={18} color="#FFF" />
-                            <Text style={styles.actionText}>Close</Text>
-                        </TouchableOpacity>
+                {/* Vital Signs History */}
+                <View style={styles.sectionHeaderRow}>
+                    <Text style={[styles.sectionTitle, { color: colors.text }]}>Vital Signs</Text>
+                    {vitalSigns.length > 0 && (
+                        <Text style={[styles.timelineCount, { color: colors.textSecondary }]}>
+                            {vitalSigns.length} {vitalSigns.length === 1 ? 'entry' : 'entries'}
+                        </Text>
                     )}
                 </View>
 
+                {vitalSigns.length === 0 ? (
+                    <View style={[styles.emptyVitals, { borderColor: colors.border, backgroundColor: colors.card, marginBottom: Spacing.md }]}>
+                        <Ionicons name="pulse-outline" size={28} color={colors.textSecondary} />
+                        <Text style={[styles.emptyVitalsText, { color: colors.textSecondary }]}>
+                            No vitals recorded yet
+                        </Text>
+                    </View>
+                ) : (
+                    vitalSigns.map((v) => (
+                        <View
+                            key={v.local_id}
+                            style={[styles.vitalCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+                        >
+                            {/* Sync indicator */}
+                            {!v.is_synced && (
+                                <View style={styles.syncIndicator}>
+                                    <Ionicons name="cloud-offline-outline" size={14} color={colors.textSecondary} />
+                                </View>
+                            )}
+
+                            {/* Header: time + shock badge */}
+                            <View style={styles.vitalCardHeader}>
+                                <Text style={[styles.vitalTime, { color: colors.textSecondary }]}>
+                                    {new Date(v.recorded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    {' · '}
+                                    {new Date(v.recorded_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                                </Text>
+                                {v.shockResult && (
+                                    <View style={[styles.shockBadge, { backgroundColor: v.shockResult.bgColor }]}>
+                                        <Text style={[styles.shockBadgeText, { color: v.shockResult.color }]}>
+                                            SI {v.shockResult.value.toFixed(1)} · {v.shockResult.label}
+                                        </Text>
+                                    </View>
+                                )}
+                            </View>
+
+                            {/* Vital grid */}
+                            <View style={styles.vitalGrid}>
+                                {v.heart_rate != null && (
+                                    <View style={styles.vitalItem}>
+                                        <Text style={[styles.vitalItemLabel, { color: colors.textSecondary }]}>HR</Text>
+                                        <Text style={[styles.vitalItemValue, { color: colors.text }]}>
+                                            {v.heart_rate} <Text style={styles.vitalItemUnit}>bpm</Text>
+                                        </Text>
+                                    </View>
+                                )}
+                                {v.systolic_bp != null && (
+                                    <View style={styles.vitalItem}>
+                                        <Text style={[styles.vitalItemLabel, { color: colors.textSecondary }]}>BP</Text>
+                                        <Text style={[styles.vitalItemValue, { color: colors.text }]}>
+                                            {v.systolic_bp}/{v.diastolic_bp ?? '—'} <Text style={styles.vitalItemUnit}>mmHg</Text>
+                                        </Text>
+                                    </View>
+                                )}
+                                {v.temperature != null && (
+                                    <View style={styles.vitalItem}>
+                                        <Text style={[styles.vitalItemLabel, { color: colors.textSecondary }]}>Temp</Text>
+                                        <Text style={[styles.vitalItemValue, { color: colors.text }]}>
+                                            {v.temperature} <Text style={styles.vitalItemUnit}>°C</Text>
+                                        </Text>
+                                    </View>
+                                )}
+                                {v.respiratory_rate != null && (
+                                    <View style={styles.vitalItem}>
+                                        <Text style={[styles.vitalItemLabel, { color: colors.textSecondary }]}>RR</Text>
+                                        <Text style={[styles.vitalItemValue, { color: colors.text }]}>
+                                            {v.respiratory_rate} <Text style={styles.vitalItemUnit}>/min</Text>
+                                        </Text>
+                                    </View>
+                                )}
+                                {v.spo2 != null && (
+                                    <View style={styles.vitalItem}>
+                                        <Text style={[styles.vitalItemLabel, { color: colors.textSecondary }]}>SpO₂</Text>
+                                        <Text style={[styles.vitalItemValue, { color: colors.text }]}>
+                                            {v.spo2} <Text style={styles.vitalItemUnit}>%</Text>
+                                        </Text>
+                                    </View>
+                                )}
+                                {v.estimated_blood_loss != null && (
+                                    <View style={styles.vitalItem}>
+                                        <Text style={[styles.vitalItemLabel, { color: colors.textSecondary }]}>EBL</Text>
+                                        <Text style={[styles.vitalItemValue, { color: colors.text }]}>
+                                            {v.estimated_blood_loss} <Text style={styles.vitalItemUnit}>mL</Text>
+                                        </Text>
+                                    </View>
+                                )}
+                            </View>
+                        </View>
+                    ))
+                )}
+
                 {/* E-MOTIVE Bundle Checklist */}
-                {(profile.status === 'active' || profile.status === 'monitoring') && (
-                    <EmotiveChecklist />
+                {(profile.status === 'active' || profile.status === 'monitoring') && profile.status !== 'closed' && (
+                    <EmotiveChecklist onEscalate={() => setShowEscalationModal(true)} />
                 )}
 
                 {/* Status Controls */}
@@ -350,6 +484,71 @@ export default function PatientDetailScreen() {
                         <TouchableOpacity
                             style={[styles.modalCancel, { borderColor: colors.border }]}
                             onPress={() => setShowCloseModal(false)}
+                        >
+                            <Text style={[styles.modalCancelText, { color: colors.textSecondary }]}>Cancel</Text>
+                        </TouchableOpacity>
+                    </Pressable>
+                </Pressable>
+            </Modal>
+            {/* Delivery Time Entry Modal */}
+            <Modal visible={showDeliveryPicker} transparent animationType="fade" onRequestClose={() => setShowDeliveryPicker(false)}>
+                <Pressable style={styles.modalOverlay} onPress={() => setShowDeliveryPicker(false)}>
+                    <Pressable style={[styles.modalContent, { backgroundColor: colors.card }]}>
+                        <Text style={[styles.modalTitle, { color: colors.text }]}>Set Delivery Time</Text>
+                        <View style={{ flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.md }}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={[styles.modalSubtitle, { color: colors.textSecondary, marginBottom: 4 }]}>Date (DD/MM/YYYY)</Text>
+                                <TextInput
+                                    style={{ borderWidth: 1, borderColor: colors.border, borderRadius: Radius.md, padding: Spacing.sm, color: colors.text, ...Typography.bodySm }}
+                                    value={deliveryDateInput}
+                                    onChangeText={setDeliveryDateInput}
+                                    placeholder="e.g. 24/02/2026"
+                                    placeholderTextColor={colors.textSecondary}
+                                    keyboardType="numeric"
+                                    maxLength={10}
+                                />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={[styles.modalSubtitle, { color: colors.textSecondary, marginBottom: 4 }]}>Time (HH:MM)</Text>
+                                <TextInput
+                                    style={{ borderWidth: 1, borderColor: colors.border, borderRadius: Radius.md, padding: Spacing.sm, color: colors.text, ...Typography.bodySm }}
+                                    value={deliveryTimeInput}
+                                    onChangeText={setDeliveryTimeInput}
+                                    placeholder="e.g. 14:30"
+                                    placeholderTextColor={colors.textSecondary}
+                                    keyboardType="numeric"
+                                    maxLength={5}
+                                />
+                            </View>
+                        </View>
+                        <TouchableOpacity
+                            style={[styles.modalOption, { backgroundColor: colors.primary + '15' }]}
+                            onPress={() => {
+                                const [day, month, year] = deliveryDateInput.split('/').map(Number);
+                                const [hour, minute] = deliveryTimeInput.split(':').map(Number);
+                                if (day && month && year && !isNaN(hour) && !isNaN(minute)) {
+                                    const d = new Date(year, month - 1, day, hour, minute);
+                                    if (!isNaN(d.getTime())) {
+                                        updateDeliveryTime(localId!, d.toISOString());
+                                        setShowDeliveryPicker(false);
+                                        return;
+                                    }
+                                }
+                                if (day && month && year) {
+                                    const d = new Date(year, month - 1, day);
+                                    if (!isNaN(d.getTime())) {
+                                        updateDeliveryTime(localId!, d.toISOString());
+                                        setShowDeliveryPicker(false);
+                                    }
+                                }
+                            }}
+                        >
+                            <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+                            <Text style={[styles.modalOptionText, { color: colors.primary }]}>Confirm</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.modalCancel, { borderColor: colors.border }]}
+                            onPress={() => setShowDeliveryPicker(false)}
                         >
                             <Text style={[styles.modalCancelText, { color: colors.textSecondary }]}>Cancel</Text>
                         </TouchableOpacity>
@@ -434,6 +633,35 @@ const styles = StyleSheet.create({
     },
     actionText: { color: '#FFF', ...Typography.buttonMd },
 
+    deliveryTimeRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.sm,
+        borderWidth: 1,
+        borderRadius: Radius.md,
+        paddingHorizontal: Spacing.md,
+        paddingVertical: Spacing.smd,
+        marginBottom: Spacing.md,
+    },
+    deliveryTimeLabel: { ...Typography.labelMd },
+    deliveryTimeValue: { ...Typography.bodySm },
+
+    viewOnlyBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: Spacing.xs,
+        paddingVertical: Spacing.sm,
+        borderRadius: Radius.md,
+        marginBottom: Spacing.md,
+        borderWidth: 1,
+        borderColor: 'transparent',
+    },
+    viewOnlyText: {
+        ...Typography.labelSm,
+        fontSize: 12,
+    },
+
     // Status row
     statusRow: {
         flexDirection: 'row',
@@ -449,6 +677,13 @@ const styles = StyleSheet.create({
     },
     statusPillText: { ...Typography.labelSm },
 
+    // Section headers (vitals + timeline)
+    sectionHeaderRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: Spacing.sm,
+    },
     // Timeline
     timelineHeader: {
         flexDirection: 'row',

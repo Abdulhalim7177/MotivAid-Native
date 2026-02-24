@@ -1,8 +1,9 @@
 /**
  * Emergency Contacts Management — Supervisor/Admin UI
  *
- * Allows managing the 3-level emergency contact hierarchy
- * for a facility/unit.
+ * Supervisor selects a staff member from a dropdown, picks a tier,
+ * and saves them as an emergency contact. Name/role/phone are
+ * auto-filled from the staff record — no manual entry needed.
  */
 
 import { Colors, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
@@ -10,6 +11,7 @@ import { useClinical } from '@/context/clinical';
 import { useAuth } from '@/context/auth';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from '@/lib/supabase';
+import { LocalEmergencyContact } from '@/lib/clinical-db';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
@@ -23,14 +25,21 @@ import {
     ScrollView,
     StyleSheet,
     Text,
-    TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function EmergencyContactsManagement() {
-    const { emergencyContacts, refreshEmergencyContacts, activeUnit, fetchFacilityStaff, isLoading } = useClinical();
+    const { 
+        emergencyContacts, 
+        refreshEmergencyContacts, 
+        activeUnit, 
+        fetchFacilityStaff, 
+        isLoading,
+        deleteContact,
+        saveContact
+    } = useClinical();
     const { profile: authProfile } = useAuth();
     const colorScheme = useColorScheme();
     const colors = Colors[colorScheme ?? 'light'];
@@ -41,122 +50,80 @@ export default function EmergencyContactsManagement() {
     const [showModal, setShowModal] = useState(false);
     const [editingContact, setEditingContact] = useState<any>(null);
 
-    // Form state
-    const [name, setName] = useState('');
-    const [role, setRole] = useState('');
-    const [phone, setPhone] = useState('');
-    const [tier, setTier] = useState(1);
-    // selectedStaff holds the staff object chosen from the dropdown — used to
-    // resolve facility_id / unit_id for the new contact.
+    // Form state — staff selection + tier
     const [selectedStaff, setSelectedStaff] = useState<any>(null);
+    const [tier, setTier] = useState(1);
 
-    // Staff list state
+    // Staff picker state
     const [facilityStaff, setFacilityStaff] = useState<any[]>([]);
-    const [showStaffDropdown, setShowStaffDropdown] = useState(false);
+    const [showStaffPicker, setShowStaffPicker] = useState(false);
+    const [isLoadingStaff, setIsLoadingStaff] = useState(false);
 
     const loadStaff = React.useCallback(async () => {
+        setIsLoadingStaff(true);
         const staff = await fetchFacilityStaff();
         setFacilityStaff(staff);
+        setIsLoadingStaff(false);
     }, [fetchFacilityStaff]);
-
-    React.useEffect(() => {
-        loadStaff();
-    }, [loadStaff]);
-
-    // Bug fix: when a staff member is selected, assign them to selectedStaff so
-    // handleSave can read selectedStaff.facility_id / selectedStaff.unit_id.
-    const handleStaffSelect = (staff: any) => {
-        setName(staff.full_name);
-        setRole(staff.role.charAt(0).toUpperCase() + staff.role.slice(1));
-        setPhone(staff.phone || '');
-        setSelectedStaff(staff);          // was set here before — now it actually flows through
-        setShowStaffDropdown(false);
-    };
-
-    // Only show staff that match the current name input
-    const filteredStaff = facilityStaff.filter(s =>
-        s.full_name?.toLowerCase().includes(name.toLowerCase())
-    );
 
     const handleOpenModal = (contact?: any) => {
         if (contact) {
+            // Editing: pre-fill with the contact's current data
             setEditingContact(contact);
-            setName(contact.name);
-            setRole(contact.role);
-            setPhone(contact.phone);
+            // Try to find the matching staff member so the picker shows them as selected
+            setSelectedStaff({ full_name: contact.name, role: contact.role, phone: contact.phone });
             setTier(contact.tier);
-            setSelectedStaff(null);
         } else {
             setEditingContact(null);
-            setName('');
-            setRole('');
-            setPhone('');
-            setTier(1);
             setSelectedStaff(null);
+            setTier(1);
         }
-        setShowStaffDropdown(false);
+        setShowStaffPicker(false);
         setShowModal(true);
+        loadStaff();
     };
 
     const handleCloseModal = () => {
         setShowModal(false);
-        setShowStaffDropdown(false);
+        setShowStaffPicker(false);
         setSelectedStaff(null);
+        setEditingContact(null);
     };
 
     const handleSave = async () => {
-        if (!name || !role || !phone) {
-            Alert.alert('Error', 'Please fill in all fields');
+        if (!selectedStaff) {
+            Alert.alert('No staff selected', 'Please select a staff member from the dropdown.');
+            return;
+        }
+
+        const facilityId = selectedStaff.facility_id || activeUnit?.facility_id || authProfile?.facility_id;
+        const unitId = selectedStaff.unit_id || activeUnit?.id;
+
+        if (!facilityId) {
+            Alert.alert('Error', 'No facility detected. Please ensure you are assigned to a facility.');
             return;
         }
 
         setIsSaving(true);
         try {
-            // Bug fix: selectedStaff is now properly assigned from handleStaffSelect,
-            // so selectedStaff?.facility_id actually resolves when a staff member is picked.
-            // Falls back to activeUnit context when manually entering a name.
-            const facilityId = selectedStaff?.facility_id || activeUnit?.facility_id;
-            const unitId = selectedStaff?.unit_id || activeUnit?.id;
+            const contactData: Partial<LocalEmergencyContact> = {
+                id: editingContact?.id,
+                name: selectedStaff.full_name,
+                role: selectedStaff.role,
+                phone: selectedStaff.phone || editingContact?.phone || '',
+                tier,
+                facility_id: facilityId,
+                unit_id: unitId,
+                is_active: true,
+            };
 
-            if (!facilityId) {
-                Alert.alert('Error', 'No facility detected. Please select an active unit first.');
-                setIsSaving(false);
-                return;
-            }
-
-            if (editingContact) {
-                // Bug fix: do NOT overwrite unit_id on edit — preserve the original
-                // unit assignment unless the user explicitly changed it via staff selection.
-                const updatePayload: any = { name, role, phone, tier };
-                // Only update unit_id if a new staff member was selected in this edit session
-                if (selectedStaff) {
-                    updatePayload.unit_id = unitId;
-                }
-                const { error } = await supabase
-                    .from('emergency_contacts')
-                    .update(updatePayload)
-                    .eq('id', editingContact.id);
-                if (error) throw error;
-            } else {
-                const { error } = await supabase
-                    .from('emergency_contacts')
-                    .insert({
-                        name,
-                        role,
-                        phone,
-                        tier,
-                        facility_id: facilityId,
-                        unit_id: unitId,
-                    });
-                if (error) throw error;
-            }
-
-            await refreshEmergencyContacts();
+            await saveContact(contactData);
+            
             handleCloseModal();
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         } catch (error) {
             console.error('Error saving contact:', error);
-            Alert.alert('Error', 'Failed to save contact. Check your connection and try again.');
+            Alert.alert('Error', 'Failed to save contact. Please try again.');
         } finally {
             setIsSaving(false);
         }
@@ -173,12 +140,7 @@ export default function EmergencyContactsManagement() {
                     style: 'destructive',
                     onPress: async () => {
                         try {
-                            const { error } = await supabase
-                                .from('emergency_contacts')
-                                .delete()
-                                .eq('id', id);
-                            if (error) throw error;
-                            await refreshEmergencyContacts();
+                            await deleteContact(id);
                             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                         } catch {
                             Alert.alert('Error', 'Failed to delete contact. Check your connection and try again.');
@@ -196,14 +158,13 @@ export default function EmergencyContactsManagement() {
                     <Text style={[styles.contactName, { color: colors.text }]}>{item.name}</Text>
                     <View style={[styles.tierBadge, { backgroundColor: getTierColor(item.tier) + '15' }]}>
                         <Text style={[styles.tierBadgeText, { color: getTierColor(item.tier) }]}>
-                            Tier {item.tier}
+                            {getTierLabel(item.tier)}
                         </Text>
                     </View>
                 </View>
                 <Text style={[styles.contactRole, { color: colors.textSecondary }]}>{item.role}</Text>
                 <Text style={[styles.contactPhone, { color: colors.primary }]}>{item.phone}</Text>
             </View>
-            {/* Bug fix: only show edit/delete buttons if the user has manage permissions */}
             {canManage && (
                 <View style={styles.actions}>
                     <TouchableOpacity onPress={() => handleOpenModal(item)} style={styles.iconButton}>
@@ -219,6 +180,7 @@ export default function EmergencyContactsManagement() {
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+            {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => {
                     if (router.canGoBack()) router.back();
@@ -227,7 +189,6 @@ export default function EmergencyContactsManagement() {
                     <Ionicons name="arrow-back" size={24} color={colors.text} />
                 </TouchableOpacity>
                 <Text style={[styles.headerTitle, { color: colors.text }]}>Emergency Contacts</Text>
-                {/* Bug fix: only show the add button for supervisors/admins */}
                 {canManage ? (
                     <TouchableOpacity onPress={() => handleOpenModal()} style={styles.addButton}>
                         <Ionicons name="add" size={24} color={colors.primary} />
@@ -242,7 +203,6 @@ export default function EmergencyContactsManagement() {
                 keyExtractor={(item) => item.id}
                 renderItem={renderItem}
                 contentContainerStyle={styles.listContent}
-                // Bug fix: show a loading indicator while contacts are being fetched
                 ListFooterComponent={isLoading ? <ActivityIndicator color={colors.primary} style={{ marginVertical: 16 }} /> : null}
                 ListEmptyComponent={
                     !isLoading ? (
@@ -256,89 +216,108 @@ export default function EmergencyContactsManagement() {
                 }
             />
 
-            {/* Create / Edit modal — only reachable if canManage */}
-            <Modal visible={showModal} transparent animationType="fade" onRequestClose={handleCloseModal}>
-                {/* Bug fix: tapping the overlay dismisses the modal AND the staff dropdown */}
+            {/* Add / Edit modal */}
+            <Modal visible={showModal} transparent animationType="slide" onRequestClose={handleCloseModal}>
                 <Pressable style={styles.modalOverlay} onPress={handleCloseModal}>
                     <Pressable style={[styles.modalContent, { backgroundColor: colors.card }]}>
+                        <View style={styles.modalHandle} />
+
                         <Text style={[styles.modalTitle, { color: colors.text }]}>
-                            {editingContact ? 'Edit Contact' : 'New Contact'}
+                            {editingContact ? 'Edit Emergency Contact' : 'Add Emergency Contact'}
                         </Text>
 
-                        <Text style={[styles.label, { color: colors.textSecondary }]}>Name</Text>
-                        <View style={{ zIndex: 1 }}>
-                            <TextInput
-                                style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.inputBackground, marginBottom: 0 }]}
-                                value={name}
-                                onChangeText={(t) => {
-                                    setName(t);
-                                    // Clear the previously selected staff when the user types manually
-                                    if (selectedStaff && t !== selectedStaff.full_name) {
-                                        setSelectedStaff(null);
-                                    }
-                                    setShowStaffDropdown(true);
-                                }}
-                                onFocus={() => setShowStaffDropdown(true)}
-                                // Bug fix: close the dropdown when the field loses focus
-                                onBlur={() => setTimeout(() => setShowStaffDropdown(false), 150)}
-                                placeholder="Search staff or enter name"
-                                placeholderTextColor={colors.placeholder}
-                            />
-
-                            {showStaffDropdown && name.length > 0 && (
-                                <View style={[styles.staffDropdown, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                                    <ScrollView style={{ maxHeight: 150 }} keyboardShouldPersistTaps="handled">
-                                        {filteredStaff.length > 0 ? (
-                                            filteredStaff.map((staff) => (
-                                                <TouchableOpacity
-                                                    key={staff.id}
-                                                    style={[styles.staffItem, { borderBottomColor: colors.border }]}
-                                                    onPress={() => handleStaffSelect(staff)}
-                                                >
-                                                    <Text style={[styles.staffName, { color: colors.text }]}>{staff.full_name}</Text>
-                                                    <Text style={[styles.staffRole, { color: colors.textSecondary }]}>{staff.role}</Text>
-                                                </TouchableOpacity>
-                                            ))
-                                        ) : (
-                                            <View style={styles.staffItem}>
-                                                <Text style={{ color: colors.textSecondary, fontStyle: 'italic' }}>No staff matching &quot;{name}&quot;</Text>
-                                            </View>
-                                        )}
-                                    </ScrollView>
+                        {/* Staff Dropdown */}
+                        <Text style={[styles.label, { color: colors.textSecondary }]}>Staff Member</Text>
+                        <TouchableOpacity
+                            style={[styles.dropdownTrigger, { borderColor: selectedStaff ? colors.primary : colors.border, backgroundColor: colors.inputBackground }]}
+                            onPress={() => setShowStaffPicker(v => !v)}
+                        >
+                            {selectedStaff ? (
+                                <View style={styles.selectedStaffRow}>
+                                    <View style={[styles.staffAvatar, { backgroundColor: colors.primary + '15' }]}>
+                                        <Text style={[styles.staffAvatarText, { color: colors.primary }]}>
+                                            {selectedStaff.full_name?.charAt(0)?.toUpperCase() || '?'}
+                                        </Text>
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={[styles.selectedStaffName, { color: colors.text }]}>{selectedStaff.full_name}</Text>
+                                        <Text style={[styles.selectedStaffRole, { color: colors.textSecondary }]}>
+                                            {selectedStaff.role} {selectedStaff.phone ? `· ${selectedStaff.phone}` : ''}
+                                        </Text>
+                                    </View>
+                                    <Ionicons name={showStaffPicker ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textSecondary} />
+                                </View>
+                            ) : (
+                                <View style={styles.dropdownPlaceholderRow}>
+                                    <Ionicons name="person-add-outline" size={18} color={colors.placeholder} />
+                                    <Text style={[styles.dropdownPlaceholder, { color: colors.placeholder }]}>
+                                        Select a staff member…
+                                    </Text>
+                                    <Ionicons name={showStaffPicker ? 'chevron-up' : 'chevron-down'} size={18} color={colors.placeholder} />
                                 </View>
                             )}
-                        </View>
+                        </TouchableOpacity>
 
-                        <Text style={[styles.label, { color: colors.textSecondary, marginTop: Spacing.lg }]}>Role</Text>
-                        <TextInput
-                            style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.inputBackground }]}
-                            value={role}
-                            onChangeText={setRole}
-                            onFocus={() => setShowStaffDropdown(false)}
-                            placeholder="e.g. Senior Midwife"
-                            placeholderTextColor={colors.placeholder}
-                        />
+                        {/* Staff picker list — shown inline below the trigger */}
+                        {showStaffPicker && (
+                            <View style={[styles.pickerList, { borderColor: colors.border, backgroundColor: colors.card }]}>
+                                {isLoadingStaff ? (
+                                    <ActivityIndicator color={colors.primary} style={{ padding: Spacing.lg }} />
+                                ) : facilityStaff.length === 0 ? (
+                                    <View style={styles.pickerEmpty}>
+                                        <Text style={[styles.pickerEmptyText, { color: colors.textSecondary }]}>
+                                            No staff found for this facility.
+                                        </Text>
+                                    </View>
+                                ) : (
+                                    <ScrollView style={{ maxHeight: 220 }} keyboardShouldPersistTaps="handled">
+                                        {facilityStaff.map((staff) => {
+                                            const isSelected = selectedStaff?.full_name === staff.full_name;
+                                            return (
+                                                <TouchableOpacity
+                                                    key={staff.id}
+                                                    style={[
+                                                        styles.pickerItem,
+                                                        { borderBottomColor: colors.border },
+                                                        isSelected && { backgroundColor: colors.primary + '10' },
+                                                    ]}
+                                                    onPress={() => {
+                                                        setSelectedStaff(staff);
+                                                        setShowStaffPicker(false);
+                                                    }}
+                                                >
+                                                    <View style={[styles.staffAvatar, { backgroundColor: colors.primary + '15' }]}>
+                                                        <Text style={[styles.staffAvatarText, { color: colors.primary }]}>
+                                                            {staff.full_name?.charAt(0)?.toUpperCase() || '?'}
+                                                        </Text>
+                                                    </View>
+                                                    <View style={{ flex: 1 }}>
+                                                        <Text style={[styles.pickerItemName, { color: colors.text }]}>{staff.full_name}</Text>
+                                                        <Text style={[styles.pickerItemMeta, { color: colors.textSecondary }]}>
+                                                            {staff.role}{staff.phone ? ` · ${staff.phone}` : ''}
+                                                        </Text>
+                                                    </View>
+                                                    {isSelected && (
+                                                        <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+                                                    )}
+                                                </TouchableOpacity>
+                                            );
+                                        })}
+                                    </ScrollView>
+                                )}
+                            </View>
+                        )}
 
-                        <Text style={[styles.label, { color: colors.textSecondary }]}>Phone Number</Text>
-                        <TextInput
-                            style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.inputBackground }]}
-                            value={phone}
-                            onChangeText={setPhone}
-                            onFocus={() => setShowStaffDropdown(false)}
-                            placeholder="+234..."
-                            keyboardType="phone-pad"
-                            placeholderTextColor={colors.placeholder}
-                        />
-
-                        <Text style={[styles.label, { color: colors.textSecondary }]}>Tier (Escalation Level)</Text>
+                        {/* Tier selector */}
+                        <Text style={[styles.label, { color: colors.textSecondary, marginTop: Spacing.lg }]}>Escalation Tier</Text>
                         <View style={styles.tierRow}>
-                            {[1, 2, 3].map((t) => (
+                            {([1, 2, 3] as const).map((t) => (
                                 <TouchableOpacity
                                     key={t}
                                     style={[
                                         styles.tierOption,
                                         { borderColor: colors.border },
-                                        tier === t && { backgroundColor: getTierColor(t) + '15', borderColor: getTierColor(t) }
+                                        tier === t && { backgroundColor: getTierColor(t) + '15', borderColor: getTierColor(t) },
                                     ]}
                                     onPress={() => setTier(t)}
                                 >
@@ -352,6 +331,7 @@ export default function EmergencyContactsManagement() {
                             ))}
                         </View>
 
+                        {/* Actions */}
                         <View style={styles.modalActions}>
                             <TouchableOpacity
                                 style={[styles.modalButton, { borderColor: colors.border }]}
@@ -364,12 +344,15 @@ export default function EmergencyContactsManagement() {
                                     styles.modalButton,
                                     styles.saveButton,
                                     { backgroundColor: colors.primary },
-                                    (!name || !role || !phone) && { opacity: 0.5 }
+                                    !selectedStaff && { opacity: 0.5 },
                                 ]}
                                 onPress={handleSave}
-                                disabled={isSaving || !name || !role || !phone}
+                                disabled={isSaving || !selectedStaff}
                             >
-                                {isSaving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.saveButtonText}>Save</Text>}
+                                {isSaving
+                                    ? <ActivityIndicator color="#FFF" />
+                                    : <Text style={styles.saveButtonText}>Save</Text>
+                                }
                             </TouchableOpacity>
                         </View>
                     </Pressable>
@@ -381,10 +364,19 @@ export default function EmergencyContactsManagement() {
 
 function getTierColor(tier: number) {
     switch (tier) {
-        case 1: return '#8B5CF6'; // Unit
-        case 2: return '#3B82F6'; // Facility
-        case 3: return '#EF4444'; // Referral
+        case 1: return '#8B5CF6';
+        case 2: return '#3B82F6';
+        case 3: return '#EF4444';
         default: return '#6B7280';
+    }
+}
+
+function getTierLabel(tier: number) {
+    switch (tier) {
+        case 1: return 'T1 · Unit';
+        case 2: return 'T2 · Facility';
+        case 3: return 'T3 · External';
+        default: return `Tier ${tier}`;
     }
 }
 
@@ -394,7 +386,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         padding: Spacing.md,
-        justifyContent: 'space-between'
+        justifyContent: 'space-between',
     },
     backButton: { padding: Spacing.xs },
     headerTitle: { ...Typography.headingMd },
@@ -407,7 +399,7 @@ const styles = StyleSheet.create({
         borderRadius: Radius.lg,
         borderWidth: 1,
         marginBottom: Spacing.md,
-        ...Shadows.sm
+        ...Shadows.sm,
     },
     contactInfo: { flex: 1 },
     nameRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: 2 },
@@ -416,38 +408,94 @@ const styles = StyleSheet.create({
     tierBadgeText: { ...Typography.overline, fontSize: 10 },
     contactRole: { ...Typography.bodySm, marginBottom: 4 },
     contactPhone: { ...Typography.labelMd },
-
     actions: { justifyContent: 'space-around', paddingLeft: Spacing.sm },
     iconButton: { padding: Spacing.xs },
 
     emptyState: { alignItems: 'center', marginTop: 100 },
     emptyText: { ...Typography.bodyMd, marginTop: Spacing.md },
 
+    // Modal
     modalOverlay: {
         flex: 1,
         backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'center',
-        padding: Spacing.lg
+        justifyContent: 'flex-end',
     },
     modalContent: {
-        borderRadius: Radius.xl,
+        borderTopLeftRadius: Radius.xl,
+        borderTopRightRadius: Radius.xl,
         padding: Spacing.xl,
-        ...Shadows.lg
+        paddingBottom: 36,
+        ...Shadows.lg,
+    },
+    modalHandle: {
+        width: 40,
+        height: 4,
+        borderRadius: 2,
+        backgroundColor: '#00000020',
+        alignSelf: 'center',
+        marginBottom: Spacing.lg,
     },
     modalTitle: { ...Typography.headingMd, marginBottom: Spacing.lg },
-    label: { ...Typography.overline, marginBottom: 4 },
-    input: {
-        height: 48,
+    label: { ...Typography.overline, marginBottom: Spacing.sm },
+
+    // Staff dropdown trigger
+    dropdownTrigger: {
         borderRadius: Radius.md,
-        borderWidth: 1,
+        borderWidth: 1.5,
         paddingHorizontal: Spacing.md,
-        marginBottom: Spacing.lg,
-        ...Typography.bodyMd
+        paddingVertical: Spacing.smd,
+        marginBottom: 0,
     },
+    selectedStaffRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.smd,
+    },
+    dropdownPlaceholderRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.sm,
+    },
+    dropdownPlaceholder: { ...Typography.bodyMd, flex: 1 },
+    selectedStaffName: { ...Typography.labelMd },
+    selectedStaffRole: { ...Typography.bodySm, marginTop: 2 },
+
+    // Staff avatar initials
+    staffAvatar: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    staffAvatarText: { ...Typography.labelMd },
+
+    // Picker list
+    pickerList: {
+        borderWidth: 1,
+        borderRadius: Radius.md,
+        marginTop: 4,
+        marginBottom: Spacing.sm,
+        overflow: 'hidden',
+        ...Shadows.md,
+    },
+    pickerItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.smd,
+        padding: Spacing.md,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+    },
+    pickerItemName: { ...Typography.labelMd },
+    pickerItemMeta: { ...Typography.bodySm, marginTop: 2 },
+    pickerEmpty: { padding: Spacing.lg, alignItems: 'center' },
+    pickerEmptyText: { ...Typography.bodySm },
+
+    // Tier selector
     tierRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.xl },
     tierOption: {
         flex: 1,
-        height: 48,
+        height: 52,
         borderRadius: Radius.md,
         borderWidth: 1,
         justifyContent: 'center',
@@ -456,6 +504,7 @@ const styles = StyleSheet.create({
     },
     tierOptionText: { ...Typography.labelSm },
     tierOptionSub: { fontSize: 9 },
+
     modalActions: { flexDirection: 'row', gap: Spacing.md },
     modalButton: {
         flex: 1,
@@ -463,27 +512,9 @@ const styles = StyleSheet.create({
         borderRadius: Radius.md,
         borderWidth: 1,
         justifyContent: 'center',
-        alignItems: 'center'
+        alignItems: 'center',
     },
     modalButtonText: { ...Typography.buttonMd },
     saveButton: { borderWidth: 0 },
     saveButtonText: { color: '#FFF', ...Typography.buttonMd },
-
-    // Staff dropdown
-    staffDropdown: {
-        position: 'absolute',
-        top: 50,
-        left: 0,
-        right: 0,
-        borderRadius: Radius.md,
-        borderWidth: 1,
-        ...Shadows.md,
-        zIndex: 1000,
-    },
-    staffItem: {
-        padding: Spacing.md,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-    },
-    staffName: { ...Typography.labelMd },
-    staffRole: { ...Typography.overline, fontSize: 10, marginTop: 2 },
 });

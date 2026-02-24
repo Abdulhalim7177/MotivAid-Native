@@ -1,3 +1,5 @@
+import { ThemedText } from '@/components/themed-text';
+import { Card } from '@/components/ui/card';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ScreenContainer } from '@/components/ui/screen-container';
 import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
@@ -154,6 +156,33 @@ export default function SettingsScreen() {
           />
         </Section>
 
+        {/* Identity Information */}
+        <Section title="IDENTITY INFORMATION">
+          <Card variant="default" padding="md" style={styles.identityCard}>
+            <View style={styles.identityRow}>
+              <View style={[styles.identityIcon, { backgroundColor: themeColors.primary + '15' }]}>
+                <IconSymbol name="mail.fill" size={18} color={themeColors.primary} />
+              </View>
+              <View style={styles.identityContent}>
+                <ThemedText type="caption" color="secondary">Email Address</ThemedText>
+                <ThemedText type="bodyMd">{user?.email}</ThemedText>
+              </View>
+            </View>
+            <View style={[styles.divider, { backgroundColor: themeColors.border }]} />
+            <View style={styles.identityRow}>
+              <View style={[styles.identityIcon, { backgroundColor: themeColors.secondary + '15' }]}>
+                <IconSymbol name="clock.fill" size={18} color={themeColors.secondary} />
+              </View>
+              <View style={styles.identityContent}>
+                <ThemedText type="caption" color="secondary">Member Since</ThemedText>
+                <ThemedText type="bodyMd">
+                  {new Date(user?.created_at || '').toLocaleDateString()}
+                </ThemedText>
+              </View>
+            </View>
+          </Card>
+        </Section>
+
         {/* Support */}
         <Section title="SUPPORT">
           <SettingItem
@@ -282,6 +311,31 @@ const styles = StyleSheet.create({
   },
   settingLabel: {
     ...Typography.bodyMd,
+  },
+
+  // Identity Information
+  identityCard: {
+    gap: Spacing.md,
+  },
+  identityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  identityIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  identityContent: {
+    flex: 1,
+    gap: 2,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    width: '100%',
   },
 
   // Sign out

@@ -29,6 +29,7 @@ export function VitalsPromptBanner() {
         activeProfile,
         lastVitalsTime,
         vitalsPromptInterval,
+        user,
     } = useClinical();
 
     // Slide-in animation
@@ -36,8 +37,10 @@ export function VitalsPromptBanner() {
     const pulse = useSharedValue(1);
     const hasTriggeredHaptic = useRef(false);
 
+    const isCreator = activeProfile?.created_by === user?.id;
+
     useEffect(() => {
-        if (isVitalsPromptDue && activeProfile) {
+        if (isVitalsPromptDue && activeProfile && isCreator && activeProfile.status !== 'closed') {
             translateY.value = withSpring(0, { damping: 15, stiffness: 120 });
             pulse.value = withRepeat(
                 withSequence(
@@ -58,13 +61,13 @@ export function VitalsPromptBanner() {
             hasTriggeredHaptic.current = false;
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isVitalsPromptDue, activeProfile]);
+    }, [isVitalsPromptDue, activeProfile, isCreator]);
 
     const containerStyle = useAnimatedStyle(() => ({
         transform: [{ translateY: translateY.value }, { scale: pulse.value }],
     }));
 
-    if (!isVitalsPromptDue || !activeProfile) return null;
+    if (!isVitalsPromptDue || !activeProfile || activeProfile.status === 'closed' || !isCreator) return null;
 
     const elapsedMin = lastVitalsTime
         ? Math.floor((Date.now() - lastVitalsTime.getTime()) / 1000 / 60)

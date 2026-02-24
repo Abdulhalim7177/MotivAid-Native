@@ -97,6 +97,9 @@ export interface LocalEmotiveChecklist {
     escalation_time?: string;
     escalation_notes?: string;
 
+    diagnostics_causes?: string[];
+    diagnostics_notes?: string;
+
     is_synced: boolean;
     created_at: string;
     updated_at: string;
@@ -125,6 +128,8 @@ export interface LocalEmergencyContact {
     phone: string;
     tier: number;
     is_active: boolean;
+    is_synced?: boolean;
+    is_deleted?: boolean;
     created_at: string;
     updated_at: string;
 }
@@ -229,6 +234,8 @@ export const initClinicalDatabase = async () => {
         escalation_done INTEGER DEFAULT 0,
         escalation_time TEXT,
         escalation_notes TEXT,
+        diagnostics_causes TEXT,
+        diagnostics_notes TEXT,
         is_synced INTEGER DEFAULT 0,
         created_at TEXT DEFAULT (datetime('now')),
         updated_at TEXT DEFAULT (datetime('now')),
@@ -258,6 +265,8 @@ export const initClinicalDatabase = async () => {
         phone TEXT NOT NULL,
         tier INTEGER NOT NULL,
         is_active INTEGER DEFAULT 1,
+        is_synced INTEGER DEFAULT 0,
+        is_deleted INTEGER DEFAULT 0,
         created_at TEXT DEFAULT (datetime('now')),
         updated_at TEXT DEFAULT (datetime('now'))
       );
@@ -413,6 +422,19 @@ export const updateMaternalProfileStatus = async (
     }
 };
 
+export const updateDeliveryTime = async (localId: string, deliveryTime: string): Promise<void> => {
+    try {
+        const db = await SQLite.openDatabaseAsync(DB_NAME);
+        await db.runAsync(
+            `UPDATE maternal_profiles_local SET delivery_time = ?, updated_at = datetime('now'), is_synced = 0 WHERE local_id = ?`,
+            [deliveryTime, localId]
+        );
+    } catch (error) {
+        console.error('Error updating delivery time:', error);
+        throw error;
+    }
+};
+
 // ── Vital Signs CRUD ─────────────────────────────────────────
 
 export const saveVitalSign = async (vital: LocalVitalSign): Promise<void> => {
@@ -498,8 +520,9 @@ export const saveEmotiveChecklist = async (checklist: LocalEmotiveChecklist): Pr
         txa_done, txa_time, txa_dose, txa_notes,
         iv_fluids_done, iv_fluids_time, iv_fluids_volume, iv_fluids_notes,
         escalation_done, escalation_time, escalation_notes,
+        diagnostics_causes, diagnostics_notes,
         is_synced, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 checklist.local_id,
                 checklist.remote_id ?? null,
@@ -526,6 +549,8 @@ export const saveEmotiveChecklist = async (checklist: LocalEmotiveChecklist): Pr
                 checklist.escalation_done ? 1 : 0,
                 checklist.escalation_time ?? null,
                 checklist.escalation_notes ?? null,
+                checklist.diagnostics_causes ? JSON.stringify(checklist.diagnostics_causes) : null,
+                checklist.diagnostics_notes ?? null,
                 checklist.is_synced ? 1 : 0,
                 checklist.created_at,
                 checklist.updated_at,
@@ -659,12 +684,21 @@ export const markRecordSynced = async (
             vital_signs: 'vital_signs_local',
             emotive_checklists: 'emotive_checklists_local',
             case_events: 'case_events_local',
+            emergency_contacts: 'emergency_contacts_local',
         };
         const localTable = tableMap[tableName] ?? 'maternal_profiles_local';
-        await db.runAsync(
-            `UPDATE ${localTable} SET is_synced = 1, remote_id = ? WHERE local_id = ?`,
-            [remoteId, localId]
-        );
+        
+        if (tableName === 'emergency_contacts') {
+            await db.runAsync(
+                `UPDATE ${localTable} SET is_synced = 1 WHERE id = ?`,
+                [localId]
+            );
+        } else {
+            await db.runAsync(
+                `UPDATE ${localTable} SET is_synced = 1, remote_id = ? WHERE local_id = ?`,
+                [remoteId, localId]
+            );
+        }
     } catch (error) {
         console.error('Error marking record as synced:', error);
     }
@@ -717,6 +751,7 @@ function rowToChecklist(row: any): LocalEmotiveChecklist {
         txa_done: !!row.txa_done,
         iv_fluids_done: !!row.iv_fluids_done,
         escalation_done: !!row.escalation_done,
+        diagnostics_causes: row.diagnostics_causes ? JSON.parse(row.diagnostics_causes) : undefined,
         is_synced: !!row.is_synced,
     };
 }
@@ -729,8 +764,8 @@ export const saveEmergencyContacts = async (contacts: LocalEmergencyContact[]): 
         for (const contact of contacts) {
             await db.runAsync(
                 `INSERT OR REPLACE INTO emergency_contacts_local (
-          id, facility_id, unit_id, name, role, phone, tier, is_active, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          id, facility_id, unit_id, name, role, phone, tier, is_active, is_synced, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     contact.id,
                     contact.facility_id ?? null,
@@ -740,6 +775,7 @@ export const saveEmergencyContacts = async (contacts: LocalEmergencyContact[]): 
                     contact.phone,
                     contact.tier,
                     contact.is_active ? 1 : 0,
+                    contact.is_synced ? 1 : 0,
                     contact.created_at,
                     contact.updated_at,
                 ]
@@ -747,6 +783,16 @@ export const saveEmergencyContacts = async (contacts: LocalEmergencyContact[]): 
         }
     } catch (error) {
         console.error('Error saving emergency contacts:', error);
+    }
+};
+
+export const deleteEmergencyContact = async (id: string): Promise<void> => {
+    try {
+        const db = await SQLite.openDatabaseAsync(DB_NAME);
+        await db.runAsync('DELETE FROM emergency_contacts_local WHERE id = ?', [id]);
+    } catch (error) {
+        console.error('Error deleting emergency contact:', error);
+        throw error;
     }
 };
 
@@ -765,7 +811,8 @@ export const getEmergencyContacts = async (facilityId?: string): Promise<LocalEm
         const rows = await db.getAllAsync<any>(query, params);
         return rows.map(row => ({
             ...row,
-            is_active: !!row.is_active
+            is_active: !!row.is_active,
+            is_synced: !!row.is_synced,
         }));
     } catch (error) {
         console.error('Error getting emergency contacts:', error);
@@ -779,7 +826,7 @@ export const saveCaseEvent = async (event: LocalCaseEvent): Promise<void> => {
     try {
         const db = await SQLite.openDatabaseAsync(DB_NAME);
         await db.runAsync(
-            `INSERT INTO case_events_local (
+            `INSERT OR IGNORE INTO case_events_local (
         local_id, remote_id, maternal_profile_id, event_type, event_label, event_data, performed_by, occurred_at, is_synced
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [

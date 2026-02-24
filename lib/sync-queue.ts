@@ -65,9 +65,13 @@ export async function processQueue(): Promise<{
                     break;
                 case 'update':
                     await syncUpdate(item.table_name, payload);
+                    // For update, the record_id is already the remote ID (or local ID if mapped)
+                    await markRecordSynced(item.table_name, item.record_id, payload.remote_id || payload.id || item.record_id);
                     break;
                 case 'delete':
-                    await syncDelete(item.table_name, payload.id);
+                    await syncDelete(item.table_name, payload.id || item.record_id);
+                    // For delete, trigger markRecordSynced to clean up local storage
+                    await markRecordSynced(item.table_name, item.record_id, payload.id || item.record_id);
                     break;
             }
 
