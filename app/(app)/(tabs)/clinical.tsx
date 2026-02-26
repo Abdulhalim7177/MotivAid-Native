@@ -86,6 +86,7 @@ export default function ClinicalScreen() {
     const activeCount = unitFilteredProfiles.filter(p => p.status === 'active' || p.status === 'monitoring').length;
 
     const isStaff = authProfile?.role && ['midwife', 'nurse', 'student', 'supervisor', 'admin', 'user'].includes(authProfile.role);
+    const isNormalUser = !authProfile?.role || authProfile.role === 'user';
 
     // Unit name lookup
     const unitNameMap = useMemo(() => {
@@ -102,7 +103,7 @@ export default function ClinicalScreen() {
             value: unit.id,
             count: baseProfiles.filter(p => p.unit_id === unit.id).length
         }));
-        
+
         // Add "No Unit" option if there are profiles without unit assignment
         const noUnitCount = baseProfiles.filter(p => !p.unit_id).length;
         if (noUnitCount > 0) {
@@ -112,7 +113,7 @@ export default function ClinicalScreen() {
                 count: noUnitCount
             });
         }
-        
+
         return options;
     }, [availableUnits, baseProfiles]);
 
@@ -164,8 +165,8 @@ export default function ClinicalScreen() {
                         </Text>
                     </View>
 
-                    {/* Unit label (supervisor mode) */}
-                    {isSupervisor && !selectedUnitId && item.unit_id && (
+                    {/* Unit label (supervisor mode only, hidden for normal users) */}
+                    {!isNormalUser && isSupervisor && !selectedUnitId && item.unit_id && (
                         <View style={[styles.unitChip, { backgroundColor: colors.primary + '12' }]}>
                             <Text style={[styles.unitChipText, { color: colors.primary }]} numberOfLines={1}>
                                 {unitNameMap.get(item.unit_id) ?? 'Unknown'}
@@ -199,11 +200,13 @@ export default function ClinicalScreen() {
         );
     };
 
-    const headerSubtitle = monitoringMode
-        ? selectedUnitId
-            ? `${unitNameMap.get(selectedUnitId) ?? 'Unit'} · ${activeCount} active`
-            : `Facility Overview (${availableUnits.length} Units) · ${activeCount} active`
-        : `${activeUnit?.name ?? 'Select a unit'} · ${activeCount} active`;
+    const headerSubtitle = isNormalUser
+        ? `${activeCount} active case${activeCount !== 1 ? 's' : ''}`
+        : monitoringMode
+            ? selectedUnitId
+                ? `${unitNameMap.get(selectedUnitId) ?? 'Unit'} · ${activeCount} active`
+                : `Facility Overview (${availableUnits.length} Units) · ${activeCount} active`
+            : `${activeUnit?.name ?? 'Select a unit'} · ${activeCount} active`;
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -248,34 +251,36 @@ export default function ClinicalScreen() {
                 </View>
             </View>
 
-            {/* Monitoring & Personal Filters */}
-            <View style={styles.topFilterBar}>
-                {(isSupervisor || isAdmin) && (
+            {/* Monitoring & Personal Filters (hidden for normal users) */}
+            {!isNormalUser && (
+                <View style={styles.topFilterBar}>
+                    {(isSupervisor || isAdmin) && (
+                        <TouchableOpacity
+                            style={[styles.modeToggle, { borderColor: colors.border, backgroundColor: monitoringMode ? colors.primary + '15' : 'transparent' }]}
+                            onPress={() => { setMonitoringMode(!monitoringMode); setSelectedUnitId(null); }}
+                        >
+                            <Ionicons name={monitoringMode ? "business" : "business-outline"} size={16} color={monitoringMode ? colors.primary : colors.textSecondary} />
+                            <Text style={[styles.modeToggleText, { color: monitoringMode ? colors.primary : colors.textSecondary }]}>
+                                {monitoringMode ? 'Facility View' : 'Unit View'}
+                            </Text>
+                        </TouchableOpacity>
+                    )}
+
                     <TouchableOpacity
-                        style={[styles.modeToggle, { borderColor: colors.border, backgroundColor: monitoringMode ? colors.primary + '15' : 'transparent' }]}
-                        onPress={() => { setMonitoringMode(!monitoringMode); setSelectedUnitId(null); }}
+                        style={[styles.modeToggle, { borderColor: colors.border, backgroundColor: showMyCasesOnly ? colors.primary + '15' : 'transparent' }]}
+                        onPress={() => setShowMyCasesOnly(!showMyCasesOnly)}
                     >
-                        <Ionicons name={monitoringMode ? "business" : "business-outline"} size={16} color={monitoringMode ? colors.primary : colors.textSecondary} />
-                        <Text style={[styles.modeToggleText, { color: monitoringMode ? colors.primary : colors.textSecondary }]}>
-                            {monitoringMode ? 'Facility View' : 'Unit View'}
+                        <Ionicons name={showMyCasesOnly ? "person" : "person-outline"} size={16} color={showMyCasesOnly ? colors.primary : colors.textSecondary} />
+                        <Text style={[styles.modeToggleText, { color: showMyCasesOnly ? colors.primary : colors.textSecondary }]}>
+                            My Cases
                         </Text>
                     </TouchableOpacity>
-                )}
-
-                <TouchableOpacity
-                    style={[styles.modeToggle, { borderColor: colors.border, backgroundColor: showMyCasesOnly ? colors.primary + '15' : 'transparent' }]}
-                    onPress={() => setShowMyCasesOnly(!showMyCasesOnly)}
-                >
-                    <Ionicons name={showMyCasesOnly ? "person" : "person-outline"} size={16} color={showMyCasesOnly ? colors.primary : colors.textSecondary} />
-                    <Text style={[styles.modeToggleText, { color: showMyCasesOnly ? colors.primary : colors.textSecondary }]}>
-                        My Cases
-                    </Text>
-                </TouchableOpacity>
-            </View>
+                </View>
+            )}
 
             {/* Filters Row */}
             <View style={styles.dropdownRow}>
-                {(monitoringMode || availableUnits.length > 1) && (
+                {!isNormalUser && (monitoringMode || availableUnits.length > 1) && (
                     <Dropdown
                         label="Filter by Unit"
                         value={selectedUnitId}
@@ -285,7 +290,7 @@ export default function ClinicalScreen() {
                         icon="grid-outline"
                     />
                 )}
-                
+
                 <Dropdown
                     label="Case Status"
                     value={filter}
