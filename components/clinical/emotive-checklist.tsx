@@ -10,9 +10,9 @@
  */
 
 import { Colors, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
+import { useAuth } from '@/context/auth';
 import { EmotiveStep, useClinical } from '@/context/clinical';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { DiagnosticsModal } from './diagnostics-modal';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
@@ -26,6 +26,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import { DiagnosticsModal } from './diagnostics-modal';
 
 // ── Step Definitions ─────────────────────────────────────────
 
@@ -104,8 +105,8 @@ export function EmotiveChecklist({ onEscalate }: { onEscalate?: () => void }) {
         toggleEmotiveStep,
         activeProfile,
         updateProfileStatus,
-        user
     } = useClinical();
+    const { user } = useAuth();
 
     const [sectionExpanded, setSectionExpanded] = useState(true);
     const [expandedStep, setExpandedStep] = useState<EmotiveStep | null>(null);
@@ -328,7 +329,7 @@ export function EmotiveChecklist({ onEscalate }: { onEscalate?: () => void }) {
                                 <View style={styles.questionSection}>
                                     <Text style={[styles.questionText, { color: colors.text }]}>Still bleeding?</Text>
                                     <View style={styles.choiceRow}>
-                                        <TouchableOpacity 
+                                        <TouchableOpacity
                                             style={[styles.choiceButton, { backgroundColor: colors.success, opacity: isCreator ? 1 : 0.5 }]}
                                             onPress={() => {
                                                 if (!isCreator) return;
@@ -338,7 +339,7 @@ export function EmotiveChecklist({ onEscalate }: { onEscalate?: () => void }) {
                                         >
                                             <Text style={styles.choiceButtonText}>No</Text>
                                         </TouchableOpacity>
-                                        <TouchableOpacity 
+                                        <TouchableOpacity
                                             style={[styles.choiceButton, { backgroundColor: colors.error, opacity: isCreator ? 1 : 0.5 }]}
                                             onPress={() => {
                                                 if (!isCreator) return;
@@ -475,6 +476,7 @@ function StepRow({
     isLast,
     isExpanded,
     onPress,
+    isCreator,
 }: {
     step: StepDef;
     colors: any;

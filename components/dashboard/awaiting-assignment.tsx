@@ -54,7 +54,7 @@ export function AwaitingAssignment() {
             <Animated.View entering={FadeInDown.springify()} style={styles.content}>
                 {/* Icon */}
                 <View style={[styles.iconCircle, { backgroundColor: themeColors.primary + '15' }]}>
-                    <IconSymbol name="clock.fill" size={48} color={themeColors.primary} />
+                    <IconSymbol name="clock.fill" size={36} color={themeColors.primary} />
                 </View>
 
                 {/* Heading */}
@@ -144,34 +144,34 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         justifyContent: 'center',
-        paddingBottom: Spacing.xxl,
+        paddingBottom: Spacing.sm,
     },
     content: {
         alignItems: 'center',
     },
     iconCircle: {
-        width: 96,
-        height: 96,
-        borderRadius: 48,
+        width: 72,
+        height: 72,
+        borderRadius: 36,
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: Spacing.lg,
-    },
-    heading: {
-        ...Typography.headingLg,
-        textAlign: 'center',
         marginBottom: Spacing.sm,
     },
+    heading: {
+        ...Typography.headingMd,
+        textAlign: 'center',
+        marginBottom: Spacing.xs,
+    },
     description: {
-        ...Typography.bodyMd,
+        ...Typography.bodySm,
         textAlign: 'center',
         paddingHorizontal: Spacing.lg,
-        marginBottom: Spacing.xl,
-        lineHeight: 22,
+        marginBottom: Spacing.md,
+        lineHeight: 20,
     },
     facilityCard: {
         width: '100%',
-        marginBottom: Spacing.md,
+        marginBottom: Spacing.sm,
     },
     facilityRow: {
         flexDirection: 'row',
@@ -194,17 +194,17 @@ const styles = StyleSheet.create({
     },
     stepsCard: {
         width: '100%',
-        marginBottom: Spacing.xl,
+        marginBottom: Spacing.sm,
     },
     stepsTitle: {
-        ...Typography.labelLg,
-        marginBottom: Spacing.md,
+        ...Typography.labelMd,
+        marginBottom: Spacing.xs,
     },
     stepRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: Spacing.smd,
-        marginBottom: Spacing.smd,
+        gap: Spacing.sm,
+        marginBottom: Spacing.xs,
     },
     stepBadge: {
         width: 28,
@@ -226,19 +226,19 @@ const styles = StyleSheet.create({
     },
     clinicalCard: {
         width: '100%',
-        marginBottom: Spacing.md,
+        marginBottom: Spacing.sm,
         borderWidth: 1,
     },
     clinicalHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: Spacing.md,
-        marginBottom: Spacing.md,
+        gap: Spacing.sm,
+        marginBottom: Spacing.sm,
     },
     clinicalIcon: {
-        width: 48,
-        height: 48,
-        borderRadius: 12,
+        width: 40,
+        height: 40,
+        borderRadius: 10,
         alignItems: 'center',
         justifyContent: 'center',
     },
