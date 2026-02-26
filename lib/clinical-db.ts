@@ -452,6 +452,11 @@ export const clearSyncedItems = async () => {
 export const saveEmergencyContacts = async (contacts: LocalEmergencyContact[]) => {
     const store = getEmergencyContactStore();
     for (const contact of contacts) {
+        // Avoid overwriting locally deleted items that haven't synced yet
+        const existing = store.get(contact.id);
+        if (existing && existing.is_deleted && !contact.is_deleted) {
+            continue;
+        }
         store.set(contact.id, { ...contact });
     }
     flushEmergencyContacts();

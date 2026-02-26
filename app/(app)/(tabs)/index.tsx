@@ -5,10 +5,9 @@ import { StaffDashboard } from '@/components/dashboard/staff-dashboard';
 import { SupervisorDashboard } from '@/components/dashboard/supervisor-dashboard';
 import { UserDashboard } from '@/components/dashboard/user-dashboard';
 import { ScreenContainer } from '@/components/ui/screen-container';
-import UnitSelector from '@/components/unit-selector';
+
 import { useAuth } from '@/context/auth';
 import { useUnits } from '@/context/unit';
-import { useThemeColor } from '@/hooks/use-theme-color';
 import { supabase } from '@/lib/supabase';
 import NetInfo from '@react-native-community/netinfo';
 import { useEffect, useState } from 'react';
@@ -19,11 +18,35 @@ export default function HomeScreen() {
   const { activeUnit, isLoading: unitsLoading } = useUnits();
   const [isOffline, setIsOffline] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [hasUnitMembership, setHasUnitMembership] = useState<boolean | null>(null);
   const isWeb = Platform.OS === 'web';
 
   // Staff roles that require unit assignment
   const isStaffRole = ['midwife', 'nurse', 'student'].includes(profile?.role || '');
-  const needsAssignment = isStaffRole && !unitsLoading && !activeUnit;
+  const isNormalUser = !profile?.role || profile.role === 'user';
+
+  // Check if staff has been assigned to any unit (via unit_memberships)
+  useEffect(() => {
+    if (!isStaffRole || !user?.id) {
+      setHasUnitMembership(true); // Normal users and non-staff don't need unit membership
+      return;
+    }
+
+    const checkMembership = async () => {
+      const { data } = await supabase
+        .from('unit_memberships')
+        .select('id', { count: 'exact', head: true })
+        .eq('profile_id', user.id)
+        .eq('status', 'approved');
+
+      setHasUnitMembership((data?.length ?? 0) > 0);
+    };
+
+    checkMembership();
+  }, [isStaffRole, user?.id]);
+
+  // Show AwaitingAssignment for staff who have no unit memberships
+  const needsAssignment = isStaffRole && hasUnitMembership === false;
 
   const displayName = profile?.full_name || profile?.username || user?.email?.split('@')[0] || '';
 
@@ -77,10 +100,7 @@ export default function HomeScreen() {
         {needsAssignment ? (
           <AwaitingAssignment />
         ) : (
-          <>
-            <UnitSelector />
-            {renderDashboard()}
-          </>
+          renderDashboard()
         )}
       </View>
     </ScreenContainer>

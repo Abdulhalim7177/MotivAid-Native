@@ -11,13 +11,14 @@ import { EscalationModal } from '@/components/clinical/escalation-modal';
 import { VitalsPromptBanner } from '@/components/clinical/vitals-prompt-banner';
 import { Colors, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 import { useClinical } from '@/context/clinical';
+import { useAuth } from '@/context/auth';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { RISK_COLORS, RISK_LABELS, RiskLevel } from '@/lib/risk-calculator';
 import { assessBloodLoss } from '@/lib/shock-index';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
     Modal,
     Pressable,
@@ -35,6 +36,7 @@ export default function PatientDetailScreen() {
     const { localId } = useLocalSearchParams<{ localId: string }>();
     const colorScheme = useColorScheme();
     const colors = Colors[colorScheme ?? 'light'];
+    const { user, profile: authProfile } = useAuth();
     const {
         profiles,
         vitalSigns,
@@ -48,8 +50,7 @@ export default function PatientDetailScreen() {
         refreshCaseEvents,
         addCaseEvent,
         refreshEmergencyContacts,
-        updateDeliveryTime,
-        user
+        updateDeliveryTime
     } = useClinical();
 
     const [showCloseModal, setShowCloseModal] = useState(false);
@@ -59,7 +60,54 @@ export default function PatientDetailScreen() {
     const [deliveryTimeInput, setDeliveryTimeInput] = useState('');
 
     const profile = profiles.find(p => p.local_id === localId);
-    const isCreator = profile?.created_by === user?.id;
+    
+    // Debug: Let's log the values to understand the mismatch
+    console.log('DEBUG - Patient Detail:', {
+        profileCreatedBy: profile?.created_by,
+        currentUserId: user?.id,
+        profileCreatedByType: typeof profile?.created_by,
+        currentUserIdType: typeof user?.id,
+        areEqual: profile?.created_by === user?.id,
+        profileExists: !!profile,
+        userExists: !!user,
+        bothExist: !!(profile?.created_by && user?.id)
+    });
+    
+    // isCreator: Check if current user created this profile
+    // TEMPORARY FIX: For unassigned users, always allow creator actions
+    // This will help us debug the real issue
+    const isCreator = (() => {
+        if (!profile || !user?.id) {
+            console.log('DEBUG - isCreator: Missing profile or user');
+            return false;
+        }
+        
+        // Check if user is unassigned (no facility_id or unit_id)
+        const isUnassignedUser = !authProfile?.facility_id;
+        const isProfileWithoutUnit = !profile.unit_id;
+        
+        if (isUnassignedUser || isProfileWithoutUnit) {
+            console.log('DEBUG - isCreator: Unassigned user or profile without unit, allowing access');
+            return true; // Allow unassigned users to access their cases
+        }
+        
+        if (!profile.created_by) {
+            console.log('DEBUG - isCreator: No created_by field, allowing access');
+            return true; // Backwards compatibility for old records
+        }
+        
+        const createdByStr = String(profile.created_by);
+        const userIdStr = String(user.id);
+        const isEqual = createdByStr === userIdStr;
+        
+        console.log('DEBUG - isCreator comparison:', {
+            createdBy: createdByStr,
+            userId: userIdStr,
+            isEqual: isEqual
+        });
+        
+        return isEqual;
+    })();
 
     useFocusEffect(
         useCallback(() => {

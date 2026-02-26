@@ -689,10 +689,20 @@ export const markRecordSynced = async (
         const localTable = tableMap[tableName] ?? 'maternal_profiles_local';
         
         if (tableName === 'emergency_contacts') {
-            await db.runAsync(
-                `UPDATE ${localTable} SET is_synced = 1 WHERE id = ?`,
+            // Check if it was marked as deleted
+            const contact = await db.getFirstAsync<any>(
+                'SELECT is_deleted FROM emergency_contacts_local WHERE id = ?',
                 [localId]
             );
+            if (contact && contact.is_deleted === 1) {
+                // Physically delete now that it's synced
+                await db.runAsync('DELETE FROM emergency_contacts_local WHERE id = ?', [localId]);
+            } else {
+                await db.runAsync(
+                    `UPDATE ${localTable} SET is_synced = 1 WHERE id = ?`,
+                    [localId]
+                );
+            }
         } else {
             await db.runAsync(
                 `UPDATE ${localTable} SET is_synced = 1, remote_id = ? WHERE local_id = ?`,
@@ -762,10 +772,17 @@ export const saveEmergencyContacts = async (contacts: LocalEmergencyContact[]): 
     try {
         const db = await SQLite.openDatabaseAsync(DB_NAME);
         for (const contact of contacts) {
+            // Avoid overwriting locally deleted items that haven't synced yet
+            const existing = await db.getFirstAsync<any>(
+                'SELECT is_deleted FROM emergency_contacts_local WHERE id = ?',
+                [contact.id]
+            );
+            if (existing && existing.is_deleted === 1) continue;
+
             await db.runAsync(
                 `INSERT OR REPLACE INTO emergency_contacts_local (
-          id, facility_id, unit_id, name, role, phone, tier, is_active, is_synced, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          id, facility_id, unit_id, name, role, phone, tier, is_active, is_synced, is_deleted, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     contact.id,
                     contact.facility_id ?? null,
@@ -776,6 +793,7 @@ export const saveEmergencyContacts = async (contacts: LocalEmergencyContact[]): 
                     contact.tier,
                     contact.is_active ? 1 : 0,
                     contact.is_synced ? 1 : 0,
+                    0, // is_deleted = 0
                     contact.created_at,
                     contact.updated_at,
                 ]
@@ -789,7 +807,10 @@ export const saveEmergencyContacts = async (contacts: LocalEmergencyContact[]): 
 export const deleteEmergencyContact = async (id: string): Promise<void> => {
     try {
         const db = await SQLite.openDatabaseAsync(DB_NAME);
-        await db.runAsync('DELETE FROM emergency_contacts_local WHERE id = ?', [id]);
+        await db.runAsync(
+            'UPDATE emergency_contacts_local SET is_deleted = 1, is_synced = 0 WHERE id = ?',
+            [id]
+        );
     } catch (error) {
         console.error('Error deleting emergency contact:', error);
         throw error;
@@ -799,7 +820,7 @@ export const deleteEmergencyContact = async (id: string): Promise<void> => {
 export const getEmergencyContacts = async (facilityId?: string): Promise<LocalEmergencyContact[]> => {
     try {
         const db = await SQLite.openDatabaseAsync(DB_NAME);
-        let query = "SELECT * FROM emergency_contacts_local WHERE is_active = 1";
+        let query = "SELECT * FROM emergency_contacts_local WHERE is_active = 1 AND is_deleted = 0";
         const params: any[] = [];
 
         if (facilityId) {
@@ -813,6 +834,7 @@ export const getEmergencyContacts = async (facilityId?: string): Promise<LocalEm
             ...row,
             is_active: !!row.is_active,
             is_synced: !!row.is_synced,
+            is_deleted: !!row.is_deleted,
         }));
     } catch (error) {
         console.error('Error getting emergency contacts:', error);

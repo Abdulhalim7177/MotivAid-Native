@@ -28,6 +28,7 @@ export function VitalsPromptBanner() {
         dismissVitalsPrompt,
         activeProfile,
         lastVitalsTime,
+        vitalSigns,
         vitalsPromptInterval,
         user,
     } = useClinical();
@@ -38,9 +39,11 @@ export function VitalsPromptBanner() {
     const hasTriggeredHaptic = useRef(false);
 
     const isCreator = activeProfile?.created_by === user?.id;
+    // Show prompt if it's due OR if there are no vitals yet for an active/monitoring case
+    const isActuallyDue = isVitalsPromptDue || (activeProfile && vitalSigns.length === 0 && (activeProfile.status === 'active' || activeProfile.status === 'monitoring'));
 
     useEffect(() => {
-        if (isVitalsPromptDue && activeProfile && isCreator && activeProfile.status !== 'closed') {
+        if (isActuallyDue && activeProfile && isCreator && activeProfile.status !== 'closed') {
             translateY.value = withSpring(0, { damping: 15, stiffness: 120 });
             pulse.value = withRepeat(
                 withSequence(
@@ -61,13 +64,13 @@ export function VitalsPromptBanner() {
             hasTriggeredHaptic.current = false;
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isVitalsPromptDue, activeProfile, isCreator]);
+    }, [isActuallyDue, activeProfile, isCreator]);
 
     const containerStyle = useAnimatedStyle(() => ({
         transform: [{ translateY: translateY.value }, { scale: pulse.value }],
     }));
 
-    if (!isVitalsPromptDue || !activeProfile || activeProfile.status === 'closed' || !isCreator) return null;
+    if (!isActuallyDue || !activeProfile || activeProfile.status === 'closed' || !isCreator) return null;
 
     const elapsedMin = lastVitalsTime
         ? Math.floor((Date.now() - lastVitalsTime.getTime()) / 1000 / 60)
@@ -81,11 +84,13 @@ export function VitalsPromptBanner() {
                 </View>
 
                 <View style={styles.textContainer}>
-                    <Text style={styles.title}>Vitals Due</Text>
+                    <Text style={styles.title}>{vitalSigns.length === 0 ? 'Initial Vitals' : 'Vitals Due'}</Text>
                     <Text style={styles.subtitle}>
-                        {elapsedMin != null
-                            ? `Last recorded ${elapsedMin}m ago (${vitalsPromptInterval}m interval)`
-                            : `No vitals recorded yet for this case`}
+                        {vitalSigns.length === 0
+                            ? 'Please record initial vitals for this case'
+                            : elapsedMin != null
+                                ? `Last recorded ${elapsedMin}m ago (${vitalsPromptInterval}m interval)`
+                                : `No vitals recorded yet`}
                     </Text>
                 </View>
 
@@ -117,7 +122,7 @@ export function VitalsPromptBanner() {
 const styles = StyleSheet.create({
     container: {
         position: 'absolute',
-        bottom: 90, // Above tab bar
+        bottom: 90, // Above floating buttons if any, or bottom of screen
         left: Spacing.md,
         right: Spacing.md,
         zIndex: 999,

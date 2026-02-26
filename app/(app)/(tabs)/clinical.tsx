@@ -5,13 +5,13 @@
  * Staff see only their active unit.
  */
 
+import { Dropdown } from '@/components/ui/dropdown';
 import { Colors, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { MaternalProfile, useClinical } from '@/context/clinical';
 import { useUnits } from '@/context/unit';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { RISK_COLORS, RISK_LABELS, RiskLevel } from '@/lib/risk-calculator';
-import { Dropdown } from '@/components/ui/dropdown';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
@@ -72,6 +72,8 @@ export default function ClinicalScreen() {
     // Apply unit filter
     const unitFilteredProfiles = useMemo(() => {
         if (!selectedUnitId) return baseProfiles;
+        // Special case: 'no-unit' shows profiles without a unit assignment
+        if (selectedUnitId === 'no-unit') return baseProfiles.filter(p => !p.unit_id);
         return baseProfiles.filter(p => p.unit_id === selectedUnitId);
     }, [baseProfiles, selectedUnitId]);
 
@@ -83,7 +85,7 @@ export default function ClinicalScreen() {
 
     const activeCount = unitFilteredProfiles.filter(p => p.status === 'active' || p.status === 'monitoring').length;
 
-    const isStaff = authProfile?.role && ['midwife', 'nurse', 'student', 'supervisor', 'admin'].includes(authProfile.role);
+    const isStaff = authProfile?.role && ['midwife', 'nurse', 'student', 'supervisor', 'admin', 'user'].includes(authProfile.role);
 
     // Unit name lookup
     const unitNameMap = useMemo(() => {
@@ -95,11 +97,23 @@ export default function ClinicalScreen() {
     }, [availableUnits]);
 
     const unitOptions = useMemo(() => {
-        return availableUnits.map(unit => ({
+        const options = availableUnits.map(unit => ({
             label: unit.name,
             value: unit.id,
             count: baseProfiles.filter(p => p.unit_id === unit.id).length
         }));
+        
+        // Add "No Unit" option if there are profiles without unit assignment
+        const noUnitCount = baseProfiles.filter(p => !p.unit_id).length;
+        if (noUnitCount > 0) {
+            options.push({
+                label: 'No Unit',
+                value: 'no-unit',
+                count: noUnitCount
+            });
+        }
+        
+        return options;
     }, [availableUnits, baseProfiles]);
 
     const statusOptions = useMemo(() => {
@@ -214,13 +228,22 @@ export default function ClinicalScreen() {
                         )}
                     </TouchableOpacity>
                     {isStaff && (
-                        <TouchableOpacity
-                            style={[styles.newButton, { backgroundColor: colors.primary }]}
-                            onPress={() => router.push('/(app)/clinical/new-patient')}
-                        >
-                            <Ionicons name="add" size={20} color="#FFF" />
-                            <Text style={styles.newButtonText}>New</Text>
-                        </TouchableOpacity>
+                        <>
+                            <TouchableOpacity
+                                style={[styles.newButton, { backgroundColor: colors.primary }]}
+                                onPress={() => router.push('/(app)/clinical/new-patient')}
+                            >
+                                <Ionicons name="add" size={20} color="#FFF" />
+                                <Text style={styles.newButtonText}>New</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.quickButton, { backgroundColor: colors.warning, borderColor: colors.warning }]}
+                                onPress={() => router.push('/(app)/clinical/quick-vitals')}
+                            >
+                                <Ionicons name="flash" size={18} color="#FFF" />
+                                <Text style={styles.quickButtonText}>Quick</Text>
+                            </TouchableOpacity>
+                        </>
                     )}
                 </View>
             </View>

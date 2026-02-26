@@ -6,6 +6,7 @@ import { useAuth } from '@/context/auth';
 import { useAppTheme } from '@/context/theme';
 import { useUnits } from '@/context/unit';
 import { supabase } from '@/lib/supabase';
+import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -13,14 +14,18 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 export function AwaitingAssignment() {
     const { theme } = useAppTheme();
     const themeColors = Colors[theme];
-    const { user } = useAuth();
+    const { user, profile } = useAuth();
     const { refreshUnits } = useUnits();
     const [facilityName, setFacilityName] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);
 
+    // Staff roles that can access clinical mode
+    const isStaffRole = ['midwife', 'nurse', 'student', 'supervisor', 'admin'].includes(profile?.role || '');
+    const isNormalUser = !profile?.role || profile.role === 'user';
+
     useEffect(() => {
         fetchFacility();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const fetchFacility = async () => {
@@ -57,7 +62,7 @@ export function AwaitingAssignment() {
                     Awaiting Unit Assignment
                 </Text>
                 <Text style={[styles.description, { color: themeColors.textSecondary }]}>
-                    Your account has been created successfully. A supervisor needs to assign you to a unit before you can access the dashboard.
+                    Your account has been created successfully. A supervisor needs to assign you to a unit before you can access the full dashboard. However, you can still access clinical mode to create and manage patient cases.
                 </Text>
 
                 {/* Facility info */}
@@ -86,6 +91,30 @@ export function AwaitingAssignment() {
                     <Step number="2" text="You'll be assigned to a unit" color={themeColors} />
                     <Step number="3" text="Full dashboard access will be unlocked" color={themeColors} />
                 </Card>
+
+                {/* Clinical Mode Access */}
+                {(isStaffRole || isNormalUser) && (
+                    <Card style={[styles.clinicalCard, { backgroundColor: themeColors.primary + '08', borderColor: themeColors.primary + '30' }]}>
+                        <View style={styles.clinicalHeader}>
+                            <View style={[styles.clinicalIcon, { backgroundColor: themeColors.primary + '20' }]}>
+                                <IconSymbol name="cross.case.fill" size={24} color={themeColors.primary} />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={[styles.clinicalTitle, { color: themeColors.text }]}>
+                                    Clinical Mode Access
+                                </Text>
+                                <Text style={[styles.clinicalDescription, { color: themeColors.textSecondary }]}>
+                                    You can create and manage patient cases while waiting for unit assignment
+                                </Text>
+                            </View>
+                        </View>
+                        <Button
+                            title="Open Clinical Mode"
+                            onPress={() => router.push('/(app)/(tabs)/clinical')}
+                            style={styles.clinicalButton}
+                        />
+                    </Card>
+                )}
 
                 {/* Refresh */}
                 <Button
@@ -193,6 +222,34 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     refreshButton: {
+        width: '100%',
+    },
+    clinicalCard: {
+        width: '100%',
+        marginBottom: Spacing.md,
+        borderWidth: 1,
+    },
+    clinicalHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.md,
+        marginBottom: Spacing.md,
+    },
+    clinicalIcon: {
+        width: 48,
+        height: 48,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    clinicalTitle: {
+        ...Typography.labelLg,
+    },
+    clinicalDescription: {
+        ...Typography.bodySm,
+        marginTop: 2,
+    },
+    clinicalButton: {
         width: '100%',
     },
 });

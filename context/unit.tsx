@@ -69,6 +69,8 @@ export const UnitProvider = ({ children }: { children: React.ReactNode }) => {
         if (unitIds.length > 0) {
           query = query.in('id', unitIds);
         } else {
+          // No memberships - don't show any units (will show AwaitingAssignment screen)
+          // But staff can still access clinical mode from there
           setAvailableUnits([]);
           setIsLoading(false);
           return;

@@ -104,6 +104,7 @@ export function EmotiveChecklist({ onEscalate }: { onEscalate?: () => void }) {
         toggleEmotiveStep,
         activeProfile,
         updateProfileStatus,
+        user
     } = useClinical();
 
     const [sectionExpanded, setSectionExpanded] = useState(true);
@@ -137,7 +138,7 @@ export function EmotiveChecklist({ onEscalate }: { onEscalate?: () => void }) {
         return (emotiveChecklist as any)[`${s.key}_done`];
     });
     const allDone = allDoneFromContext || localAllDone;
-    const isCreator = activeProfile?.created_by === useClinical().user?.id;
+    const isCreator = activeProfile?.created_by === user?.id;
 
     // Sync localAllDone upward when context catches up
     useEffect(() => {

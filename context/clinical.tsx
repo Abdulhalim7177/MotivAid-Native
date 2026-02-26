@@ -9,6 +9,7 @@
  */
 
 import {
+    deleteEmergencyContact,
     getCaseEvents,
     getEmergencyContacts,
     getEmotiveChecklist,
@@ -26,7 +27,6 @@ import {
     saveEmotiveChecklist,
     saveMaternalProfile,
     saveVitalSign,
-    deleteEmergencyContact,
     updateDeliveryTime,
     updateEmotiveStep,
     updateMaternalProfileStatus
@@ -159,7 +159,9 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
         setIsLoading(true);
         try {
             const isSupervisor = authProfile?.role === 'supervisor' || authProfile?.role === 'admin';
-            
+            const isStaffRole = ['midwife', 'nurse', 'student'].includes(authProfile?.role || '');
+            const isNormalUser = !authProfile?.role || authProfile.role === 'user';
+
             // First try local data
             const localProfiles = await getMaternalProfiles(isSupervisor ? undefined : activeUnit?.id);
 
@@ -170,13 +172,18 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
                     let query = supabase
                         .from('maternal_profiles')
                         .select('*');
-                    
+
                     if (isSupervisor && authProfile?.facility_id) {
+                        // Supervisors see all profiles in their facility
                         query = query.eq('facility_id', authProfile.facility_id);
                     } else if (activeUnit) {
-                        query = query.eq('unit_id', activeUnit.id);
+                        // Staff with unit assignment see profiles in their unit + their own created profiles
+                        query = query.or(`unit_id.eq.${activeUnit.id},created_by.eq.${user?.id || ''}`);
+                    } else if ((isStaffRole || isNormalUser) && authProfile?.facility_id) {
+                        // Staff without unit assignment or normal users see only their own created profiles
+                        query = query.eq('created_by', user?.id || '');
                     } else {
-                        // If no active unit and not supervisor, just return local
+                        // If no conditions match, just return local
                         const enriched = localProfiles.map(p => ({
                             ...p,
                             riskResult: calculateRiskFromProfile(p),
@@ -212,7 +219,7 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
         } finally {
             setIsLoading(false);
         }
-    }, [activeUnit, authProfile?.role, authProfile?.facility_id]);
+    }, [activeUnit, authProfile?.role, authProfile?.facility_id, user?.id]);
 
     const fetchAllFacilityProfiles = useCallback(async () => {
         if (!authProfile?.facility_id) return;
@@ -245,10 +252,18 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
         const riskResult = calculateRisk(input.riskInput);
         const now = new Date().toISOString();
 
+        // Debug: Log user info during profile creation
+        console.log('DEBUG - Creating Profile:', {
+            userId: user?.id,
+            userType: typeof user?.id,
+            authProfileId: authProfile?.id,
+            localId: localId
+        });
+
         const profile: LocalMaternalProfile = {
             local_id: localId,
-            facility_id: activeUnit?.facility_id,
-            unit_id: activeUnit?.id,
+            facility_id: activeUnit?.facility_id || authProfile?.facility_id || null, // Allow null for normal users
+            unit_id: activeUnit?.id || null, // Allow null unit_id for unassigned staff and normal users
             created_by: user?.id,
             patient_id: input.patientId,
             age: input.age,
@@ -281,10 +296,19 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
 
         await saveMaternalProfile(profile);
         await queueOperation('maternal_profiles', localId, 'insert', profile);
+
+        // Debug: Log what was actually saved
+        console.log('DEBUG - Profile saved:', {
+            localId: profile.local_id,
+            createdBy: profile.created_by,
+            facilityId: profile.facility_id,
+            unitId: profile.unit_id
+        });
+
         await refreshProfiles();
 
         return localId;
-    }, [activeUnit, user]);
+    }, [activeUnit, authProfile?.facility_id, user, refreshProfiles]);
 
     const updateProfileStatus = useCallback(async (
         localId: string,
@@ -292,7 +316,7 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
         outcome?: string
     ) => {
         const oldProfile = profiles.find(p => p.local_id === localId);
-        
+
         // If case is already closed, don't allow changing status back (unless it's an admin/fix?)
         // The user wants cases strictly closed.
         if (oldProfile?.status === 'closed' && status !== 'closed') {
@@ -378,7 +402,7 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
     ) => {
         // Find the profile to check creator and status
         const profile = profiles.find(p => p.local_id === eventInput.maternal_profile_id);
-        
+
         // MANDATE: Stop recording case timeline after the case has been closed.
         if (profile?.status === 'closed') return;
 
@@ -421,7 +445,7 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
 
                 if (!error && data) {
                     await saveEmergencyContacts(data);
-                    
+
                     // Merge remote into local for state
                     const merged = mergeRemoteContacts(local, data);
                     setEmergencyContacts(merged);
@@ -435,10 +459,10 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
     const deleteContact = useCallback(async (id: string) => {
         // Delete locally
         await deleteEmergencyContact(id);
-        
+
         // Queue sync delete
         await queueOperation('emergency_contacts', id, 'delete', { id });
-        
+
         // Refresh state
         await refreshEmergencyContacts();
     }, [refreshEmergencyContacts]);
@@ -446,7 +470,7 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
     const saveContact = useCallback(async (contactInput: Partial<LocalEmergencyContact>) => {
         const id = contactInput.id || generateUUID();
         const now = new Date().toISOString();
-        
+
         const contact: LocalEmergencyContact = {
             id,
             name: contactInput.name || '',
@@ -462,15 +486,15 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
 
         // Save locally
         await saveEmergencyContacts([contact]);
-        
+
         // Queue sync
         await queueOperation(
-            'emergency_contacts', 
-            id, 
-            contactInput.id ? 'update' : 'insert', 
+            'emergency_contacts',
+            id,
+            contactInput.id ? 'update' : 'insert',
             contact
         );
-        
+
         // Refresh state
         await refreshEmergencyContacts();
     }, [authProfile?.facility_id, refreshEmergencyContacts]);
@@ -526,7 +550,7 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
         try {
             // First try local
             const local = await getVitalSigns(profileLocalId);
-            
+
             let finalVitals = local;
 
             // Try remote if online
@@ -866,12 +890,10 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
         return () => stopSyncListener();
     }, []);
 
-    // Load profiles and contacts when unit changes
+    // Load profiles and contacts when unit changes (or on initial mount for unassigned users)
     useEffect(() => {
-        if (activeUnit) {
-            refreshProfiles();
-            refreshEmergencyContacts();
-        }
+        refreshProfiles();
+        refreshEmergencyContacts();
     }, [activeUnit?.id, refreshEmergencyContacts, refreshProfiles]);
 
     // Load vitals, checklist, and events when active profile changes
@@ -1061,7 +1083,7 @@ function mergeRemoteContacts(
     return result.sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name));
 }
 
-function mergeRemoteItems<T extends { local_id: string; remote_id?: string; is_synced: boolean; [key: string]: any }>(
+function mergeRemoteItems<T extends { local_id: string; remote_id?: string; is_synced: boolean;[key: string]: any }>(
     local: T[],
     remote: any[],
     sortField: string
