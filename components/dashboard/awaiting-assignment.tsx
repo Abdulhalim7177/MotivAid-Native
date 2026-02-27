@@ -11,7 +11,7 @@ import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
-export function AwaitingAssignment() {
+export function AwaitingAssignment({ onRefresh }: { onRefresh?: () => Promise<void> }) {
     const { theme } = useAppTheme();
     const themeColors = Colors[theme];
     const { user, profile } = useAuth();
@@ -46,6 +46,7 @@ export function AwaitingAssignment() {
     const handleRefresh = async () => {
         setRefreshing(true);
         await refreshUnits();
+        if (onRefresh) await onRefresh();
         setRefreshing(false);
     };
 

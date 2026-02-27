@@ -36,9 +36,9 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: string
 export default function ClinicalScreen() {
     const colorScheme = useColorScheme();
     const colors = Colors[colorScheme ?? 'light'];
-    const { profiles, allProfiles, isLoading, refreshProfiles, fetchAllFacilityProfiles, isSyncing, syncNow, user } = useClinical();
+    const { profiles, allProfiles, isLoading, refreshProfiles, fetchAllFacilityProfiles, isSyncing, syncNow } = useClinical();
     const { activeUnit, availableUnits } = useUnits();
-    const { profile: authProfile } = useAuth();
+    const { profile: authProfile, user } = useAuth();
 
     const [filter, setFilter] = useState<string | null>(null);
     const [showMyCasesOnly, setShowMyCasesOnly] = useState(false);
@@ -231,22 +231,13 @@ export default function ClinicalScreen() {
                         )}
                     </TouchableOpacity>
                     {isStaff && (
-                        <>
-                            <TouchableOpacity
-                                style={[styles.newButton, { backgroundColor: colors.primary }]}
-                                onPress={() => router.push('/(app)/clinical/new-patient')}
-                            >
-                                <Ionicons name="add" size={20} color="#FFF" />
-                                <Text style={styles.newButtonText}>New</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.quickButton, { backgroundColor: colors.warning, borderColor: colors.warning }]}
-                                onPress={() => router.push('/(app)/clinical/quick-vitals')}
-                            >
-                                <Ionicons name="flash" size={18} color="#FFF" />
-                                <Text style={styles.quickButtonText}>Quick</Text>
-                            </TouchableOpacity>
-                        </>
+                        <TouchableOpacity
+                            style={[styles.newButton, { backgroundColor: colors.primary }]}
+                            onPress={() => router.push('/(app)/clinical/new-patient')}
+                        >
+                            <Ionicons name="add" size={20} color="#FFF" />
+                            <Text style={styles.newButtonText}>New</Text>
+                        </TouchableOpacity>
                     )}
                 </View>
             </View>

@@ -10,7 +10,7 @@ import { useAuth } from '@/context/auth';
 import { useUnits } from '@/context/unit';
 import { supabase } from '@/lib/supabase';
 import NetInfo from '@react-native-community/netinfo';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
 export default function HomeScreen() {
@@ -26,24 +26,26 @@ export default function HomeScreen() {
   const isNormalUser = !profile?.role || profile.role === 'user';
 
   // Check if staff has been assigned to any unit (via unit_memberships)
-  useEffect(() => {
+  const checkMembership = useCallback(async () => {
     if (!isStaffRole || !user?.id) {
-      setHasUnitMembership(true); // Normal users and non-staff don't need unit membership
+      setHasUnitMembership(true);
       return;
     }
 
-    const checkMembership = async () => {
-      const { data } = await supabase
-        .from('unit_memberships')
-        .select('id', { count: 'exact', head: true })
-        .eq('profile_id', user.id)
-        .eq('status', 'approved');
+    const { count, error } = await supabase
+      .from('unit_memberships')
+      .select('id', { count: 'exact', head: true })
+      .eq('profile_id', user.id)
+      .eq('status', 'approved');
 
-      setHasUnitMembership((data?.length ?? 0) > 0);
-    };
-
-    checkMembership();
+    if (!error) {
+      setHasUnitMembership((count ?? 0) > 0);
+    }
   }, [isStaffRole, user?.id]);
+
+  useEffect(() => {
+    checkMembership();
+  }, [checkMembership]);
 
   // Show AwaitingAssignment for staff who have no unit memberships
   const needsAssignment = isStaffRole && hasUnitMembership === false;
@@ -98,7 +100,7 @@ export default function HomeScreen() {
         />
 
         {needsAssignment ? (
-          <AwaitingAssignment />
+          <AwaitingAssignment onRefresh={checkMembership} />
         ) : (
           renderDashboard()
         )}

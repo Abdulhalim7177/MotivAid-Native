@@ -48,7 +48,7 @@ export default function RegisterScreen() {
     }
 
     return () => { if (codeTimerRef.current) clearTimeout(codeTimerRef.current); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessCode, selectedRole, isStaff]);
 
   const validateCode = async (code: string, role: string) => {
@@ -131,7 +131,7 @@ export default function RegisterScreen() {
           full_name: fullName,
           role: isStaff ? selectedRole : 'user',
           registration_code: isStaff ? accessCode : null,
-          phone_number: phoneNumber,
+          phone: phoneNumber,
         }
       }
     });
