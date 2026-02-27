@@ -106,6 +106,7 @@ graph LR
 | Delete Facility | Remove facility and all related data | P1 | Done |
 | View Codes | Modal showing all role codes for a facility | P0 | Done |
 | Activate/Deactivate Codes | Toggle `is_active` flag with visual feedback | P0 | Done |
+| Emergency Contacts | Manage 3-tier contact directory | P0 | Done |
 | Code Format | Acronym-based (e.g., `AKTH1-SUP`) with unique suffix | P0 | Done |
 
 ---
@@ -145,7 +146,7 @@ graph LR
 
 ---
 
-## 6. Clinical Mode Module — COMPLETE (Phase 3)
+## 6. Clinical Mode Module — COMPLETE (Phase 4)
 
 **Location:** `app/(app)/(tabs)/clinical.tsx`, `app/(app)/clinical/`, `context/clinical.tsx`, `lib/clinical-db.native.ts`
 
@@ -163,9 +164,11 @@ graph LR
 | Case Lifecycle | Pre-Delivery → Active → Monitoring → Closed with outcomes | P0 | Done |
 | Offline Clinical Data | SQLite (native) + localStorage (web) with full CRUD | P0 | Done |
 | Sync Queue | Background upload with retry logic | P0 | Done |
-| Escalation | One-tap emergency notification | P0 | Planned |
-| Case Timeline | Chronological event view | P1 | Planned |
-| Case Reports | Auto-generated PPH case summary | P1 | Planned |
+| Case Timeline | Chronological event view with structured data logging | P0 | Done |
+| Emergency Escalation | One-tap 3-tier emergency notification and calling | P0 | Done |
+| Diagnostics Phase | Secondary PPH cause checklist (Retained placenta, Atony, etc.) | P0 | Done |
+| Case Summary | Integrated overview of timeline, metrics, and clinical outcome | P1 | Done |
+| Case Reports | Auto-generated PPH case summary (PDF) | P1 | Planned |
 
 ### Screens
 
@@ -173,8 +176,10 @@ graph LR
 |--------|------|---------|
 | Clinical Tab | `app/(app)/(tabs)/clinical.tsx` | Case list with status filters, search, supervisor cross-unit view |
 | New Patient | `app/(app)/clinical/new-patient.tsx` | Maternal data entry with 13 risk factor toggles, live risk banner |
-| Patient Detail | `app/(app)/clinical/patient-detail.tsx` | Patient overview, metrics cards (SI + Blood Loss), E-MOTIVE checklist, case lifecycle |
+| Patient Detail | `app/(app)/clinical/patient-detail.tsx` | Patient overview, metrics cards, E-MOTIVE checklist, case lifecycle |
 | Record Vitals | `app/(app)/clinical/record-vitals.tsx` | Quick-entry vitals pad with live shock index and blood loss estimation |
+| Case Summary | `app/(app)/clinical/case-summary.tsx` | Integrated case review with timeline and metrics |
+| Emergency Contacts | `app/(app)/management/emergency-contacts.tsx` | Manage facility and unit emergency contact lists |
 
 ### Key Components
 
@@ -182,7 +187,10 @@ graph LR
 |-----------|------|---------|
 | `EmotiveChecklist` | `components/clinical/emotive-checklist.tsx` | Interactive E-MOTIVE bundle card with timer, accordion, dose fields |
 | `VitalsPromptBanner` | `components/clinical/vitals-prompt-banner.tsx` | Animated reminder when vital signs are overdue |
-| `ClinicalProvider` | `context/clinical.tsx` | Profiles, vitals, E-MOTIVE state, sync operations |
+| `CaseTimeline` | `components/clinical/case-timeline.tsx` | Chronological event list for the clinical case |
+| `EscalationModal` | `components/clinical/escalation-modal.tsx` | Emergency contact directory with one-tap dialing |
+| `DiagnosticsModal` | `components/clinical/diagnostics-modal.tsx` | Secondary PPH causes checklist |
+| `ClinicalProvider` | `context/clinical.tsx` | Profiles, vitals, E-MOTIVE state, sync, timeline, and contacts |
 
 ### Clinical Logic Libraries
 

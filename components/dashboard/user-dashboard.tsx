@@ -3,6 +3,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 import { MaternalProfile, useClinical } from '@/context/clinical';
 import { useAppTheme } from '@/context/theme';
+import { useToast } from '@/context/toast';
 import { RISK_COLORS, RISK_LABELS, RiskLevel } from '@/lib/risk-calculator';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -14,6 +15,7 @@ import { ActionItem } from './action-item';
 export function UserDashboard() {
   const { theme } = useAppTheme();
   const themeColors = Colors[theme];
+  const { showToast } = useToast();
   const { profiles } = useClinical();
 
   // ── Analytics ──────────────────────────────────────────────
@@ -197,13 +199,13 @@ export function UserDashboard() {
           label="Training"
           icon="book-outline"
           color="#3B82F6"
-          onPress={() => { }}
+          onPress={() => showToast('Coming Soon!', 'info')}
         />
         <ActionItem
           label="Reports"
           icon="bar-chart-outline"
           color="#F59E0B"
-          onPress={() => { }}
+          onPress={() => router.push('/(app)/clinical/reports')}
         />
       </View>
 

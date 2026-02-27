@@ -245,24 +245,35 @@ This document outlines the sprint-by-sprint implementation plan for MotivAid, or
 
 ---
 
-## Phase 4: Case Timeline, Alerts & Escalation (Sprints 7-8) - PLANNED (Next)
+## Phase 4: Case Timeline, Alerts & Escalation (Sprints 7-8) - IN PROGRESS
 
 ### Sprint 7: Timeline & Alerts
 
-**Database (Planned):**
-- `emergency_contacts` table (unit/facility contacts with tiers)
-- `audit_logs` table (action audit trail)
+**Database:**
+- [x] Migration `20260224000000_allow_unassigned_staff_clinical_access.sql`
+- [x] Migration `20260224000001_add_phone_to_profiles.sql`
+- [x] Migration `20260224000002_emergency_and_timeline.sql`:
+  - `emergency_contacts` table (unit/facility contacts with tiers)
+  - `case_events` table (chronological timeline events)
+  - `audit_logs` table (action audit trail)
+- [x] Migration `20260226000000_add_diagnostics_to_emotive.sql`
+- [x] Migration `20260226000001_add_local_id_to_emergency.sql`
 
-**Deliverables (Planned):**
-- [ ] Case timeline view — chronological event list per case
-- [ ] Configurable alert thresholds for SI and blood loss
-- [ ] One-tap emergency escalation button
-- [ ] 3-level escalation hierarchy (unit → facility → external)
-- [ ] Emergency contacts management screen
+**Deliverables:**
+- [x] Case timeline view (`components/clinical/case-timeline.tsx`) — chronological event list per case
+- [x] One-tap emergency escalation button and modal (`components/clinical/escalation-modal.tsx`)
+- [x] 3-level escalation hierarchy (unit → facility → external)
+- [x] Emergency contacts management screen (`app/(app)/management/emergency-contacts.tsx`)
+- [x] Diagnostics Phase checklist for secondary PPH causes (`components/clinical/diagnostics-modal.tsx`)
+- [x] Global clinical access: facility-wide visibility for staff roles
 
-### Sprint 8: Reports & Audit
+### Sprint 8: Summary, Reports & Audit
 
-**Deliverables (Planned):**
+**Deliverables:**
+- [x] Case summary view (`app/(app)/clinical/case-summary.tsx`)
+- [x] Integration of timeline events with clinical actions (vitals, checklist)
+- [x] Enhanced RLS for unassigned staff and supervisor oversight
+- [x] Automated event logging in `ClinicalProvider`
 - [ ] PPH case report generation from timeline data
 - [ ] Supervisor unit reports with E-MOTIVE adherence metrics
 - [ ] PDF export capability
@@ -270,7 +281,7 @@ This document outlines the sprint-by-sprint implementation plan for MotivAid, or
 
 ---
 
-## Phase 5: Training & Simulation (Sprint 9) - PLANNED
+## Phase 5: Training & Simulation (Sprint 9) - PLANNED (Next)
 
 ### Sprint 9: Training Mode
 

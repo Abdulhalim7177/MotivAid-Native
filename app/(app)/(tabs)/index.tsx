@@ -47,8 +47,9 @@ export default function HomeScreen() {
     checkMembership();
   }, [checkMembership]);
 
-  // Show AwaitingAssignment for staff who have no unit memberships
-  const needsAssignment = isStaffRole && hasUnitMembership === false;
+  // Show AwaitingAssignment ONLY for confirmed staff roles without unit memberships
+  // Never show for normal users or when profile hasn't loaded yet
+  const needsAssignment = !!profile && isStaffRole && hasUnitMembership === false;
 
   const displayName = profile?.full_name || profile?.username || user?.email?.split('@')[0] || '';
 

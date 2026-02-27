@@ -7,10 +7,9 @@
  */
 
 import { Colors, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
-import { useClinical } from '@/context/clinical';
 import { useAuth } from '@/context/auth';
+import { useClinical } from '@/context/clinical';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { supabase } from '@/lib/supabase';
 import { LocalEmergencyContact } from '@/lib/clinical-db';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -21,6 +20,7 @@ import {
     Alert,
     FlatList,
     Modal,
+    Platform,
     Pressable,
     ScrollView,
     StyleSheet,
@@ -31,11 +31,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function EmergencyContactsManagement() {
-    const { 
-        emergencyContacts, 
-        refreshEmergencyContacts, 
-        activeUnit, 
-        fetchFacilityStaff, 
+    const {
+        emergencyContacts,
+        refreshEmergencyContacts,
+        activeUnit,
+        fetchFacilityStaff,
         isLoading,
         deleteContact,
         saveContact
@@ -49,6 +49,7 @@ export default function EmergencyContactsManagement() {
     const [isSaving, setIsSaving] = useState(false);
     const [showModal, setShowModal] = useState(false);
     const [editingContact, setEditingContact] = useState<any>(null);
+    const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
     // Form state — staff selection + tier
     const [selectedStaff, setSelectedStaff] = useState<any>(null);
@@ -118,7 +119,7 @@ export default function EmergencyContactsManagement() {
             };
 
             await saveContact(contactData);
-            
+
             handleCloseModal();
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         } catch (error) {
@@ -129,26 +130,43 @@ export default function EmergencyContactsManagement() {
         }
     };
 
-    const handleDelete = async (id: string) => {
-        Alert.alert(
-            'Delete Contact',
-            'Are you sure you want to remove this emergency contact?',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Delete',
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            await deleteContact(id);
-                            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                        } catch {
-                            Alert.alert('Error', 'Failed to delete contact. Check your connection and try again.');
-                        }
+    const handleDelete = (id: string) => {
+        if (Platform.OS === 'web') {
+            setDeleteTargetId(id);
+        } else {
+            Alert.alert(
+                'Delete Contact',
+                'Are you sure you want to remove this emergency contact?',
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                        text: 'Delete',
+                        style: 'destructive',
+                        onPress: async () => {
+                            try {
+                                await deleteContact(id);
+                                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                            } catch {
+                                Alert.alert('Error', 'Failed to delete contact.');
+                            }
+                        },
                     },
-                },
-            ]
-        );
+                ]
+            );
+        }
+    };
+
+    const confirmDelete = async () => {
+        if (!deleteTargetId) return;
+        try {
+            await deleteContact(deleteTargetId);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch (err) {
+            console.error('Delete failed:', err);
+            Alert.alert('Error', 'Failed to delete contact.');
+        } finally {
+            setDeleteTargetId(null);
+        }
     };
 
     const renderItem = ({ item }: { item: any }) => (
@@ -358,6 +376,36 @@ export default function EmergencyContactsManagement() {
                     </Pressable>
                 </Pressable>
             </Modal>
+
+            {/* Delete Confirmation Modal (web) */}
+            <Modal visible={!!deleteTargetId} transparent animationType="fade" onRequestClose={() => setDeleteTargetId(null)}>
+                <Pressable style={styles.deleteOverlay} onPress={() => setDeleteTargetId(null)}>
+                    <Pressable style={[styles.deleteDialog, { backgroundColor: colors.card }]}>
+                        <View style={styles.deleteIconCircle}>
+                            <Ionicons name="trash-outline" size={28} color="#EF4444" />
+                        </View>
+                        <Text style={[styles.deleteTitle, { color: colors.text }]}>Delete Contact</Text>
+                        <Text style={[styles.deleteMessage, { color: colors.textSecondary }]}>
+                            Are you sure you want to remove this emergency contact? This action cannot be undone.
+                        </Text>
+                        <View style={styles.deleteActions}>
+                            <TouchableOpacity
+                                style={[styles.deleteCancelBtn, { borderColor: colors.border }]}
+                                onPress={() => setDeleteTargetId(null)}
+                            >
+                                <Text style={[styles.deleteCancelText, { color: colors.textSecondary }]}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.deleteConfirmBtn}
+                                onPress={confirmDelete}
+                            >
+                                <Ionicons name="trash" size={16} color="#FFF" />
+                                <Text style={styles.deleteConfirmText}>Delete</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </Pressable>
+                </Pressable>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -517,4 +565,70 @@ const styles = StyleSheet.create({
     modalButtonText: { ...Typography.buttonMd },
     saveButton: { borderWidth: 0 },
     saveButtonText: { color: '#FFF', ...Typography.buttonMd },
+
+    // Delete confirmation modal
+    deleteOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: Spacing.lg,
+    },
+    deleteDialog: {
+        width: '100%',
+        maxWidth: 380,
+        borderRadius: Radius.xl,
+        padding: Spacing.xl,
+        alignItems: 'center',
+        ...Shadows.lg,
+    },
+    deleteIconCircle: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: '#FEE2E2',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: Spacing.md,
+    },
+    deleteTitle: {
+        ...Typography.headingSm,
+        marginBottom: Spacing.xs,
+    },
+    deleteMessage: {
+        ...Typography.bodySm,
+        textAlign: 'center',
+        marginBottom: Spacing.xl,
+        lineHeight: 20,
+    },
+    deleteActions: {
+        flexDirection: 'row',
+        gap: Spacing.md,
+        width: '100%',
+    },
+    deleteCancelBtn: {
+        flex: 1,
+        height: 44,
+        borderRadius: Radius.md,
+        borderWidth: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    deleteCancelText: {
+        ...Typography.buttonMd,
+    },
+    deleteConfirmBtn: {
+        flex: 1,
+        height: 44,
+        borderRadius: Radius.md,
+        backgroundColor: '#EF4444',
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 6,
+    },
+    deleteConfirmText: {
+        color: '#FFF',
+        ...Typography.buttonMd,
+    },
 });

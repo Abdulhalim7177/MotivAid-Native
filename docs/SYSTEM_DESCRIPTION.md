@@ -232,13 +232,21 @@ sequenceDiagram
 └──────────────────────────────────────────────────────────┘
                         ↓
 ┌──────────────────────────────────────────────────────────┐
-│ STEP 4: Case Closure                                      │
+│ STEP 4: Case Timeline & Summary                           │
+├──────────────────────────────────────────────────────────┤
+│ All actions (vitals, steps, status changes) are logged    │
+│ Chronological timeline view for audit and review          │
+│ Integrated Case Summary with outcome documentation        │
+│ Secondary PPH diagnostics checklist (if bleeding persists) │
+└──────────────────────────────────────────────────────────┘
+                        ↓
+┌──────────────────────────────────────────────────────────┐
+│ STEP 5: Case Closure                                      │
 ├──────────────────────────────────────────────────────────┤
 │ When all 6 E-MOTIVE steps complete → "Done" button        │
 │ Close case modal with outcome selection:                  │
 │   Normal | PPH Resolved | Referred | Other               │
 │ All data persisted offline, synced when online            │
-│ Case report generation (planned Phase 4)                  │
 └──────────────────────────────────────────────────────────┘
 ```
 
@@ -276,12 +284,12 @@ sequenceDiagram
 - Staff only see data from their assigned units (via approved `unit_memberships`)
 - Supervisors see data from units they manage
 - Administrators have unrestricted access
+- **Global Access:** All staff can view clinical cases within their facility, even if not assigned to a specific unit, ensuring continuity of care.
 - Facility and unit metadata is publicly readable
-- Facility codes are publicly readable for registration validation
 
 ---
 
-## Emergency Escalation System (Planned — Phase 5)
+## Emergency Escalation System (Implemented — Phase 4)
 
 ### Escalation Hierarchy
 
@@ -306,10 +314,16 @@ sequenceDiagram
 └─────────────────────────────────────────────────┘
 ```
 
-**Trigger Mechanisms (Planned):**
+**Features:**
+- One-tap calling to emergency contacts directly from clinical mode
+- 3-tier hierarchy (Unit, Facility, External)
+- Contacts managed by Admin/Supervisor per facility/unit
+- Escalation events automatically logged to the case timeline
+
+**Trigger Mechanisms:**
 - One-tap emergency button in clinical mode
-- Automatic alerts based on thresholds (blood loss >1000ml, shock index >1.4)
 - Manual escalation by midwife/supervisor
+- Automatic alerts based on thresholds (planned)
 
 ---
 

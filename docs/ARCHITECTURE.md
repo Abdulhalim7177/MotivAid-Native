@@ -45,7 +45,10 @@ MotivAid/
 │       ├── clinical/             # Clinical mode screens
 │       │   ├── new-patient.tsx   # Maternal risk assessment form
 │       │   ├── patient-detail.tsx # Patient overview + E-MOTIVE + vitals
-│       │   └── record-vitals.tsx # Quick-entry vital signs pad
+│       │   ├── record-vitals.tsx # Quick-entry vital signs pad
+│       │   └── case-summary.tsx  # Timeline + Metrics + Outcome view
+│       ├── management/           # Resource management
+│       │   └── emergency-contacts.tsx # Contact directory management
 │       └── (tabs)/               # Bottom tab navigation
 │           ├── _layout.tsx
 │           ├── index.tsx         # Role-based dashboard (Home)
@@ -54,7 +57,7 @@ MotivAid/
 │           └── settings.tsx      # Theme, account, sign-out
 ├── context/                      # React Context providers
 │   ├── auth.tsx                  # Session, profile, sign-in/out, biometric
-│   ├── clinical.tsx              # Maternal profiles, vitals, E-MOTIVE, sync
+│   ├── clinical.tsx              # Maternal profiles, vitals, E-MOTIVE, sync, timeline
 │   ├── theme.tsx                 # Light/dark/system theme
 │   ├── toast.tsx                 # Animated toast notifications
 │   └── unit.tsx                  # Active unit selection
@@ -77,7 +80,10 @@ MotivAid/
 │   ├── haptic-tab.tsx
 │   ├── clinical/                 # Clinical mode components
 │   │   ├── emotive-checklist.tsx # Interactive E-MOTIVE bundle card
-│   │   └── vitals-prompt-banner.tsx # Animated vitals reminder
+│   │   ├── vitals-prompt-banner.tsx # Animated vitals reminder
+│   │   ├── case-timeline.tsx     # Chronological event feed
+│   │   ├── escalation-modal.tsx  # Tiered calling directory
+│   │   └── diagnostics-modal.tsx # Secondary PPH cause checklist
 │   └── ui/
 │       ├── icon-symbol.tsx
 │       ├── icon-symbol.ios.tsx
@@ -94,7 +100,7 @@ MotivAid/
 ├── constants/
 │   └── theme.ts                  # Color palette (light/dark) and font stacks
 ├── supabase/
-│   ├── migrations/               # 8 PostgreSQL migration files
+│   ├── migrations/               # 14 PostgreSQL migration files
 │   └── seed.sql                  # Seed data for 4 facilities with codes
 └── assets/                       # Images, fonts, app icons
 ```
@@ -242,6 +248,8 @@ Roles are defined by the `user_role` PostgreSQL enum: `admin`, `user`, `supervis
 | `maternal_profiles_local` | `local_id`, `patient_id`, `age`, `parity`, `gravida`, 13 risk factor booleans, `status`, `risk_level` | Maternal patient records with risk assessment data |
 | `vital_signs_local` | `local_id`, `maternal_profile_local_id`, `heart_rate`, `systolic_bp`, `diastolic_bp`, `temperature`, `spo2`, `respiratory_rate`, `estimated_blood_loss` | Vital signs readings per patient |
 | `emotive_checklists_local` | `local_id`, `maternal_profile_local_id`, 6 step groups (`*_done`, `*_time`, `*_dose`/`*_volume`, `*_notes`) | WHO E-MOTIVE bundle completion tracking |
+| `emergency_contacts_local` | `local_id`, `remote_id`, `facility_id`, `unit_id`, `name`, `role`, `phone`, `tier` | 3-tier emergency contact directory |
+| `case_events_local` | `local_id`, `maternal_profile_id`, `event_type`, `event_label`, `event_data` | Chronological event log (timeline) for each case |
 | `sync_queue_local` | `id`, `table_name`, `record_id`, `operation`, `payload`, `status`, `retry_count` | Offline sync operations pending upload |
 
 All clinical tables include `is_synced` and `remote_id` columns for offline-first sync tracking.
@@ -296,7 +304,7 @@ The sync queue (`lib/sync-queue.ts`) handles offline-first data upload:
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Supported tables:** `maternal_profiles`, `vital_signs`, `emotive_checklists`
+**Supported tables:** `maternal_profiles`, `vital_signs`, `emotive_checklists`, `emergency_contacts`, `case_events`
 
 **Retry logic:** Items have `max_retries` (default 3). Failed items are retried on the next sync cycle. Items that exceed max retries remain in the queue for manual review.
 

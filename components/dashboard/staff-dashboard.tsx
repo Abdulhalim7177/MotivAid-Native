@@ -3,19 +3,20 @@ import { SectionHeader } from '@/components/ui/section-header';
 import { Colors, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 import { MaternalProfile, useClinical } from '@/context/clinical';
 import { useAppTheme } from '@/context/theme';
+import { useToast } from '@/context/toast';
 import { RISK_COLORS, RISK_LABELS, RiskLevel } from '@/lib/risk-calculator';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import React, { useMemo, useState } from 'react';
-import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useMemo } from 'react';
+import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ActionItem } from './action-item';
 
 export function StaffDashboard() {
   const { theme } = useAppTheme();
   const themeColors = Colors[theme];
+  const { showToast } = useToast();
   const { profiles } = useClinical();
-  const [showReport, setShowReport] = useState(false);
 
   // ── Analytics ──────────────────────────────────────────────
   const stats = useMemo(() => {
@@ -214,7 +215,7 @@ export function StaffDashboard() {
           label="Training"
           icon="book-outline"
           color="#3B82F6"
-          onPress={() => { }}
+          onPress={() => showToast('Coming Soon!', 'info')}
         />
         <ActionItem
           label="Cases"
@@ -226,7 +227,7 @@ export function StaffDashboard() {
           label="Reports"
           icon="bar-chart-outline"
           color="#F59E0B"
-          onPress={() => setShowReport(true)}
+          onPress={() => router.push('/(app)/clinical/reports')}
         />
       </View>
 
@@ -254,123 +255,8 @@ export function StaffDashboard() {
         )}
       </View>
 
-      {/* ── Reports Modal ──────────────────────────────────── */}
-      <Modal visible={showReport} transparent animationType="fade" onRequestClose={() => setShowReport(false)}>
-        <Pressable style={styles.modalOverlay} onPress={() => setShowReport(false)}>
-          <Pressable style={[styles.modalContent, { backgroundColor: themeColors.card }]}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: themeColors.text }]}>Case Reports</Text>
-              <TouchableOpacity onPress={() => setShowReport(false)}>
-                <Ionicons name="close" size={22} color={themeColors.textSecondary} />
-              </TouchableOpacity>
-            </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {/* Summary Row */}
-              <View style={styles.reportSummary}>
-                <View style={[styles.reportStatCard, { backgroundColor: '#6366F1' + '12' }]}>
-                  <Text style={[styles.reportStatNum, { color: '#6366F1' }]}>{stats.total}</Text>
-                  <Text style={[styles.reportStatLabel, { color: themeColors.textSecondary }]}>Total</Text>
-                </View>
-                <View style={[styles.reportStatCard, { backgroundColor: '#10B981' + '12' }]}>
-                  <Text style={[styles.reportStatNum, { color: '#10B981' }]}>{stats.active.length}</Text>
-                  <Text style={[styles.reportStatLabel, { color: themeColors.textSecondary }]}>Active</Text>
-                </View>
-                <View style={[styles.reportStatCard, { backgroundColor: '#6B7280' + '12' }]}>
-                  <Text style={[styles.reportStatNum, { color: '#6B7280' }]}>{stats.closed.length}</Text>
-                  <Text style={[styles.reportStatLabel, { color: themeColors.textSecondary }]}>Closed</Text>
-                </View>
-              </View>
-
-              {/* Risk Distribution */}
-              <Text style={[styles.reportSection, { color: themeColors.text }]}>Risk Distribution</Text>
-              <View style={styles.reportBarGroup}>
-                <ReportBar label="High" count={stats.highRisk.length} total={stats.active.length} color="#EF4444" themeColors={themeColors} />
-                <ReportBar label="Medium" count={stats.mediumRisk.length} total={stats.active.length} color="#F59E0B" themeColors={themeColors} />
-                <ReportBar label="Low" count={stats.lowRisk.length} total={stats.active.length} color="#10B981" themeColors={themeColors} />
-              </View>
-
-              {/* Outcomes */}
-              {stats.closed.length > 0 && (
-                <>
-                  <Text style={[styles.reportSection, { color: themeColors.text }]}>Case Outcomes</Text>
-                  <View style={styles.outcomesRow}>
-                    <OutcomeStat label="Normal" count={outcomes.normal} color="#10B981" icon="checkmark-circle" />
-                    <View style={[styles.outcomeDivider, { backgroundColor: themeColors.border }]} />
-                    <OutcomeStat label="PPH Resolved" count={outcomes.pphResolved} color="#F59E0B" icon="medkit" />
-                    <View style={[styles.outcomeDivider, { backgroundColor: themeColors.border }]} />
-                    <OutcomeStat label="Referred" count={outcomes.referred} color="#6366F1" icon="arrow-redo" />
-                  </View>
-                </>
-              )}
-
-              {/* Recent Activity */}
-              <Text style={[styles.reportSection, { color: themeColors.text }]}>Recent Activity</Text>
-              {recentCases.slice(0, 5).map(p => {
-                const statusConf = STATUS_CONFIG[p.status] ?? STATUS_CONFIG.pre_delivery;
-                const riskColors = RISK_COLORS[p.risk_level as RiskLevel] ?? RISK_COLORS.low;
-                return (
-                  <View key={p.local_id} style={[styles.reportCaseRow, { borderBottomColor: themeColors.border }]}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.reportCaseName, { color: themeColors.text }]}>
-                        {p.patient_id || 'Patient'} · Age {p.age}
-                      </Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                        <View style={[styles.miniChip, { backgroundColor: statusConf.color + '15' }]}>
-                          <Text style={[styles.miniChipText, { color: statusConf.color }]}>{statusConf.label}</Text>
-                        </View>
-                        <View style={[styles.miniChip, { backgroundColor: riskColors.bg }]}>
-                          <Text style={[styles.miniChipText, { color: riskColors.text }]}>{RISK_LABELS[p.risk_level as RiskLevel] ?? 'Low'}</Text>
-                        </View>
-                      </View>
-                    </View>
-                    <Text style={[styles.reportCaseTime, { color: themeColors.textSecondary }]}>
-                      {getTimeAgo(p.updated_at)} ago
-                    </Text>
-                  </View>
-                );
-              })}
-
-              {recentCases.length === 0 && (
-                <Text style={[styles.reportEmpty, { color: themeColors.textSecondary }]}>No cases recorded yet</Text>
-              )}
-            </ScrollView>
-          </Pressable>
-        </Pressable>
-      </Modal>
     </ScrollView>
-  );
-}
-
-// ── Sub-components ────────────────────────────────────────────
-
-function ReportBar({ label, count, total, color, themeColors }: {
-  label: string; count: number; total: number; color: string; themeColors: any;
-}) {
-  const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-  return (
-    <View style={styles.reportBarRow}>
-      <Text style={[styles.reportBarLabel, { color: themeColors.textSecondary }]}>{label}</Text>
-      <View style={[styles.reportBar, { backgroundColor: themeColors.border }]}>
-        <View style={[styles.reportBarFill, { backgroundColor: color, width: `${Math.max(pct, 2)}%` }]} />
-      </View>
-      <Text style={[styles.reportBarCount, { color }]}>{count}</Text>
-      <Text style={[styles.reportBarPct, { color: themeColors.textSecondary }]}>{pct}%</Text>
-    </View>
-  );
-}
-
-function OutcomeStat({ label, count, color, icon }: {
-  label: string; count: number; color: string; icon: string;
-}) {
-  return (
-    <View style={styles.outcomeStat}>
-      <View style={[styles.outcomeIcon, { backgroundColor: color + '15' }]}>
-        <Ionicons name={icon as any} size={16} color={color} />
-      </View>
-      <Text style={[styles.outcomeCount, { color }]}>{count}</Text>
-      <Text style={styles.outcomeLabel}>{label}</Text>
-    </View>
   );
 }
 
@@ -559,154 +445,4 @@ const styles = StyleSheet.create({
     ...Typography.bodySm,
   },
 
-  // ── Reports Modal ────────────────────────────────────────
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Spacing.lg,
-  },
-  modalContent: {
-    width: '100%',
-    maxWidth: 500,
-    maxHeight: '85%',
-    borderRadius: Radius.xl,
-    padding: Spacing.lg,
-    ...Shadows.lg,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.lg,
-  },
-  modalTitle: {
-    ...Typography.headingMd,
-  },
-
-  // Report stats
-  reportSummary: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginBottom: Spacing.lg,
-  },
-  reportStatCard: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: Spacing.smd,
-    borderRadius: Radius.lg,
-  },
-  reportStatNum: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  reportStatLabel: {
-    ...Typography.bodySm,
-    fontSize: 11,
-    marginTop: 2,
-  },
-  reportSection: {
-    ...Typography.labelMd,
-    marginBottom: Spacing.sm,
-    marginTop: Spacing.sm,
-  },
-
-  // Bar chart
-  reportBarGroup: {
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
-  },
-  reportBarRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  reportBarLabel: {
-    width: 55,
-    ...Typography.bodySm,
-    fontSize: 12,
-  },
-  reportBar: {
-    flex: 1,
-    height: 8,
-    borderRadius: 4,
-  },
-  reportBarFill: {
-    height: 8,
-    borderRadius: 4,
-  },
-  reportBarCount: {
-    width: 20,
-    ...Typography.labelSm,
-    textAlign: 'right',
-  },
-  reportBarPct: {
-    width: 30,
-    ...Typography.bodySm,
-    fontSize: 11,
-    textAlign: 'right',
-  },
-
-  // Outcomes
-  outcomesRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.sm,
-  },
-  outcomeStat: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  outcomeIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 7,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 4,
-  },
-  outcomeCount: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  outcomeLabel: {
-    fontSize: 9,
-    color: '#9CA3AF',
-    marginTop: 2,
-  },
-  outcomeDivider: {
-    width: 1,
-    height: 36,
-  },
-
-  // Recent activity in report
-  reportCaseRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: Spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  reportCaseName: {
-    ...Typography.labelSm,
-    fontSize: 13,
-  },
-  reportCaseTime: {
-    ...Typography.bodySm,
-    fontSize: 11,
-  },
-  miniChip: {
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: Radius.full,
-  },
-  miniChipText: {
-    fontSize: 9,
-    fontWeight: '600',
-  },
-  reportEmpty: {
-    ...Typography.bodySm,
-    textAlign: 'center',
-    paddingVertical: Spacing.lg,
-  },
 });

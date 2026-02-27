@@ -18,7 +18,12 @@ MotivAid uses **Supabase** (PostgreSQL) as its primary database with **Row-Level
 | 6 | `20260218000000_facility_code_activation.sql` | `is_active` flag on codes, enhanced auto-generation with acronym logic |
 | 7 | `20260220000000_clinical_data_tables.sql` | Maternal profiles, vital signs, sync queue tables with RLS |
 | 8 | `20260222000000_emotive_checklists.sql` | E-MOTIVE checklist tracking table with RLS |
-| 9 | `20260224000000_emergency_and_timeline.sql` | Emergency contacts, case events (timeline), and audit logs |
+| 9 | `20260224000000_allow_unassigned_staff_clinical_access.sql` | RLS relaxation for facility-wide clinical visibility |
+| 10 | `20260224000001_add_phone_to_profiles.sql` | Phone number field for user profiles |
+| 11 | `20260224000002_emergency_and_timeline.sql` | Emergency contacts, case events (timeline), and audit logs |
+| 12 | `20260225000000_support_users_without_facility.sql` | Improved support for users not yet assigned to a facility |
+| 13 | `20260226000000_add_diagnostics_to_emotive.sql` | Columns for secondary PPH diagnostics in E-MOTIVE checklist |
+| 14 | `20260226000001_add_local_id_to_emergency.sql` | Added `local_id` to emergency_contacts for offline-first sync |
 
 ---
 
@@ -457,6 +462,9 @@ CREATE TABLE public.emotive_checklists (
   escalation_done          BOOLEAN DEFAULT false,
   escalation_time          TIMESTAMPTZ,
   escalation_notes         TEXT,
+  -- Diagnostics (Phase 4)
+  secondary_causes         JSONB,         -- Checklist of suspected causes
+  diagnostic_notes         TEXT,
   -- Sync tracking
   is_synced                BOOLEAN DEFAULT false,
   local_id                 TEXT,
@@ -503,6 +511,8 @@ CREATE TABLE public.emergency_contacts (
     phone         TEXT NOT NULL,
     tier          INTEGER NOT NULL CHECK (tier IN (1, 2, 3)), -- 1: Unit, 2: Facility, 3: External
     is_active     BOOLEAN DEFAULT true,
+    local_id      TEXT,
+    is_synced     BOOLEAN DEFAULT false,
     created_at    TIMESTAMPTZ DEFAULT now(),
     updated_at    TIMESTAMPTZ DEFAULT now()
 );
