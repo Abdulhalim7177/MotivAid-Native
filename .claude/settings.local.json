@@ -13,7 +13,9 @@
       "Bash(npm run lint)",
       "Bash(ls:*)",
       "Bash(git checkout:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(npx expo start:*)"
     ]
   }
 }

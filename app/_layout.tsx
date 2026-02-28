@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { AuthProvider, useAuth } from '@/context/auth';
 import { ClinicalProvider } from '@/context/clinical';
 import { ThemeProvider as AppThemeProvider } from '@/context/theme';
@@ -49,16 +50,18 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   return (
-    <AppThemeProvider>
-      <ToastProvider>
-        <AuthProvider>
-          <UnitProvider>
-            <ClinicalProvider>
-              <RootLayoutNav />
-            </ClinicalProvider>
-          </UnitProvider>
-        </AuthProvider>
-      </ToastProvider>
-    </AppThemeProvider>
+    <ErrorBoundary>
+      <AppThemeProvider>
+        <ToastProvider>
+          <AuthProvider>
+            <UnitProvider>
+              <ClinicalProvider>
+                <RootLayoutNav />
+              </ClinicalProvider>
+            </UnitProvider>
+          </AuthProvider>
+        </ToastProvider>
+      </AppThemeProvider>
+    </ErrorBoundary>
   );
 }
