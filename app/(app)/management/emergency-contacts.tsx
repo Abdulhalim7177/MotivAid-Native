@@ -9,6 +9,7 @@
 import { Colors, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { useClinical } from '@/context/clinical';
+import { useUnits } from '@/context/unit';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { LocalEmergencyContact } from '@/lib/clinical-db';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,13 +34,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 export default function EmergencyContactsManagement() {
     const {
         emergencyContacts,
-        refreshEmergencyContacts,
-        activeUnit,
         fetchFacilityStaff,
         isLoading,
         deleteContact,
         saveContact
     } = useClinical();
+    const { activeUnit } = useUnits();
     const { profile: authProfile } = useAuth();
     const colorScheme = useColorScheme();
     const colors = Colors[colorScheme ?? 'light'];

@@ -10,6 +10,7 @@ interface Props {
   variant?: 'default' | 'glass';
   style?: StyleProp<ViewStyle>;
   fullWidth?: boolean;
+  padding?: 'none' | 'sm' | 'md' | 'lg';
 }
 
 export function Card({
@@ -17,6 +18,7 @@ export function Card({
   variant = 'default',
   style,
   fullWidth = false,
+  padding = 'lg',
 }: Props) {
   const { theme } = useAppTheme();
   const themeColors = Colors[theme];
@@ -40,6 +42,10 @@ export function Card({
   return (
     <View style={[
       styles.card,
+      padding === 'none' && styles.paddingNone,
+      padding === 'sm' && styles.paddingSm,
+      padding === 'md' && styles.paddingMd,
+      padding === 'lg' && styles.paddingLg,
       {
         backgroundColor: themeColors.card,
         borderColor: themeColors.cardBorder,
@@ -55,9 +61,20 @@ export function Card({
 const styles = StyleSheet.create({
   card: {
     borderRadius: Radius.xl,
-    padding: Spacing.lg,
     borderWidth: 1,
     ...Shadows.sm,
+  },
+  paddingNone: {
+    padding: 0,
+  },
+  paddingSm: {
+    padding: Spacing.sm,
+  },
+  paddingMd: {
+    padding: Spacing.md,
+  },
+  paddingLg: {
+    padding: Spacing.lg,
   },
   glassContainer: {
     borderRadius: Radius.xl,

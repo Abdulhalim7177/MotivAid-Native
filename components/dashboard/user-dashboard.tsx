@@ -241,7 +241,7 @@ export function UserDashboard() {
             <IconSymbol name="cross.case.fill" size={32} color={themeColors.textSecondary} />
             <Text style={[styles.emptyText, { color: themeColors.textSecondary }]}>No cases yet</Text>
             <Text style={[styles.emptySubtext, { color: themeColors.textSecondary }]}>
-              Tap "New Case" to create your first patient record
+              Tap &quot;New Case&quot; to create your first patient record
             </Text>
           </Card>
         ) : (

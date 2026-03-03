@@ -47,11 +47,12 @@ const CAUSES: DiagnosticCause[] = [
 interface DiagnosticsModalProps {
     visible: boolean;
     onClose: () => void;
+    onSaved?: () => void;
 }
 
 // ── Component ─────────────────────────────────────────────────
 
-export function DiagnosticsModal({ visible, onClose }: DiagnosticsModalProps) {
+export function DiagnosticsModal({ visible, onClose, onSaved }: DiagnosticsModalProps) {
     const colorScheme = useColorScheme();
     const colors = Colors[colorScheme ?? 'light'];
     const { activeProfile, saveDiagnostics, emotiveChecklist } = useClinical();
@@ -99,6 +100,7 @@ export function DiagnosticsModal({ visible, onClose }: DiagnosticsModalProps) {
             await saveDiagnostics(activeProfile.local_id, causeLabels, notes.trim());
 
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            onSaved?.();
             onClose();
         } catch {
             // Error logged in context

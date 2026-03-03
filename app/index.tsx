@@ -14,7 +14,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 export default function SplashScreen() {
-  const { session, isLoading } = useAuth();
+  const { session, isLoading, isOfflineAuthenticated } = useAuth();
 
   const logoOpacity = useSharedValue(0);
   const logoScale = useSharedValue(0.8);
@@ -29,13 +29,13 @@ export default function SplashScreen() {
     // Text starts after 800ms (when logo finishes fading in)
     textOpacity.value = withDelay(800, withTiming(1, { duration: 800 }));
     textTranslateY.value = withDelay(800, withSpring(0, { damping: 14, stiffness: 120 }));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (!isLoading) {
       const timer = setTimeout(() => {
-        if (session) {
+        if (session || isOfflineAuthenticated) {
           router.replace('/(app)/(tabs)');
         } else {
           router.replace('/(auth)/login');
@@ -43,7 +43,22 @@ export default function SplashScreen() {
       }, 2500);
       return () => clearTimeout(timer);
     }
-  }, [session, isLoading]);
+  }, [session, isLoading, isOfflineAuthenticated]);
+
+  // Safety-net: force navigation after 10s even if isLoading never resolves
+  useEffect(() => {
+    const safetyTimer = setTimeout(() => {
+      if (isLoading) {
+        if (isOfflineAuthenticated) {
+          router.replace('/(app)/(tabs)');
+        } else {
+          router.replace('/(auth)/login');
+        }
+      }
+    }, 10000);
+    return () => clearTimeout(safetyTimer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const logoStyle = useAnimatedStyle(() => ({
     opacity: logoOpacity.value,

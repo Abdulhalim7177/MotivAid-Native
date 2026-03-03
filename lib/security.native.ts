@@ -5,17 +5,25 @@ import * as Crypto from 'expo-crypto';
 const OFFLINE_CRED_KEY = 'motivaid_offline_creds';
 
 export const checkBiometrics = async () => {
-  const hasHardware = await LocalAuthentication.hasHardwareAsync();
-  const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-  return hasHardware && isEnrolled;
+  try {
+    const hasHardware = await LocalAuthentication.hasHardwareAsync();
+    const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+    return hasHardware && isEnrolled;
+  } catch {
+    return false;
+  }
 };
 
 export const authenticateBiometric = async () => {
-  const result = await LocalAuthentication.authenticateAsync({
-    promptMessage: 'Login to MotivAid',
-    fallbackLabel: 'Use Password',
-  });
-  return result.success;
+  try {
+    const result = await LocalAuthentication.authenticateAsync({
+      promptMessage: 'Login to MotivAid',
+      fallbackLabel: 'Use Password',
+    });
+    return result.success;
+  } catch {
+    return false;
+  }
 };
 
 export const saveOfflineCredentials = async (email: string, password: string) => {
@@ -30,21 +38,29 @@ export const saveOfflineCredentials = async (email: string, password: string) =>
 };
 
 export const verifyOfflineCredentials = async (email: string, password: string) => {
-  const stored = await SecureStore.getItemAsync(OFFLINE_CRED_KEY);
-  if (!stored) return false;
+  try {
+    const stored = await SecureStore.getItemAsync(OFFLINE_CRED_KEY);
+    if (!stored) return false;
 
-  const { email: storedEmail, hash: storedHash } = JSON.parse(stored);
-  
-  const currentHash = await Crypto.digestStringAsync(
-    Crypto.CryptoDigestAlgorithm.SHA256,
-    email.toLowerCase() + password
-  );
+    const { email: storedEmail, hash: storedHash } = JSON.parse(stored);
 
-  return email.toLowerCase() === storedEmail && currentHash === storedHash;
+    const currentHash = await Crypto.digestStringAsync(
+      Crypto.CryptoDigestAlgorithm.SHA256,
+      email.toLowerCase() + password
+    );
+
+    return email.toLowerCase() === storedEmail && currentHash === storedHash;
+  } catch {
+    return false;
+  }
 };
 
 export const getSavedEmail = async () => {
-  const stored = await SecureStore.getItemAsync(OFFLINE_CRED_KEY);
-  if (!stored) return null;
-  return JSON.parse(stored).email;
+  try {
+    const stored = await SecureStore.getItemAsync(OFFLINE_CRED_KEY);
+    if (!stored) return null;
+    return JSON.parse(stored).email;
+  } catch {
+    return null;
+  }
 };

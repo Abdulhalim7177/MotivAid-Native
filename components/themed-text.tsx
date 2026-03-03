@@ -66,7 +66,7 @@ export function ThemedText({
   ...rest
 }: ThemedTextProps) {
   const defaultColor = useThemeColor({ light: lightColor, dark: darkColor }, 'text');
-  const linkColor = useThemeColor({}, 'link');
+  const linkColor = useThemeColor({}, 'primary');
   const semanticColor = useThemeColor({}, colorProp ? (COLOR_MAP[colorProp] as any) : 'text');
 
   const textColor = colorProp ? semanticColor : defaultColor;

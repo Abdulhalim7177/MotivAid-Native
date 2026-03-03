@@ -28,14 +28,23 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 // ── E-MOTIVE step display config ─────────────────────────────
 
-const EMOTIVE_STEPS = [
+type EmotiveStepDisplay = {
+    key: string;
+    letter: string;
+    label: string;
+    color: string;
+    doseKey?: string;
+    volKey?: string;
+};
+
+const EMOTIVE_STEPS: EmotiveStepDisplay[] = [
     { key: 'early_detection', letter: 'E', label: 'Early Detection', color: '#C62828' },
     { key: 'massage',         letter: 'M', label: 'Uterine Massage', color: '#E65100' },
     { key: 'oxytocin',        letter: 'O', label: 'Oxytocin',        color: '#F57F17', doseKey: 'oxytocin_dose' },
     { key: 'txa',             letter: 'T', label: 'Tranexamic Acid', color: '#1B5E20', doseKey: 'txa_dose' },
     { key: 'iv_fluids',       letter: 'I', label: 'IV Fluids',       color: '#0D47A1', volKey: 'iv_fluids_volume' },
     { key: 'escalation',      letter: 'V/E', label: 'Escalation',    color: '#4A148C' },
-] as const;
+];
 
 // ── Component ─────────────────────────────────────────────────
 
@@ -62,7 +71,7 @@ export default function CaseSummaryScreen() {
                 refreshCaseEvents(localId);
                 refreshEmotiveChecklist(localId);
             }
-        }, [localId])
+        }, [localId, refreshCaseEvents, refreshEmotiveChecklist, refreshVitals, setActiveProfileId])
     );
 
     const profile = profiles.find(p => p.local_id === localId);

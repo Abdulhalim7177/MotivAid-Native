@@ -146,13 +146,13 @@ export interface LocalCaseEvent {
     is_synced: boolean;
 }
 
-// ── Database Init ────────────────────────────────────────────
+// ── Singleton DB Connection ──────────────────────────────────
+let _clinicalDb: SQLite.SQLiteDatabase | null = null;
 
-export const initClinicalDatabase = async () => {
-    try {
-        const db = await SQLite.openDatabaseAsync(DB_NAME);
-
-        await db.execAsync(`
+const getDB = async (): Promise<SQLite.SQLiteDatabase> => {
+    if (!_clinicalDb) {
+        _clinicalDb = await SQLite.openDatabaseAsync(DB_NAME);
+        await _clinicalDb.execAsync(`
       CREATE TABLE IF NOT EXISTS maternal_profiles_local (
         local_id TEXT PRIMARY KEY NOT NULL,
         remote_id TEXT,
@@ -282,11 +282,20 @@ export const initClinicalDatabase = async () => {
         occurred_at TEXT DEFAULT (datetime('now')),
         is_synced INTEGER DEFAULT 0
       );
-    `);
+        `);
+    }
+    return _clinicalDb;
+};
 
+// ── Database Init ────────────────────────────────────────────
+
+export const initClinicalDatabase = async () => {
+    try {
+        const db = await getDB();
+        console.log('[ClinicalDB] Database initialized successfully');
         return db;
     } catch (error) {
-        console.error('Clinical DB init error:', error);
+        console.error('[ClinicalDB] Database init error:', error);
         return null;
     }
 };
@@ -295,7 +304,7 @@ export const initClinicalDatabase = async () => {
 
 export const saveMaternalProfile = async (profile: LocalMaternalProfile): Promise<void> => {
     try {
-        const db = await SQLite.openDatabaseAsync(DB_NAME);
+        const db = await getDB();
         await db.runAsync(
             `INSERT OR REPLACE INTO maternal_profiles_local (
         local_id, remote_id, facility_id, unit_id, created_by,
@@ -354,7 +363,7 @@ export const getMaternalProfiles = async (
     status?: string
 ): Promise<LocalMaternalProfile[]> => {
     try {
-        const db = await SQLite.openDatabaseAsync(DB_NAME);
+        const db = await getDB();
         let query = 'SELECT * FROM maternal_profiles_local';
         const params: any[] = [];
         const conditions: string[] = [];
@@ -386,7 +395,7 @@ export const getMaternalProfile = async (
     localId: string
 ): Promise<LocalMaternalProfile | null> => {
     try {
-        const db = await SQLite.openDatabaseAsync(DB_NAME);
+        const db = await getDB();
         const row = await db.getFirstAsync<any>(
             'SELECT * FROM maternal_profiles_local WHERE local_id = ?',
             [localId]
@@ -404,7 +413,7 @@ export const updateMaternalProfileStatus = async (
     outcome?: string
 ): Promise<void> => {
     try {
-        const db = await SQLite.openDatabaseAsync(DB_NAME);
+        const db = await getDB();
         if (outcome) {
             await db.runAsync(
                 `UPDATE maternal_profiles_local SET status = ?, outcome = ?, updated_at = datetime('now'), is_synced = 0 WHERE local_id = ?`,
@@ -424,7 +433,7 @@ export const updateMaternalProfileStatus = async (
 
 export const updateDeliveryTime = async (localId: string, deliveryTime: string): Promise<void> => {
     try {
-        const db = await SQLite.openDatabaseAsync(DB_NAME);
+        const db = await getDB();
         await db.runAsync(
             `UPDATE maternal_profiles_local SET delivery_time = ?, updated_at = datetime('now'), is_synced = 0 WHERE local_id = ?`,
             [deliveryTime, localId]
@@ -439,7 +448,7 @@ export const updateDeliveryTime = async (localId: string, deliveryTime: string):
 
 export const saveVitalSign = async (vital: LocalVitalSign): Promise<void> => {
     try {
-        const db = await SQLite.openDatabaseAsync(DB_NAME);
+        const db = await getDB();
         await db.runAsync(
             `INSERT OR REPLACE INTO vital_signs_local (
         local_id, remote_id, maternal_profile_local_id, recorded_by,
@@ -475,7 +484,7 @@ export const getVitalSigns = async (
     profileId: string
 ): Promise<LocalVitalSign[]> => {
     try {
-        const db = await SQLite.openDatabaseAsync(DB_NAME);
+        const db = await getDB();
         const rows = await db.getAllAsync<any>(
             `SELECT * FROM vital_signs_local 
              WHERE maternal_profile_local_id = ? 
@@ -494,7 +503,7 @@ export const getLatestVitalSign = async (
     maternalProfileLocalId: string
 ): Promise<LocalVitalSign | null> => {
     try {
-        const db = await SQLite.openDatabaseAsync(DB_NAME);
+        const db = await getDB();
         const row = await db.getFirstAsync<any>(
             'SELECT * FROM vital_signs_local WHERE maternal_profile_local_id = ? ORDER BY recorded_at DESC LIMIT 1',
             [maternalProfileLocalId]
@@ -510,7 +519,7 @@ export const getLatestVitalSign = async (
 
 export const saveEmotiveChecklist = async (checklist: LocalEmotiveChecklist): Promise<void> => {
     try {
-        const db = await SQLite.openDatabaseAsync(DB_NAME);
+        const db = await getDB();
         await db.runAsync(
             `INSERT OR REPLACE INTO emotive_checklists_local (
         local_id, remote_id, maternal_profile_local_id, performed_by,
@@ -566,7 +575,7 @@ export const getEmotiveChecklist = async (
     profileId: string
 ): Promise<LocalEmotiveChecklist | null> => {
     try {
-        const db = await SQLite.openDatabaseAsync(DB_NAME);
+        const db = await getDB();
         const row = await db.getFirstAsync<any>(
             `SELECT * FROM emotive_checklists_local 
              WHERE maternal_profile_local_id = ? 
@@ -585,7 +594,7 @@ export const updateEmotiveStep = async (
     stepFields: Partial<LocalEmotiveChecklist>
 ): Promise<void> => {
     try {
-        const db = await SQLite.openDatabaseAsync(DB_NAME);
+        const db = await getDB();
         const sets: string[] = [];
         const values: any[] = [];
 
@@ -618,7 +627,7 @@ export const updateEmotiveStep = async (
 
 export const addToSyncQueue = async (item: Omit<SyncQueueItem, 'retry_count' | 'max_retries' | 'status' | 'created_at'>): Promise<void> => {
     try {
-        const db = await SQLite.openDatabaseAsync(DB_NAME);
+        const db = await getDB();
         await db.runAsync(
             `INSERT INTO sync_queue_local (id, table_name, record_id, operation, payload)
        VALUES (?, ?, ?, ?, ?)`,
@@ -631,7 +640,7 @@ export const addToSyncQueue = async (item: Omit<SyncQueueItem, 'retry_count' | '
 
 export const getPendingSyncItems = async (): Promise<SyncQueueItem[]> => {
     try {
-        const db = await SQLite.openDatabaseAsync(DB_NAME);
+        const db = await getDB();
         const rows = await db.getAllAsync<SyncQueueItem>(
             `SELECT * FROM sync_queue_local 
        WHERE status = 'pending' AND retry_count < max_retries
@@ -650,7 +659,7 @@ export const updateSyncItemStatus = async (
     errorMessage?: string
 ): Promise<void> => {
     try {
-        const db = await SQLite.openDatabaseAsync(DB_NAME);
+        const db = await getDB();
         if (status === 'failed') {
             await db.runAsync(
                 `UPDATE sync_queue_local SET status = ?, error_message = ?, retry_count = retry_count + 1 WHERE id = ?`,
@@ -678,7 +687,7 @@ export const markRecordSynced = async (
     remoteId: string
 ): Promise<void> => {
     try {
-        const db = await SQLite.openDatabaseAsync(DB_NAME);
+        const db = await getDB();
         const tableMap: Record<string, string> = {
             maternal_profiles: 'maternal_profiles_local',
             vital_signs: 'vital_signs_local',
@@ -687,7 +696,7 @@ export const markRecordSynced = async (
             emergency_contacts: 'emergency_contacts_local',
         };
         const localTable = tableMap[tableName] ?? 'maternal_profiles_local';
-        
+
         if (tableName === 'emergency_contacts') {
             // Check if it was marked as deleted
             const contact = await db.getFirstAsync<any>(
@@ -716,7 +725,7 @@ export const markRecordSynced = async (
 
 export const clearSyncedItems = async (): Promise<void> => {
     try {
-        const db = await SQLite.openDatabaseAsync(DB_NAME);
+        const db = await getDB();
         await db.runAsync(`DELETE FROM sync_queue_local WHERE status = 'synced'`);
     } catch (error) {
         console.error('Error clearing synced items:', error);
@@ -770,7 +779,7 @@ function rowToChecklist(row: any): LocalEmotiveChecklist {
 
 export const saveEmergencyContacts = async (contacts: LocalEmergencyContact[]): Promise<void> => {
     try {
-        const db = await SQLite.openDatabaseAsync(DB_NAME);
+        const db = await getDB();
         for (const contact of contacts) {
             // Avoid overwriting locally deleted items that haven't synced yet
             const existing = await db.getFirstAsync<any>(
@@ -806,7 +815,7 @@ export const saveEmergencyContacts = async (contacts: LocalEmergencyContact[]): 
 
 export const deleteEmergencyContact = async (id: string): Promise<void> => {
     try {
-        const db = await SQLite.openDatabaseAsync(DB_NAME);
+        const db = await getDB();
         await db.runAsync(
             'UPDATE emergency_contacts_local SET is_deleted = 1, is_synced = 0 WHERE id = ?',
             [id]
@@ -819,7 +828,7 @@ export const deleteEmergencyContact = async (id: string): Promise<void> => {
 
 export const getEmergencyContacts = async (facilityId?: string): Promise<LocalEmergencyContact[]> => {
     try {
-        const db = await SQLite.openDatabaseAsync(DB_NAME);
+        const db = await getDB();
         let query = "SELECT * FROM emergency_contacts_local WHERE is_active = 1 AND is_deleted = 0";
         const params: any[] = [];
 
@@ -846,7 +855,7 @@ export const getEmergencyContacts = async (facilityId?: string): Promise<LocalEm
 
 export const saveCaseEvent = async (event: LocalCaseEvent): Promise<void> => {
     try {
-        const db = await SQLite.openDatabaseAsync(DB_NAME);
+        const db = await getDB();
         await db.runAsync(
             `INSERT OR IGNORE INTO case_events_local (
         local_id, remote_id, maternal_profile_id, event_type, event_label, event_data, performed_by, occurred_at, is_synced
@@ -870,7 +879,7 @@ export const saveCaseEvent = async (event: LocalCaseEvent): Promise<void> => {
 
 export const getCaseEvents = async (profileId: string): Promise<LocalCaseEvent[]> => {
     try {
-        const db = await SQLite.openDatabaseAsync(DB_NAME);
+        const db = await getDB();
         const rows = await db.getAllAsync<any>(
             'SELECT * FROM case_events_local WHERE maternal_profile_id = ? OR maternal_profile_id = (SELECT remote_id FROM maternal_profiles_local WHERE local_id = ?) ORDER BY occurred_at DESC',
             [profileId, profileId]

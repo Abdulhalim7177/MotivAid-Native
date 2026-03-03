@@ -48,7 +48,6 @@ export default function PatientDetailScreen() {
         refreshProfiles,
         caseEvents,
         refreshCaseEvents,
-        addCaseEvent,
         refreshEmergencyContacts,
         updateDeliveryTime
     } = useClinical();
@@ -454,7 +453,7 @@ export default function PatientDetailScreen() {
                 )}
 
                 {/* E-MOTIVE Bundle Checklist */}
-                {(profile.status === 'active' || profile.status === 'monitoring') && profile.status !== 'closed' && (
+                {(profile.status === 'active' || profile.status === 'monitoring') && (
                     <EmotiveChecklist onEscalate={() => setShowEscalationModal(true)} />
                 )}
 

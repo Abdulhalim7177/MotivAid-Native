@@ -20,7 +20,7 @@ export default function ForgotPasswordScreen() {
   const [emailError, setEmailError] = useState('');
   const [timer, setTimer] = useState(0);
   const [resendCount, setResendCount] = useState(0);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { showToast } = useToast();
   const colorScheme = useColorScheme();
 

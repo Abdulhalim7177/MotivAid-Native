@@ -23,13 +23,17 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
-  const [, setHasBiometrics] = useState(false);
+  const [hasBiometrics, setHasBiometrics] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     async function init() {
-      const bioAvailable = await checkBiometrics();
-      setHasBiometrics(bioAvailable);
+      try {
+        const bioAvailable = await checkBiometrics();
+        setHasBiometrics(bioAvailable);
+      } catch {
+        setHasBiometrics(false);
+      }
 
       const savedEmail = await getSavedEmail();
       if (savedEmail) setEmail(savedEmail);
@@ -65,29 +69,46 @@ export default function LoginScreen() {
     if (!validate()) return;
 
     setLoading(true);
-    const { error } = await signIn(email, password);
+    try {
+      const { error } = await signIn(email, password);
 
-    if (error) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      if (error.message.includes('Invalid credentials')) {
-        setPasswordError('Incorrect email or password');
+      if (error) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        if (error.message.includes('Invalid credentials')) {
+          setPasswordError('Incorrect email or password');
+        } else {
+          setPasswordError(error.message);
+        }
       } else {
-        setPasswordError(error.message);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        showToast('Welcome back!', 'success');
+        router.replace('/(app)/(tabs)');
       }
-    } else {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      showToast('Welcome back!', 'success');
-      router.replace('/(app)/(tabs)');
+    } catch (e: any) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setPasswordError(e?.message || 'An unexpected error occurred');
     }
     setLoading(false);
   }
 
   async function handleBiometric() {
-    const success = await signInBiometric();
-    if (success) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      showToast('Unlocked!', 'success');
-      router.replace('/(app)/(tabs)');
+    if (!hasBiometrics) {
+      showToast('Biometric login is not available on this device', 'error');
+      return;
+    }
+    try {
+      const success = await signInBiometric();
+      if (success) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        showToast('Unlocked!', 'success');
+        router.replace('/(app)/(tabs)');
+      } else {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        showToast('Biometric login failed. Please login online first to set up offline access.', 'error');
+      }
+    } catch (e: any) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      showToast(e?.message || 'Biometric error', 'error');
     }
   }
 
@@ -172,7 +193,7 @@ export default function LoginScreen() {
             />
 
             {/* Show only on native platforms if biometrics are available */}
-            {Platform.OS !== 'web' && (
+            {Platform.OS !== 'web' && hasBiometrics && (
               <TouchableOpacity
                 style={[styles.biometricButton, { borderColor: themeColors.primary, borderWidth: 2 }]}
                 onPress={handleBiometric}

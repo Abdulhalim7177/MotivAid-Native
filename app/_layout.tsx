@@ -25,9 +25,6 @@ function RootLayoutNav() {
     if (isLoading) return;
 
     const inAuthGroup = segments[0] === '(auth)';
-    const isSplash = segments.length === 0 || segments[0] === 'index';
-
-    if (isSplash) return;
 
     if (!isOfflineAuthenticated && !inAuthGroup) {
       router.replace('/(auth)/login');

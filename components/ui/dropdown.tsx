@@ -80,7 +80,7 @@ export function Dropdown({
               </View>
 
               <FlatList
-                data={[{ label: allLabel, value: null }, ...options]}
+                data={[{ label: allLabel, value: null, count: undefined }, ...options]}
                 keyExtractor={(item) => String(item.value)}
                 renderItem={({ item }) => (
                   <TouchableOpacity

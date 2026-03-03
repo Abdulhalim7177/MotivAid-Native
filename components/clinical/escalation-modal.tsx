@@ -1,4 +1,5 @@
 import { Colors, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
+import { useAuth } from '@/context/auth';
 import { useClinical } from '@/context/clinical';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,7 +22,8 @@ interface EscalationModalProps {
 }
 
 export function EscalationModal({ visible, onClose }: EscalationModalProps) {
-    const { emergencyContacts, activeProfile, addCaseEvent, user } = useClinical();
+    const { emergencyContacts, activeProfile, addCaseEvent } = useClinical();
+    const { user } = useAuth();
     const colorScheme = useColorScheme();
     const colors = Colors[colorScheme ?? 'light'];
 

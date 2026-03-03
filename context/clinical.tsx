@@ -158,6 +158,7 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
     const refreshProfiles = useCallback(async () => {
         setIsLoading(true);
         try {
+            await initClinicalDatabase();
             const isSupervisor = authProfile?.role === 'supervisor' || authProfile?.role === 'admin';
             const isStaffRole = ['midwife', 'nurse', 'student'].includes(authProfile?.role || '');
             const isNormalUser = !authProfile?.role || authProfile.role === 'user';
@@ -248,6 +249,7 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
     }, [authProfile?.facility_id]);
 
     const createProfile = useCallback(async (input: CreateProfileInput): Promise<string> => {
+        await initClinicalDatabase();
         const localId = generateUUID();
         const riskResult = calculateRisk(input.riskInput);
         const now = new Date().toISOString();
@@ -262,8 +264,8 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
 
         const profile: LocalMaternalProfile = {
             local_id: localId,
-            facility_id: activeUnit?.facility_id || authProfile?.facility_id || null, // Allow null for normal users
-            unit_id: activeUnit?.id || null, // Allow null unit_id for unassigned staff and normal users
+            facility_id: activeUnit?.facility_id || authProfile?.facility_id || undefined, // Allow missing for normal users
+            unit_id: activeUnit?.id || undefined, // Allow missing for unassigned staff and normal users
             created_by: user?.id,
             patient_id: input.patientId,
             age: input.age,
@@ -430,7 +432,7 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
     const refreshEmergencyContacts = useCallback(async () => {
         try {
             // First try local
-            const local = await getEmergencyContacts(authProfile?.facility_id);
+            const local = await getEmergencyContacts(authProfile?.facility_id ?? undefined);
             setEmergencyContacts(local);
 
             // Try remote if online
@@ -477,7 +479,7 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
             role: contactInput.role || '',
             phone: contactInput.phone || '',
             tier: contactInput.tier || 1,
-            facility_id: contactInput.facility_id || authProfile?.facility_id,
+            facility_id: contactInput.facility_id || authProfile?.facility_id || undefined,
             unit_id: contactInput.unit_id,
             is_active: contactInput.is_active ?? true,
             created_at: contactInput.created_at || now,

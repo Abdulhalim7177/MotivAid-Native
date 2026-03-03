@@ -7,7 +7,6 @@ import { UserDashboard } from '@/components/dashboard/user-dashboard';
 import { ScreenContainer } from '@/components/ui/screen-container';
 
 import { useAuth } from '@/context/auth';
-import { useUnits } from '@/context/unit';
 import { supabase } from '@/lib/supabase';
 import NetInfo from '@react-native-community/netinfo';
 import { useCallback, useEffect, useState } from 'react';
@@ -15,7 +14,6 @@ import { Platform, StyleSheet, View } from 'react-native';
 
 export default function HomeScreen() {
   const { user, profile } = useAuth();
-  const { activeUnit, isLoading: unitsLoading } = useUnits();
   const [isOffline, setIsOffline] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [hasUnitMembership, setHasUnitMembership] = useState<boolean | null>(null);
@@ -23,7 +21,6 @@ export default function HomeScreen() {
 
   // Staff roles that require unit assignment
   const isStaffRole = ['midwife', 'nurse', 'student'].includes(profile?.role || '');
-  const isNormalUser = !profile?.role || profile.role === 'user';
 
   // Check if staff has been assigned to any unit (via unit_memberships)
   const checkMembership = useCallback(async () => {
@@ -31,15 +28,26 @@ export default function HomeScreen() {
       setHasUnitMembership(true);
       return;
     }
+    try {
+      const netState = await NetInfo.fetch();
+      if (!netState.isConnected) {
+        // Offline: avoid hard-failing this gate; unit context handles cached assignment.
+        setHasUnitMembership(true);
+        return;
+      }
 
-    const { count, error } = await supabase
-      .from('unit_memberships')
-      .select('id', { count: 'exact', head: true })
-      .eq('profile_id', user.id)
-      .eq('status', 'approved');
+      const { count, error } = await supabase
+        .from('unit_memberships')
+        .select('id', { count: 'exact', head: true })
+        .eq('profile_id', user.id)
+        .eq('status', 'approved');
 
-    if (!error) {
-      setHasUnitMembership((count ?? 0) > 0);
+      if (!error) {
+        setHasUnitMembership((count ?? 0) > 0);
+      }
+    } catch {
+      // Network exceptions on native can throw instead of returning an error object.
+      setHasUnitMembership(true);
     }
   }, [isStaffRole, user?.id]);
 

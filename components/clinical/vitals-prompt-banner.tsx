@@ -7,6 +7,7 @@
  */
 
 import { Radius, Spacing, Typography } from '@/constants/theme';
+import { useAuth } from '@/context/auth';
 import { useClinical } from '@/context/clinical';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -30,8 +31,8 @@ export function VitalsPromptBanner() {
         lastVitalsTime,
         vitalSigns,
         vitalsPromptInterval,
-        user,
     } = useClinical();
+    const { user } = useAuth();
 
     // Slide-in animation
     const translateY = useSharedValue(100);

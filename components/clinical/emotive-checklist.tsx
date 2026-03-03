@@ -835,6 +835,19 @@ const styles = StyleSheet.create({
         ...Typography.buttonMd,
         fontSize: 12,
     },
+    closeAfterAction: {
+        marginTop: Spacing.xs,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.xs,
+        borderWidth: 1,
+        borderRadius: Radius.md,
+        paddingHorizontal: Spacing.md,
+        paddingVertical: Spacing.xs,
+    },
+    closeAfterActionText: {
+        ...Typography.labelSm,
+    },
     resetLink: {
         marginTop: Spacing.xs,
     },
