@@ -1,6 +1,4 @@
-import * as SQLite from 'expo-sqlite';
-
-const DB_NAME = 'motivaid_offline_v2.db';
+import { getSharedDB } from './shared-db';
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -137,155 +135,17 @@ export interface LocalEmergencyContact {
 export interface LocalCaseEvent {
     local_id: string;
     remote_id?: string;
-    maternal_profile_id: string; // Links to the profile's local_id or remote_id
+    maternal_profile_id: string;
     event_type: string;
     event_label: string;
-    event_data?: string; // Stored as JSON string
+    event_data?: string;
     performed_by?: string;
     occurred_at: string;
     is_synced: boolean;
 }
 
-// ── Singleton DB Connection ──────────────────────────────────
-let _clinicalDb: SQLite.SQLiteDatabase | null = null;
-
-const getDB = async (): Promise<SQLite.SQLiteDatabase> => {
-    if (!_clinicalDb) {
-        _clinicalDb = await SQLite.openDatabaseAsync(DB_NAME);
-        await _clinicalDb.execAsync(`
-      CREATE TABLE IF NOT EXISTS maternal_profiles_local (
-        local_id TEXT PRIMARY KEY NOT NULL,
-        remote_id TEXT,
-        facility_id TEXT,
-        unit_id TEXT,
-        created_by TEXT,
-        patient_id TEXT,
-        age INTEGER NOT NULL,
-        gravida INTEGER DEFAULT 1,
-        parity INTEGER DEFAULT 0,
-        gestational_age_weeks INTEGER,
-        is_multiple_gestation INTEGER DEFAULT 0,
-        has_prior_cesarean INTEGER DEFAULT 0,
-        has_placenta_previa INTEGER DEFAULT 0,
-        has_large_fibroids INTEGER DEFAULT 0,
-        has_anemia INTEGER DEFAULT 0,
-        has_pph_history INTEGER DEFAULT 0,
-        has_intraamniotic_infection INTEGER DEFAULT 0,
-        has_severe_anemia INTEGER DEFAULT 0,
-        has_coagulopathy INTEGER DEFAULT 0,
-        has_severe_pph_history INTEGER DEFAULT 0,
-        has_placenta_accreta INTEGER DEFAULT 0,
-        has_active_bleeding INTEGER DEFAULT 0,
-        has_morbid_obesity INTEGER DEFAULT 0,
-        hemoglobin_level REAL,
-        risk_level TEXT DEFAULT 'low',
-        risk_score INTEGER DEFAULT 0,
-        delivery_time TEXT,
-        status TEXT DEFAULT 'pre_delivery',
-        outcome TEXT,
-        notes TEXT,
-        is_synced INTEGER DEFAULT 0,
-        created_at TEXT DEFAULT (datetime('now')),
-        updated_at TEXT DEFAULT (datetime('now'))
-      );
-
-      CREATE TABLE IF NOT EXISTS vital_signs_local (
-        local_id TEXT PRIMARY KEY NOT NULL,
-        remote_id TEXT,
-        maternal_profile_local_id TEXT NOT NULL,
-        recorded_by TEXT,
-        heart_rate INTEGER,
-        systolic_bp INTEGER,
-        diastolic_bp INTEGER,
-        temperature REAL,
-        respiratory_rate INTEGER,
-        spo2 INTEGER,
-        shock_index REAL,
-        estimated_blood_loss INTEGER DEFAULT 0,
-        blood_loss_method TEXT,
-        is_synced INTEGER DEFAULT 0,
-        recorded_at TEXT DEFAULT (datetime('now')),
-        FOREIGN KEY (maternal_profile_local_id) REFERENCES maternal_profiles_local(local_id)
-      );
-
-      CREATE TABLE IF NOT EXISTS emotive_checklists_local (
-        local_id TEXT PRIMARY KEY NOT NULL,
-        remote_id TEXT,
-        maternal_profile_local_id TEXT NOT NULL,
-        performed_by TEXT,
-        early_detection_done INTEGER DEFAULT 0,
-        early_detection_time TEXT,
-        early_detection_notes TEXT,
-        massage_done INTEGER DEFAULT 0,
-        massage_time TEXT,
-        massage_notes TEXT,
-        oxytocin_done INTEGER DEFAULT 0,
-        oxytocin_time TEXT,
-        oxytocin_dose TEXT,
-        oxytocin_notes TEXT,
-        txa_done INTEGER DEFAULT 0,
-        txa_time TEXT,
-        txa_dose TEXT,
-        txa_notes TEXT,
-        iv_fluids_done INTEGER DEFAULT 0,
-        iv_fluids_time TEXT,
-        iv_fluids_volume TEXT,
-        iv_fluids_notes TEXT,
-        escalation_done INTEGER DEFAULT 0,
-        escalation_time TEXT,
-        escalation_notes TEXT,
-        diagnostics_causes TEXT,
-        diagnostics_notes TEXT,
-        is_synced INTEGER DEFAULT 0,
-        created_at TEXT DEFAULT (datetime('now')),
-        updated_at TEXT DEFAULT (datetime('now')),
-        FOREIGN KEY (maternal_profile_local_id) REFERENCES maternal_profiles_local(local_id)
-      );
-
-      CREATE TABLE IF NOT EXISTS sync_queue_local (
-        id TEXT PRIMARY KEY NOT NULL,
-        table_name TEXT NOT NULL,
-        record_id TEXT NOT NULL,
-        operation TEXT NOT NULL,
-        payload TEXT NOT NULL,
-        retry_count INTEGER DEFAULT 0,
-        max_retries INTEGER DEFAULT 5,
-        status TEXT DEFAULT 'pending',
-        error_message TEXT,
-        created_at TEXT DEFAULT (datetime('now')),
-        synced_at TEXT
-      );
-
-      CREATE TABLE IF NOT EXISTS emergency_contacts_local (
-        id TEXT PRIMARY KEY NOT NULL,
-        facility_id TEXT,
-        unit_id TEXT,
-        name TEXT NOT NULL,
-        role TEXT NOT NULL,
-        phone TEXT NOT NULL,
-        tier INTEGER NOT NULL,
-        is_active INTEGER DEFAULT 1,
-        is_synced INTEGER DEFAULT 0,
-        is_deleted INTEGER DEFAULT 0,
-        created_at TEXT DEFAULT (datetime('now')),
-        updated_at TEXT DEFAULT (datetime('now'))
-      );
-
-      CREATE TABLE IF NOT EXISTS case_events_local (
-        local_id TEXT PRIMARY KEY NOT NULL,
-        remote_id TEXT,
-        maternal_profile_id TEXT NOT NULL,
-        event_type TEXT NOT NULL,
-        event_label TEXT NOT NULL,
-        event_data TEXT,
-        performed_by TEXT,
-        occurred_at TEXT DEFAULT (datetime('now')),
-        is_synced INTEGER DEFAULT 0
-      );
-        `);
-    }
-    return _clinicalDb;
-};
+// ── Use the shared singleton DB connection ───────────────────
+const getDB = getSharedDB;
 
 // ── Database Init ────────────────────────────────────────────
 
