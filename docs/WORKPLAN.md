@@ -1,253 +1,215 @@
 # MotivAid - Structured Workplan
 
-This workplan outlines the functional blocks required to implement the MotivAid clinical system. It focuses on technical dependencies and the logical flow of data from administrative setup to point-of-care intervention.
+This workplan outlines the functional blocks and sprint-by-sprint implementation plan for MotivAid. It covers completed work, bug fixes, and all planned features through production launch.
 
 ---
 
-## Block 1: Organizational Hierarchy & Access - COMPLETE
+## Block 1: Organizational Hierarchy & Access — ✅ COMPLETE
 
 **Objective:** Establish the facility/unit structure required for data isolation and supervisor oversight.
 
 ### Tasks:
 
-- [x] **1.1 Database Schema**
-  - Create `facilities` table (id, name, location)
-  - Create `units` table (id, facility_id, name, description)
-  - Create `unit_memberships` table (profile_id, unit_id, status, role_in_unit)
-  - Create `facility_codes` table (facility_id, role, code)
-  - Enable RLS on all tables with appropriate policies
-
-- [x] **1.2 Role System**
-  - Expand `user_role` enum: admin, user, supervisor, midwife, nurse, student
-  - Implement `handle_new_user()` trigger for automatic role assignment
-  - Create facility access codes per role per facility
-
-- [x] **1.3 Registration with Facility Codes**
-  - Medical staff toggle on registration form
-  - Role selection buttons (Midwife, Nurse, Student, Supervisor)
-  - Real-time variable-length code validation against `facility_codes` table (debounced)
-  - Deactivated code detection with specific error message
-  - Pass `registration_code` in user metadata for trigger-based role assignment
-
-- [x] **1.4 Unit Selector**
-  - `UnitProvider` context with active unit state
-  - Fetch units from Supabase with facility name joins
-  - Role-based filtering (staff only see approved memberships)
-  - Persist active unit to AsyncStorage
-  - Modal picker UI component
-
-- [x] **1.5 Membership Approval**
-  - Approvals screen for supervisors
-  - FlatList of pending membership requests
-  - Approve/reject actions with Supabase update
-  - Haptic feedback and toast notifications
-
-- [x] **1.6 Role-Based Dashboards**
-  - `AdminDashboard` — Global statistics, system admin actions, quick action nav cards
-  - `SupervisorDashboard` — Unit adherence, pending approvals, icon-based management grid
-  - `StaffDashboard` — Shift overview, icon-based quick actions, training progress
-  - `UserDashboard` — Simplified clinical mode entry
-
-- [x] **1.7 Facility & Unit Management**
-  - Facilities CRUD screen with auto-generated registration codes (acronym-based format)
-  - Code activation/deactivation toggle with visual feedback
-  - Units CRUD screen within facilities
-  - Management RLS policies for admin/supervisor roles
-  - `is_active` column on `facility_codes` for code lifecycle management
-
-### Dependencies:
-- Supabase Auth (Phase 1) must be complete
-- Profiles table with role column must exist
+- [x] **1.1 Database Schema** — `facilities`, `units`, `unit_memberships`, `facility_codes` tables with RLS
+- [x] **1.2 Role System** — 6-role enum, `handle_new_user()` trigger, facility access codes
+- [x] **1.3 Registration with Facility Codes** — Medical staff toggle, role selection, debounced code validation, deactivation detection
+- [x] **1.4 Unit Selector** — `UnitProvider` context, modal picker, AsyncStorage persistence
+- [x] **1.5 Membership Approval** — Supervisor approve/reject workflow with haptic feedback
+- [x] **1.6 Role-Based Dashboards** — Admin, Supervisor, Staff, User dashboards with icon-based action grids
+- [x] **1.7 Facility & Unit Management** — CRUD screens, auto-generated acronym codes, activation toggle
 
 ---
 
-## Block 2: Clinical Schema & Offline Foundation - COMPLETE
+## Block 2: Clinical Schema & Offline Foundation — ✅ COMPLETE
 
 **Objective:** Build the data model for maternal profiles, vital signs, and PPH cases with offline-first storage.
 
 ### Tasks:
 
-- [x] **2.1 Maternal Profiles Table**
-  - Migration `20260220000000_clinical_data_tables.sql`: age, parity, gravida, blood type, weight, 13 AWHONN-adapted risk factors
-  - Boolean flags: has_anemia, has_pph_history, is_multiple_gestation, has_prior_cesarean, has_placenta_previa, has_large_fibroids, has_intraamniotic_infection, has_severe_anemia, has_coagulopathy, has_severe_pph_history, has_placenta_accreta, has_active_bleeding, has_morbid_obesity
-  - Linked to facility, unit, and created_by (staff profile)
-  - RLS policies: facility-scoped reads, staff insert, creator/supervisor update
-
-- [x] **2.2 Vital Signs Table**
-  - Migration `20260220000000_clinical_data_tables.sql`: heart_rate, systolic_bp, diastolic_bp, temperature, respiratory_rate, spo2, estimated_blood_loss, blood_loss_method
-  - Application-level Shock Index calculation (HR / systolic_bp) via `lib/shock-index.ts`
-  - 5-level severity: Normal, Warning, Alert, Critical, Emergency
-
-- [x] **2.3 Risk Scoring Algorithm**
-  - Implemented `lib/risk-calculator.ts` (AWHONN-adapted)
-  - 13 risk factors scored: Low (0-1), Medium (2-3), High (4-5), Critical (6+)
-  - Preparedness recommendations per level
-  - Live risk banner updates as factors are toggled
-
-- [x] **2.4 Offline SQLite Tables**
-  - Created `lib/clinical-db.native.ts` with tables: `maternal_profiles_local`, `vital_signs_local`, `emotive_checklists_local`, `sync_queue_local`
-  - Full CRUD for all tables
-  - `is_synced` and `remote_id` columns for sync tracking
-  - Web fallback in `lib/clinical-db.ts` using localStorage
-
-- [x] **2.5 Sync Queue**
-  - Implemented `lib/sync-queue.ts` for background upload
-  - Resolves local_id → remote_id for foreign keys
-  - Retry logic with max_retries (default 3)
-  - Supports maternal_profiles, vital_signs, and emotive_checklists
-
-### Dependencies:
-- Block 1 complete (facilities, units, memberships) ✅
+- [x] **2.1 Maternal Profiles Table** — 13 AWHONN-adapted risk factors, facility/unit/creator linkage, RLS
+- [x] **2.2 Vital Signs Table** — HR, BP, temp, SpO₂, RR, blood loss, shock index calculation
+- [x] **2.3 Risk Scoring Algorithm** — `lib/risk-calculator.ts`, 4-level severity, live risk banner
+- [x] **2.4 Offline SQLite Tables** — `lib/clinical-db.native.ts` + localStorage web fallback, full CRUD
+- [x] **2.5 Sync Queue** — `lib/sync-queue.ts`, local→remote ID resolution, retry logic
 
 ---
 
-## Block 3: E-MOTIVE Workflow - COMPLETE
+## Block 3: E-MOTIVE Workflow — ✅ COMPLETE
 
 **Objective:** Implement the core clinical decision support system based on the WHO E-MOTIVE bundle.
 
 ### Tasks:
 
-- [x] **3.1 Clinical Tab & Case List**
-  - Bottom nav tab `app/(app)/(tabs)/clinical.tsx`
-  - FlatList with status filters (Pre-Delivery/Active/Monitoring/Closed)
-  - Supervisor cross-unit view with unit filter chips
-  - Pull-to-refresh, sync button, new case navigation
-
-- [x] **3.2 New Patient Form**
-  - `app/(app)/clinical/new-patient.tsx`
-  - Obstetric data entry: age, gravida, parity, gestational age, blood type, weight, hemoglobin
-  - 13 toggleable risk factor switches grouped by severity (Medium/High/Critical)
-  - Live risk banner with color-coded level display
-
-- [x] **3.3 Patient Detail Screen**
-  - `app/(app)/clinical/patient-detail.tsx`
-  - Metrics cards: Shock Index (latest) + Blood Loss (latest)
-  - Quick actions: Record Vitals, E-MOTIVE Bundle
-  - Case lifecycle controls: status transitions + cross-platform close modal with outcome selection
-
-- [x] **3.4 E-MOTIVE Checklist**
-  - `components/clinical/emotive-checklist.tsx`
-  - 6 interactive steps: Early Detection, Massage, Oxytocin, TXA, IV Fluids, Escalation
-  - 60-minute elapsed timer anchored to earliest step timestamp
-  - Accordion UX: one step expanded at a time with detail inputs (dose, volume, notes)
-  - Auto-timestamps on check, "Done" button when all complete → close case modal
-  - E-MOTIVE data persisted in `emotive_checklists` table (local + remote)
-
-- [x] **3.5 Vital Signs Recording**
-  - `app/(app)/clinical/record-vitals.tsx`
-  - Quick-entry pad for HR, BP, temperature, SpO2, respiratory rate
-  - Blood loss estimation with quick-add buttons and method selector (Visual/Drape/Weighed)
-  - Live Shock Index banner with 5-level severity
-  - Vitals prompt banner (`components/clinical/vitals-prompt-banner.tsx`) for timed reminders
-
-- [x] **3.6 Offline Case Management**
-  - Full case lifecycle in SQLite (native) and localStorage (web)
-  - Queue-based sync via `lib/sync-queue.ts`
-  - Context provider (`context/clinical.tsx`) managing all state and operations
-
-### Dependencies:
-- Block 2 complete (maternal profiles, vital signs, offline foundation) ✅
+- [x] **3.1 Clinical Tab & Case List** — Status filters, supervisor cross-unit view, pull-to-refresh
+- [x] **3.2 New Patient Form** — Obstetric data + 13 risk factor toggles + live risk banner
+- [x] **3.3 Patient Detail Screen** — Metrics cards, quick actions, case lifecycle management
+- [x] **3.4 E-MOTIVE Checklist** — 6 interactive steps, 60-min timer, accordion UX, dose fields
+- [x] **3.5 Vital Signs Recording** — Quick-entry pad, blood loss estimation, live shock index banner
+- [x] **3.6 Offline Case Management** — Full lifecycle in SQLite/localStorage, queue-based sync
 
 ---
 
-## Block 4: Timeline, Escalation & Reports - IN PROGRESS
+## Block 4: Timeline, Escalation & Bug Fixes — ✅ COMPLETE
 
-**Objective:** Implement the case timeline, emergency escalation, and case reporting.
+**Objective:** Case timeline, emergency escalation, and critical bug fixes.
 
 ### Tasks:
 
-- [ ] **4.1 Case Timeline View**
-  - Chronological event list per case (vitals, E-MOTIVE steps, status changes)
-  - Auto-logged entries from existing data
-  - Scrollable timeline UI with timestamps
-
-- [ ] **4.2 Emergency Contacts Table**
-  - Create migration: unit_id, facility_id, contact_type, name, phone, role
-  - Three tiers: unit contacts, facility contacts, external referrals
-
-- [ ] **4.3 One-Tap Escalation**
-  - Emergency button in clinical mode
-  - Triggers notification to Level 1 contacts (unit supervisor, senior midwife)
-  - Auto-escalate to Level 2 (facility) if no response
-  - Level 3: external referral contacts
-
-- [ ] **4.4 Case Reports**
-  - Auto-generated PPH case summary from interventions and vitals
-  - PDF export capability
-  - E-MOTIVE adherence metrics per case
-
-- [ ] **4.5 Audit Logging**
-  - `audit_logs` table: action, actor, target, timestamp, metadata
-  - Log all clinical actions, escalations, and case status changes
-  - Supervisor/admin accessible audit trail
-
-### Dependencies:
-- Block 3 complete (E-MOTIVE workflow, clinical data) ✅
+- [x] **4.1 Case Timeline View** — Chronological event feed with typed events (vitals, steps, status, escalation)
+- [x] **4.2 Emergency Contacts** — 3-tier contact directory with management screen
+- [x] **4.3 One-Tap Escalation** — Tiered calling (unit → facility → external), event logging
+- [x] **4.4 Diagnostics Phase** — Secondary PPH cause checklist (retained placenta, atony, rupture, etc.)
+- [x] **4.5 Case Summary** — Integrated overview with timeline, metrics, and outcome
+- [x] **4.6 Bug Fix: Logout** — `signOut()` now clears SQLite cache, SecureStore credentials, and Supabase session (even offline)
+- [x] **4.7 Bug Fix: Sync Queue** — Added table priority ordering (profiles first), deferred retry for FK dependencies, immediate processing on startup
 
 ---
 
-## Block 5: Analytics & Training - PLANNED
+## Block 5: Infrastructure & Dual Mode — 🔜 NEXT (Sprint 9)
 
-**Objective:** Provide performance insights and training capabilities.
+**Objective:** Install dependencies, set up dual clinical/simulation mode, create database migrations.
 
 ### Tasks:
 
-- [ ] **5.1 Case Reports**
-  - Individual PPH case summary report
-  - Auto-generated from interventions and vital signs timeline
-  - PDF export capability
-
-- [ ] **5.2 Unit Analytics**
-  - E-MOTIVE adherence rate per unit
-  - Average response times
-  - Case outcome statistics
-  - Trend analysis (weekly/monthly)
-
-- [ ] **5.3 Training Scenarios**
-  - Simulated PPH cases (no real patient data)
-  - Practice E-MOTIVE checklist
-  - Timed challenges
-
-- [ ] **5.4 Quizzes & Assessments**
-  - MCQ question bank
-  - Automated scoring
-  - Progress tracking per user
-
-- [ ] **5.5 Training Dashboard**
-  - Course completion status
-  - Quiz scores history
-  - Performance recommendations
+- [ ] **5.1 Install Dependencies** — `expo-av`, `expo-speech`, `expo-camera`, `expo-print`, `@react-native-voice/voice`
+- [ ] **5.2 Dual Mode Architecture** — `ModeProvider` context, training SQLite tables (`_training` suffix), mode toggle in clinical tab
+- [ ] **5.3 Database Migrations** — AI blood loss columns on `vital_signs`, `training_scenarios`, `training_sessions`, `training_videos` tables with RLS
+- [ ] **5.4 SQLite Training Tables** — 4 `_training` tables isolated from clinical data, no sync
 
 ### Dependencies:
-- Block 3 complete (E-MOTIVE workflow for scenario simulation)
-- Block 4 complete (audit data for analytics)
+- Block 4 complete ✅
+
+---
+
+## Block 6: Enhanced Clinical Alerts & PDF — Sprint 10
+
+**Objective:** Audio shock index alerts and PDF case report generation.
+
+### Tasks:
+
+- [ ] **6.1 Shock Index Audio Alerts** — `expo-av` alarm sounds for critical/emergency SI, persistent non-dismissible banner
+- [ ] **6.2 PDF Case Reports** — `expo-print` HTML→PDF generation, demographics/vitals/E-MOTIVE/outcome template, share/export
+
+### Dependencies:
+- Block 5 complete (expo-av, expo-print installed)
+
+---
+
+## Block 7: Voice Features — Sprint 11
+
+**Objective:** Hands-free vital entry and voice-guided clinical workflow.
+
+### Tasks:
+
+- [ ] **7.1 Speech-to-Text Vital Entry** — Hold-to-speak button per vital field, hybrid recognition (on-device offline, Whisper online)
+- [ ] **7.2 Text-to-Speech Guidance** — Voice-guided E-MOTIVE step readout via `expo-speech`, spoken timer alerts
+
+### Dependencies:
+- Block 5 complete (expo-speech, @react-native-voice/voice installed)
+
+---
+
+## Block 8: AI Blood Loss Estimation — Sprint 12
+
+**Objective:** Camera-based and vitals-based AI estimation of blood loss.
+
+### Tasks:
+
+- [ ] **8.1 Camera-Based Estimation** — Image capture → cloud CV API → estimated mL + confidence
+- [ ] **8.2 Vitals-Based ML** — On-device model using HR/BP/SI trends → offline estimate
+- [ ] **8.3 Combined UI** — Side-by-side comparison, clinician accept/override workflow
+
+### Dependencies:
+- Block 5 complete (expo-camera, DB schema with AI columns)
+
+---
+
+## Block 9: Training Scenarios & Scoring — Sprint 13
+
+**Objective:** Pre-built PPH simulation scenarios with auto-advancing vitals and performance scoring.
+
+### Tasks:
+
+- [ ] **9.1 Pre-Built Scenarios** — 5-10 scripted PPH cases with vital progressions and expected E-MOTIVE actions
+- [ ] **9.2 Scenario Engine** — Timer-driven vitals feed, action evaluation against expected timeline
+- [ ] **9.3 Scoring System** — Detection time, adherence %, escalation timeliness, grade (A-F) with feedback
+
+### Dependencies:
+- Block 5 complete (dual mode, training tables)
+
+---
+
+## Block 10: Training Videos & AI Scenarios — Sprint 14
+
+**Objective:** Video library and AI-generated scenario stub.
+
+### Tasks:
+
+- [ ] **10.1 Video Library** — Supports bundled (offline), Supabase Storage (stream/download), YouTube/external links
+- [ ] **10.2 Video Player** — `expo-av` player with download-for-offline, filtered by E-MOTIVE step
+- [ ] **10.3 Training Tab** — Dedicated bottom navigation tab for training mode
+- [ ] **10.4 AI Scenario Generator (Stub)** — Cloud API integration placeholder for dynamic scenario generation
+
+### Dependencies:
+- Block 5 complete (expo-av installed)
+- Block 9 complete (scenario format defined)
+
+---
+
+## Block 11: Polish & Deployment — Sprint 15
+
+**Objective:** Production readiness.
+
+### Tasks:
+
+- [ ] **11.1 QA & Performance** — Edge-case testing, offline/online stress testing, low-end device optimization
+- [ ] **11.2 Analytics Dashboard** — E-MOTIVE adherence, training completion rates, case volume statistics
+- [ ] **11.3 Localization** — Multi-language support (Hausa, Yoruba)
+- [ ] **11.4 Production Launch** — Supabase deployment, EAS build, app store submissions
+
+### Dependencies:
+- All blocks complete
 
 ---
 
 ## Block Summary
 
-| Block | Status | Phase | Sprints | Key Output |
-|-------|--------|-------|---------|------------|
-| 1. Organizational Hierarchy | Complete | Phase 1-2 | 0-4 | Roles, facilities, units, memberships |
-| 2. Clinical Schema | Complete | Phase 3 | 5-6 | Maternal profiles, vital signs, risk scoring |
-| 3. E-MOTIVE Workflow | Complete | Phase 4 | 7-8 | PPH cases, interventions, clinical mode |
-| 4. Escalation & Comms | 🏗️ In Progress | Phase 5 | 9 | Alerts, emergency contacts, audit |
-| 5. Analytics & Training | 🔲 Planned | Phase 6 | 10 | Reports, scenarios, quizzes |
+| Block | Status | Phase | Sprint | Key Output |
+|-------|--------|-------|--------|------------|
+| 1. Organizational Hierarchy | ✅ Complete | 1-2 | 0-4b | Roles, facilities, units, codes, dashboards |
+| 2. Clinical Schema & Offline | ✅ Complete | 3 | 5-6 | Profiles, vitals, risk scoring, sync queue |
+| 3. E-MOTIVE Workflow | ✅ Complete | 3 | 5-6 | 6-step bundle, shock index, blood loss |
+| 4. Timeline & Escalation | ✅ Complete | 4 | 7-8b | Timeline, escalation, diagnostics, bug fixes |
+| 5. Infrastructure & Dual Mode | 🔜 Next | 5 | 9 | Dependencies, dual mode, migrations |
+| 6. Alerts & PDF | 🔲 Planned | 5 | 10 | Audio alarms, PDF export |
+| 7. Voice Features | 🔲 Planned | 6 | 11 | STT vital entry, TTS guidance |
+| 8. AI Blood Loss | 🔲 Planned | 6 | 12 | Camera + vitals ML estimation |
+| 9. Training Scenarios | 🔲 Planned | 7 | 13 | Pre-built scenarios, scoring |
+| 10. Training Videos | 🔲 Planned | 7 | 14 | Video library, AI scenario stub |
+| 11. Polish & Launch | 🔲 Planned | 8 | 15 | QA, analytics, localization, production |
 
 ---
 
 ## Dependency Graph
 
 ```
-Block 1 (Auth & Hierarchy)
+Block 1 (Auth & Hierarchy) ✅
     ↓
-Block 2 (Clinical Schema & Offline)
+Block 2 (Clinical Schema & Offline) ✅
     ↓
-Block 3 (E-MOTIVE Workflow)
+Block 3 (E-MOTIVE Workflow) ✅
     ↓
-Block 4 (Escalation & Comms)
+Block 4 (Timeline & Escalation + Bug Fixes) ✅
     ↓
-Block 5 (Analytics & Training)
+Block 5 (Infrastructure & Dual Mode) ←── NEXT
+    ↓
+    ├── Block 6 (Alerts & PDF)
+    ├── Block 7 (Voice Features)
+    ├── Block 8 (AI Blood Loss)
+    ├── Block 9 (Training Scenarios)
+    └── Block 10 (Training Videos)
+            ↓
+        Block 11 (Polish & Launch)
 ```
 
-Each block builds on the database tables and services established in the previous block. Blocks cannot be parallelized without modification.
+Note: Blocks 6-10 all depend on Block 5 but can be developed in parallel once infrastructure is in place.

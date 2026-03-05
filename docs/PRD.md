@@ -72,10 +72,17 @@ A **trusted digital companion** for midwives ensuring timely, standardized, and 
 | FR-09 | One-tap emergency escalation | P0 |
 | FR-10 | SMS/in-app team alerts | P1 |
 | FR-11 | Automatic intervention logging | P0 |
-| FR-12 | PPH case report generation | P1 |
-| FR-13 | Simulated PPH scenarios | P1 |
-| FR-14 | Quizzes and assessments | P1 |
-| FR-15 | Training performance tracking | P2 |
+| FR-12 | PPH case report generation (PDF) | P1 |
+| FR-13 | Simulated PPH scenarios with auto-advancing vitals | P1 |
+| FR-14 | Training video library (bundled, streamed, external) | P1 |
+| FR-15 | Training performance scoring (grade A-F) | P1 |
+| FR-16 | Dual mode — clinical vs simulation toggle | P0 |
+| FR-17 | Speech-to-text vital sign entry (hybrid offline/online) | P1 |
+| FR-18 | Text-to-speech E-MOTIVE step guidance | P1 |
+| FR-19 | AI-assisted blood loss estimation (camera + vitals ML) | P1 |
+| FR-20 | Audio shock index alarms (configurable) | P0 |
+| FR-21 | AI-generated training scenarios (cloud API) | P2 |
+| FR-22 | Spoken timer alerts for E-MOTIVE bundle | P1 |
 
 ---
 
@@ -100,7 +107,7 @@ A **trusted digital companion** for midwives ensuring timely, standardized, and 
 │  React 19 (experimental React Compiler)                      │
 │  TypeScript 5.9 (strict mode)                                │
 │  Expo Router v6 (file-based routing, typed routes)          │
-│  State: React Context (4 providers)                          │
+│  State: React Context (6 providers)                          │
 │  Local: SQLite (expo-sqlite) + SecureStore + AsyncStorage   │
 └─────────────────────────────────────────────────────────────┘
                           │
@@ -144,3 +151,4 @@ A **trusted digital companion** for midwives ensuring timely, standardized, and 
 | 1.0 | 2026-01-26 | MotivAid Team |
 | 2.0 | 2026-02-17 | Initial implementation update |
 | 3.0 | 2026-02-27 | Phase 4 completion update |
+| 4.0 | 2026-03-05 | Phase 5-8 roadmap: AI, voice, training, dual mode |

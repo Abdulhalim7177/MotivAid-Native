@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-MotivAid is a mobile health (mHealth) app for midwives and frontline healthcare workers to detect and manage Postpartum Hemorrhage (PPH) using the WHO-endorsed E-MOTIVE clinical bundle. Currently in Phase 2 of 6 (see `docs/IMPLEMENTATION_ROADMAP.md` for the full plan).
+MotivAid is a mobile health (mHealth) app for midwives and frontline healthcare workers to detect and manage Postpartum Hemorrhage (PPH) using the WHO-endorsed E-MOTIVE clinical bundle. Currently in Phase 5 of 8 (see `docs/IMPLEMENTATION_ROADMAP.md` for the full plan).
 
 ## Tech Stack
 
@@ -14,6 +14,11 @@ MotivAid is a mobile health (mHealth) app for midwives and frontline healthcare 
 - **Supabase** for auth, PostgreSQL database, and file storage
 - **SQLite** (`expo-sqlite`) for offline data caching
 - **Expo SecureStore** for credential/session storage on native
+- **expo-av** for audio/video playback & recording (planned)
+- **expo-speech** for text-to-speech (planned)
+- **expo-camera** for AI blood loss capture (planned)
+- **expo-print** for PDF generation (planned)
+- **@react-native-voice/voice** for speech-to-text (planned)
 - New Architecture enabled (`newArchEnabled: true`)
 
 ## Commands
@@ -49,17 +54,19 @@ Route protection lives in `app/_layout.tsx` (`RootLayoutNav`): redirects unauthe
 
 Defined in `app/_layout.tsx`, order matters:
 ```
-AppThemeProvider → ToastProvider → AuthProvider → UnitProvider → RootLayoutNav
+AppThemeProvider → ToastProvider → AuthProvider → UnitProvider → ModeProvider → ClinicalProvider → RootLayoutNav
 ```
 
 ### State Management — React Context
 
-All state is managed via four context providers in `context/`:
+All state is managed via six context providers in `context/`:
 
 - **AuthContext** (`context/auth.tsx`): Session, user profile, online/offline/biometric sign-in, sign-out. This is the most complex context.
 - **ThemeContext** (`context/theme.tsx`): Light/dark/system theme, persisted to AsyncStorage.
 - **ToastContext** (`context/toast.tsx`): Animated toast notifications (success/error/info).
 - **UnitContext** (`context/unit.tsx`): Active facility unit selection, persisted to AsyncStorage.
+- **ModeContext** (`context/mode.tsx`): Clinical vs simulation mode toggle, persisted to AsyncStorage. (Planned)
+- **ClinicalContext** (`context/clinical.tsx`): Maternal profiles, vitals, E-MOTIVE, sync, timeline, contacts.
 
 ### Offline-First Authentication
 
@@ -74,7 +81,7 @@ The project uses file extension conventions for platform branching:
 - `.native.ts` — Native-only (SQLite, SecureStore, biometrics)
 - `.ts` / `.web.ts` — Web fallbacks (localStorage, no-ops)
 
-Key pairs: `lib/db.native.ts` / `lib/db.ts`, `lib/security.native.ts` / `lib/security.ts`, `hooks/use-color-scheme.ts` / `hooks/use-color-scheme.web.ts`
+Key pairs: `lib/db.native.ts` / `lib/db.ts`, `lib/clinical-db.native.ts` / `lib/clinical-db.ts`, `lib/security.native.ts` / `lib/security.ts`, `lib/training-db.native.ts` / `lib/training-db.ts` (planned), `hooks/use-color-scheme.ts` / `hooks/use-color-scheme.web.ts`
 
 ### Role-Based Dashboards
 
@@ -88,11 +95,15 @@ Roles are defined by the `user_role` PostgreSQL enum and assigned during registr
 
 ### Database (Supabase)
 
-Migrations live in `supabase/migrations/` and define:
+Migrations live in `supabase/migrations/` (14 files) and define:
 - `profiles` table with role enum, auto-created via trigger on `auth.users` INSERT
 - `facilities` and `units` tables for organizational hierarchy
 - `unit_memberships` for user-unit relationships (pending/approved/rejected status)
 - `facility_codes` for role-specific registration codes (unique code per facility+role)
+- `maternal_profiles`, `vital_signs`, `emotive_checklists` for clinical data
+- `emergency_contacts`, `case_events`, `audit_logs` for timeline and escalation
+- `sync_queue` for offline-first sync operations
+- Planned: `training_scenarios`, `training_sessions`, `training_videos` for Phase 7
 
 RLS is enabled on all tables. The `handle_new_user()` trigger maps registration codes to roles.
 

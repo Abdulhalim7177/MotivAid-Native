@@ -1,8 +1,8 @@
 import NetInfo from '@react-native-community/netinfo';
 import { Session, User } from '@supabase/supabase-js';
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { cacheProfile, getCachedProfile, getLatestCachedUser, initDatabase } from '../lib/db';
-import { authenticateBiometric, saveOfflineCredentials, verifyOfflineCredentials } from '../lib/security';
+import { cacheProfile, clearProfileCache, getCachedProfile, getLatestCachedUser, initDatabase } from '../lib/db';
+import { authenticateBiometric, deleteOfflineCredentials, saveOfflineCredentials, verifyOfflineCredentials } from '../lib/security';
 import { supabase } from '../lib/supabase';
 
 type Profile = {
@@ -217,10 +217,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signOut = async () => {
-    const netState = await NetInfo.fetch();
-    if (netState.isConnected) {
-      await supabase.auth.signOut();
-    }
+    // Clear all persistent state so cold start lands on login
+    await clearProfileCache();
+    await deleteOfflineCredentials();
+    // Always call signOut — clears SecureStore session tokens even if network request fails
+    try { await supabase.auth.signOut(); } catch { /* ignore network errors */ }
     setSession(null);
     setUser(null);
     setProfile(null);

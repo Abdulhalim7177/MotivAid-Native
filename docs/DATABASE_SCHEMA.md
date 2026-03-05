@@ -602,11 +602,84 @@ On native platforms, a separate clinical SQLite database (`motivaid_clinical.db`
 
 ---
 
-## Future Tables (Planned)
+## Planned Tables (Phase 5+)
 
-| Table | Phase | Purpose |
-|-------|-------|---------|
-| `emergency_contacts` | Phase 4 | Unit and facility emergency contacts |
-| `audit_logs` | Phase 4 | Action audit trail |
-| `training_sessions` | Phase 5 | Simulation session records |
-| `quiz_results` | Phase 5 | Training assessment results |
+### `training_scenarios`
+
+Pre-built and AI-generated PPH simulation scenarios.
+
+```sql
+CREATE TABLE public.training_scenarios (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title             TEXT NOT NULL,
+  description       TEXT,
+  difficulty        TEXT DEFAULT 'beginner', -- beginner, intermediate, advanced
+  scenario_data     JSONB NOT NULL,          -- scripted vital progressions
+  expected_actions  JSONB,                   -- correct E-MOTIVE steps and timing
+  created_at        TIMESTAMPTZ DEFAULT now(),
+  updated_at        TIMESTAMPTZ DEFAULT now()
+);
+```
+
+---
+
+### `training_sessions`
+
+User attempts at training scenarios with scores.
+
+```sql
+CREATE TABLE public.training_sessions (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id           UUID REFERENCES auth.users(id),
+  scenario_id       UUID REFERENCES public.training_scenarios(id),
+  score             JSONB,    -- { detection_time, adherence_pct, escalation_timeliness, grade }
+  started_at        TIMESTAMPTZ DEFAULT now(),
+  completed_at      TIMESTAMPTZ,
+  status            TEXT DEFAULT 'in_progress'
+);
+```
+
+---
+
+### `training_videos`
+
+Multimedia training content from multiple sources.
+
+```sql
+CREATE TABLE public.training_videos (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title             TEXT NOT NULL,
+  description       TEXT,
+  emotive_step      TEXT,           -- which E-MOTIVE step this demonstrates
+  source_type       TEXT NOT NULL,  -- 'bundled' | 'supabase' | 'youtube'
+  source_url        TEXT,           -- URL for supabase storage or youtube
+  asset_key         TEXT,           -- for bundled videos
+  duration_seconds  INTEGER,
+  thumbnail_url     TEXT,
+  sort_order        INTEGER DEFAULT 0,
+  created_at        TIMESTAMPTZ DEFAULT now()
+);
+```
+
+---
+
+### Planned `vital_signs` Columns (AI Blood Loss)
+
+```sql
+ALTER TABLE public.vital_signs ADD COLUMN blood_loss_ai_estimate INTEGER;
+ALTER TABLE public.vital_signs ADD COLUMN blood_loss_confidence REAL;
+ALTER TABLE public.vital_signs ADD COLUMN blood_loss_ai_method TEXT; -- 'camera' | 'vitals_ml' | 'combined'
+```
+
+---
+
+### SQLite Training Tables (Local Only — Never Synced)
+
+Training mode uses separate `_training` suffixed tables in SQLite to isolate simulation data:
+
+| Local Table | Purpose |
+|-------------|---------|
+| `maternal_profiles_training` | Simulated patient records (no `is_synced`/`remote_id`) |
+| `vital_signs_training` | Simulated vital signs with AI estimate fields |
+| `emotive_checklists_training` | Practice E-MOTIVE bundle tracking |
+| `case_events_training` | Simulation event timeline |

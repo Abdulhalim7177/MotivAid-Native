@@ -57,6 +57,11 @@ export const verifyOfflineCredentials = async (email: string, password: string) 
   return email.toLowerCase() === storedEmail && currentHash === storedHash;
 };
 
+export const deleteOfflineCredentials = async () => {
+  if (typeof localStorage === 'undefined') return;
+  localStorage.removeItem(OFFLINE_CRED_KEY);
+};
+
 export const getSavedEmail = async () => {
   if (typeof localStorage === 'undefined') return null;
 

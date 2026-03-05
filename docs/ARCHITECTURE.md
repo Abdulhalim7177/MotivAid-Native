@@ -12,7 +12,7 @@ MotivAid is built with **React Native** via **Expo SDK 54** (managed workflow) u
 |-------|------------|
 | Framework | React Native 0.81, React 19 (experimental React Compiler) |
 | Routing | Expo Router v6 (file-based, typed routes) |
-| State | React Context (5 providers) |
+| State | React Context (6 providers) |
 | Backend | Supabase (Auth, PostgreSQL, Storage) |
 | Local DB | SQLite via `expo-sqlite` |
 | Secure Storage | `expo-secure-store` (native), `localStorage` (web) |
@@ -116,8 +116,9 @@ AppThemeProvider           ← Theme preference (light/dark/system)
   └── ToastProvider        ← Animated toast notifications
     └── AuthProvider       ← Session, user profile, sign-in/out
       └── UnitProvider     ← Active facility unit selection
-        └── ClinicalProvider  ← Maternal profiles, vitals, E-MOTIVE, sync
-          └── RootLayoutNav   ← Route protection + navigation
+        └── ModeProvider   ← Clinical vs simulation mode (planned)
+          └── ClinicalProvider  ← Maternal profiles, vitals, E-MOTIVE, sync
+            └── RootLayoutNav   ← Route protection + navigation
 ```
 
 Each provider exposes a hook for consumption:
@@ -128,6 +129,7 @@ Each provider exposes a hook for consumption:
 | `ToastProvider` | `useToast()` | `showToast(message, type)` |
 | `AuthProvider` | `useAuth()` | `session`, `user`, `profile`, `signIn`, `signOut`, `signInBiometric` |
 | `UnitProvider` | `useUnits()` | `activeUnit`, `availableUnits`, `setActiveUnit`, `refreshUnits` |
+| `ModeProvider` | `useMode()` | `mode`, `isSimulation`, `setMode` |
 | `ClinicalProvider` | `useClinical()` | `profiles`, `vitals`, `emotiveChecklist`, `recordVitals`, `toggleEmotiveStep`, `createProfile`, `updateProfileStatus`, `syncNow` |
 
 ---
@@ -211,6 +213,7 @@ The project uses file extension conventions for platform branching:
 | `lib/db.native.ts` (SQLite caching) | `lib/db.ts` (no-op stubs) |
 | `lib/clinical-db.native.ts` (Clinical SQLite CRUD) | `lib/clinical-db.ts` (localStorage fallback) |
 | `lib/security.native.ts` (SecureStore + biometrics) | `lib/security.ts` (localStorage) |
+| `lib/training-db.native.ts` (Training SQLite CRUD) | `lib/training-db.ts` (localStorage fallback) |
 | `hooks/use-color-scheme.ts` | `hooks/use-color-scheme.web.ts` |
 | `components/ui/icon-symbol.ios.tsx` | `components/ui/icon-symbol.tsx` |
 
@@ -410,4 +413,13 @@ These are embedded at build time via the `EXPO_PUBLIC_` prefix convention.
 - Sync queue with retry logic for background data upload
 - Cross-platform compatibility (all Alert.alert calls replaced with Modal/Toast)
 
-**Next:** Phase 4 — Case Timeline, Alerts & Escalation
+**Phase 4 (Complete):** Case Timeline, Alerts & Escalation
+- Case timeline with chronological event feed
+- 3-tier emergency escalation with one-tap dialing
+- Emergency contacts management screen
+- Diagnostics phase checklist for secondary PPH causes
+- Case summary view with integrated timeline
+- Automated event logging for vitals, checklist, status changes
+- Bug fixes: Logout properly clears persistent state, sync queue processes with dependency ordering
+
+**Next:** Phase 5 — Infrastructure & Enhanced Clinical (dual mode, shock audio alerts, PDF export)

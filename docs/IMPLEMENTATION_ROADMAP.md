@@ -86,48 +86,95 @@ This roadmap provides a phased timeline for the development of MotivAid. Each ph
 
 ---
 
-## Phase 4: Case Timeline, Alerts & Escalation — PLANNED (Next)
+## Phase 4: Case Timeline, Alerts & Escalation — COMPLETE
 
 **Focus:** Communication, real-time alerts, and comprehensive case documentation.
 
 - **Sprint 7:**
   - **Timeline View:** Chronological event list for each case showing all vitals, interventions, and status changes
-  - **Alert Thresholds:** Configurable visual/haptic triggers for SI thresholds and blood loss levels
   - **Escalation System:** One-tap emergency contact with 3-level hierarchy (unit → facility → external referral)
-  - **Emergency Contacts Table:** Unit and facility emergency contacts
-- **Sprint 8:**
-  - **Case Reports:** Auto-generated PPH case summary from interventions and vitals timeline
-  - **Audit Logging:** Action logging table for accountability
-  - **E-MOTIVE Adherence Metrics:** Supervisor unit-wide adherence view
-  - **PDF Export:** Case report generation for audit
+  - **Emergency Contacts Table:** Unit and facility emergency contacts with management screen
+  - **Diagnostics Phase:** Secondary PPH cause checklist
+  - **Global Clinical Access:** Facility-wide staff visibility
+- **Sprint 8a:**
+  - **Case Summary:** Integrated overview with timeline, metrics, and clinical outcome
+  - **Enhanced RLS:** Unassigned staff clinical access policies
+  - **Automated Event Logging:** Vitals, checklist steps, and status change events
+- **Sprint 8b (Bug Fixes & Docs):**
+  - **Logout Fix:** Properly clears SQLite cache, SecureStore credentials, and Supabase session on sign-out
+  - **Sync Queue Fix:** Dependency-ordered processing (parent records first), immediate queue processing on startup, deferred retry for unresolved foreign keys
+  - **Documentation Update:** Full roadmap refresh for Phases 5-8
 
-**Goal:** Ensure rapid emergency response and comprehensive case documentation.
+**Result:** Rapid emergency response capability with tiered escalation, comprehensive case documentation via timeline, and reliable offline sync.
+
+**Migrations:**
+- `20260224000000_allow_unassigned_staff_clinical_access.sql`
+- `20260224000001_add_phone_to_profiles.sql`
+- `20260224000002_emergency_and_timeline.sql`
+- `20260225000000_support_users_without_facility.sql`
+- `20260226000000_add_diagnostics_to_emotive.sql`
+- `20260226000001_add_local_id_to_emergency.sql`
 
 ---
 
-## Phase 5: Training & Simulation — PLANNED
+## Phase 5: Infrastructure & Enhanced Clinical — IN PROGRESS
 
-**Focus:** Continuous learning and competency assessment.
+**Focus:** Dual-mode architecture, enhanced alerts, and PDF documentation.
 
-- **Sprint 9:**
-  - **Simulation:** Practice PPH scenarios for midwives to build confidence (no real patient data)
-  - **Quizzes:** MCQ knowledge assessments with automated scoring
-  - **Case Studies:** Interactive decision trees based on real-world PPH cases
-  - **Progress Tracking:** Performance history per user, completion rates
+- **Sprint 9 (Infrastructure & Dual Mode):**
+  - **New Dependencies:** `expo-av`, `expo-speech`, `expo-camera`, `expo-print`, `@react-native-voice/voice`
+  - **Dual Mode Architecture:** `ModeProvider` context for clinical vs simulation mode, training-specific SQLite tables (`_training` suffix) that never sync to Supabase
+  - **Database Migrations:** AI blood loss columns on `vital_signs`, `training_scenarios`, `training_sessions`, `training_videos` tables
+- **Sprint 10 (Shock Alerts & PDF):**
+  - **Audio Shock Alerts:** Configurable alarm sounds via `expo-av` for critical/emergency shock index levels, persistent non-dismissible banner for emergency SI
+  - **PDF Case Reports:** Auto-generated PPH case summary using `expo-print`, HTML template with demographics, vitals timeline, E-MOTIVE actions, and outcome, share/export functionality
 
-**Goal:** Build clinical confidence through safe, repeatable practice.
+**Goal:** Lay the infrastructure for training, AI, and voice features while enhancing clinical alerts and documentation.
 
 ---
 
-## Phase 6: Polish & Deployment — PLANNED
+## Phase 6: AI & Voice Features — PLANNED
+
+**Focus:** Hands-free clinical workflow and AI-assisted decision support.
+
+- **Sprint 11 (Voice Features):**
+  - **Speech-to-Text Vital Entry:** Hold-to-speak button for each vital sign field, hybrid recognition (on-device offline via `@react-native-voice/voice`, cloud via OpenAI Whisper when online)
+  - **Text-to-Speech Guidance:** Voice-guided E-MOTIVE step readout via `expo-speech`, spoken timer alerts ("1 minute remaining", "Bundle time exceeded")
+- **Sprint 12 (AI Blood Loss Estimation):**
+  - **Camera-Based Estimation:** Capture surgical drape/pad image → cloud CV model → estimated mL with confidence score
+  - **Vitals-Based ML:** On-device model using HR/BP/SI trends for offline blood loss estimation
+  - **Combined UI:** Side-by-side comparison of camera and vitals estimates, clinician accept/override workflow
+
+**Goal:** Enable hands-free clinical workflow and AI-assisted blood loss estimation for improved PPH detection accuracy.
+
+---
+
+## Phase 7: Training & Simulation — PLANNED
+
+**Focus:** Continuous learning, competency assessment, and multimedia training.
+
+- **Sprint 13 (Scenarios & Scoring):**
+  - **Pre-Built Scenarios:** 5-10 scripted PPH cases with auto-advancing vital progressions and expected E-MOTIVE actions
+  - **Scenario Engine:** Timer-driven vitals feed, action evaluation against expected timeline
+  - **Scoring System:** Detection time, protocol adherence %, escalation timeliness, overall grade (A-F) with feedback
+- **Sprint 14 (Videos & AI Scenarios):**
+  - **Video Library:** Support for bundled (offline), Supabase Storage (stream/download), and YouTube/external links, filtered by E-MOTIVE step
+  - **AI-Generated Scenarios (Stub):** Cloud API integration for dynamic patient scenario generation
+  - **Training Tab:** Dedicated bottom navigation tab for training mode
+
+**Goal:** Build clinical confidence through safe, repeatable practice with multimedia learning and performance tracking.
+
+---
+
+## Phase 8: Polish & Deployment — PLANNED
 
 **Focus:** Production readiness.
 
-- **Sprint 10:**
-  - **QA:** Edge-case testing, performance optimization on low-end devices
-  - **Analytics Dashboard:** Supervisor/admin aggregated metrics view
+- **Sprint 15:**
+  - **QA:** Edge-case testing, performance optimization on low-end devices, offline/online transition stress testing
+  - **Analytics Dashboard:** Supervisor E-MOTIVE adherence metrics, training completion rates, case volume statistics
   - **Multi-Language:** Localization support (Hausa, Yoruba)
-  - **Launch:** Production Supabase deployment and app store submissions
+  - **Launch:** Production Supabase deployment, EAS build configuration, app store submissions (Google Play, App Store)
 
 **Goal:** A polished, life-saving clinical tool ready for real-world deployment.
 
@@ -140,6 +187,8 @@ This roadmap provides a phased timeline for the development of MotivAid. Each ph
 | 1. Security & Identity | 0–2 | ✅ Complete | Auth, offline sign-in, biometrics, theming |
 | 2. Facility & Unit Hierarchy | 3–4b | ✅ Complete | Roles, facilities CRUD, units CRUD, codes, dashboards, activation |
 | 3. Risk Assessment & Clinical Mode | 5–6 | ✅ Complete | Maternal profiles, vital signs, risk scoring, E-MOTIVE checklist, shock index, sync queue, offline clinical data |
-| 4. Timeline, Alerts & Escalation | 7–8 | 🏗️ In Progress | Case timeline, emergency contacts, tiered escalation, audit logs |
-| 5. Training & Simulation | 9 | 🔲 Planned | PPH scenarios, quizzes, case studies, progress tracking |
-| 6. Polish & Deployment | 10 | 🔲 Planned | QA, analytics, localization, production launch |
+| 4. Timeline, Alerts & Escalation | 7–8b | ✅ Complete | Case timeline, emergency contacts, tiered escalation, case summary, bug fixes |
+| 5. Infrastructure & Enhanced Clinical | 9–10 | 🏗️ In Progress | Dual mode, dependencies, shock audio alerts, PDF export |
+| 6. AI & Voice Features | 11–12 | 🔲 Planned | STT vital entry, TTS guidance, AI blood loss estimation |
+| 7. Training & Simulation | 13–14 | 🔲 Planned | PPH scenarios, scoring, video library, AI scenarios |
+| 8. Polish & Deployment | 15 | 🔲 Planned | QA, analytics, localization, production launch |

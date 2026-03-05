@@ -55,6 +55,14 @@ export const verifyOfflineCredentials = async (email: string, password: string) 
   }
 };
 
+export const deleteOfflineCredentials = async () => {
+  try {
+    await SecureStore.deleteItemAsync(OFFLINE_CRED_KEY);
+  } catch {
+    // Silently fail if key doesn't exist
+  }
+};
+
 export const getSavedEmail = async () => {
   try {
     const stored = await SecureStore.getItemAsync(OFFLINE_CRED_KEY);

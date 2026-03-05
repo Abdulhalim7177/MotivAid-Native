@@ -234,29 +234,104 @@ graph LR
 
 ---
 
-## 7. Training Module (Planned — Phase 6)
+## 7. Training Module (Planned — Phase 7)
+
+**Location:** `app/(app)/training/`, `lib/training/`, `context/mode.tsx`
 
 ### Features
 
 | Feature | Description | Priority | Status |
 |---------|-------------|----------|--------|
-| Scenarios | Simulated PPH cases | P1 | Planned |
-| Quizzes | MCQ assessments | P1 | Planned |
-| Case Studies | Interactive decision trees | P1 | Planned |
-| Progress Tracking | Performance history | P2 | Planned |
+| Dual Mode Toggle | Switch between clinical and simulation mode | P0 | Planned |
+| Pre-Built Scenarios | 5-10 scripted PPH cases with auto-advancing vitals | P0 | Planned |
+| Scenario Engine | Timer-driven vitals feed, action evaluation | P0 | Planned |
+| Scoring System | Detection time, adherence %, escalation timeliness, grade (A-F) | P1 | Planned |
+| Video Library (Bundled) | Offline E-MOTIVE demonstration videos bundled with app | P1 | Planned |
+| Video Library (Streamed) | On-demand videos from Supabase Storage | P1 | Planned |
+| Video Library (External) | YouTube/external training video links | P2 | Planned |
+| AI-Generated Scenarios | Cloud API for dynamic patient scenario generation | P2 | Planned |
+
+### Screens
+
+| Screen | File | Purpose |
+|--------|------|---------|
+| Scenarios | `app/(app)/training/scenarios.tsx` | Scenario list with difficulty badges |
+| Scenario Player | `app/(app)/training/scenario-player.tsx` | Active simulation with auto-advancing vitals |
+| Score Summary | `app/(app)/training/score-summary.tsx` | Post-scenario results with grade breakdown |
+| Videos | `app/(app)/training/videos.tsx` | Video library grid with E-MOTIVE step filter |
+| Video Player | `app/(app)/training/video-player.tsx` | Full-screen video player (all 3 sources) |
+
+### Key Components
+
+- `ModeProvider` (`context/mode.tsx`) — Clinical vs simulation mode toggle, persisted to AsyncStorage
+- `ScoreCard` (`components/training/score-card.tsx`) — Reusable score display card
+
+### Training Logic Libraries
+
+| Library | File | Purpose |
+|---------|------|---------|
+| Scenarios | `lib/training/scenarios.ts` | Pre-built PPH scenario definitions |
+| Scenario Engine | `lib/training/scenario-engine.ts` | Timer-driven vitals simulation |
+| Scoring | `lib/training/scoring.ts` | Performance evaluation algorithm |
+| Video Cache | `lib/training/video-cache.ts` | Download and cache videos offline |
+| AI Generator | `lib/training/ai-scenario-generator.ts` | Cloud API for dynamic scenarios (stub) |
 
 ---
 
-## 8. Reports Module (Planned — Phase 5)
+## 8. AI & Voice Module (Planned — Phase 6)
+
+**Location:** `lib/ai/`, `lib/voice/`, `components/clinical/voice-input-button.tsx`
 
 ### Features
 
 | Feature | Description | Priority | Status |
 |---------|-------------|----------|--------|
-| Case Reports | Individual PPH case summaries | P1 | Planned |
+| Camera Blood Loss Estimation | Capture surgical drape image → cloud CV → estimated mL | P1 | Planned |
+| Vitals-Based ML Estimation | On-device model using HR/BP/SI trends → offline estimate | P1 | Planned |
+| Combined AI Estimate | Weighted camera + vitals with clinician override | P1 | Planned |
+| Speech-to-Text Vitals | Hold-to-speak button for vital sign entry | P1 | Planned |
+| Text-to-Speech Guidance | Voice-guided E-MOTIVE step readout | P1 | Planned |
+| Spoken Timer Alerts | "1 minute remaining", "Bundle exceeded" | P1 | Planned |
+| Shock Index Audio Alarms | Configurable audio alarm for critical SI levels | P0 | Planned |
+
+### Key Components
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| `VoiceInputButton` | `components/clinical/voice-input-button.tsx` | Hold-to-speak with waveform animation |
+| `ShockAlertBanner` | `components/clinical/shock-alert-banner.tsx` | Persistent non-dismissible emergency banner |
+
+### AI & Voice Libraries
+
+| Library | File | Purpose |
+|---------|------|---------|
+| Camera Estimation | `lib/ai/blood-loss-camera.ts` | Image → cloud CV API → mL estimate |
+| Vitals ML | `lib/ai/blood-loss-vitals.ts` | On-device model for offline estimation |
+| Combined | `lib/ai/blood-loss-combined.ts` | Weighted combination of estimates |
+| STT | `lib/voice/speech-to-text.ts` | Hybrid: on-device offline, Whisper online |
+| TTS | `lib/voice/text-to-speech.ts` | expo-speech wrapper for clinical guidance |
+
+---
+
+## 9. Reports Module (Planned — Phase 5)
+
+**Location:** `lib/pdf/`, `app/(app)/clinical/case-summary.tsx`
+
+### Features
+
+| Feature | Description | Priority | Status |
+|---------|-------------|----------|--------|
+| PDF Case Reports | Auto-generated PPH case summary via expo-print | P1 | Planned |
 | Unit Reports | Aggregated metrics per unit | P1 | Planned |
 | E-MOTIVE Adherence | Compliance tracking | P1 | Planned |
-| Export | PDF/CSV generation | P2 | Planned |
+| Share/Export | PDF share via system share sheet | P1 | Planned |
+
+### Report Libraries
+
+| Library | File | Purpose |
+|---------|------|---------|
+| Report Generator | `lib/pdf/case-report-generator.ts` | Builds HTML from case data |
+| Report Template | `lib/pdf/report-template.ts` | HTML template for PDF rendering |
 
 ---
 
@@ -301,6 +376,7 @@ graph LR
 |----------|------|----------------|
 | `AuthProvider` | `context/auth.tsx` | Session, profile, sign-in/out |
 | `ClinicalProvider` | `context/clinical.tsx` | Maternal profiles, vitals, E-MOTIVE, sync |
+| `ModeProvider` | `context/mode.tsx` | Clinical vs simulation mode toggle (Planned) |
 | `ThemeProvider` | `context/theme.tsx` | Light/dark/system theme |
 | `ToastProvider` | `context/toast.tsx` | Animated notifications |
 | `UnitProvider` | `context/unit.tsx` | Active unit selection |

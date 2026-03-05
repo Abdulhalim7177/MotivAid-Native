@@ -44,6 +44,36 @@ export async function queueOperation(
 
 // ── Process Pending Queue ────────────────────────────────────
 
+/** Tables that must sync before their dependents */
+const TABLE_PRIORITY: Record<string, number> = {
+    maternal_profiles: 0,
+    vital_signs: 1,
+    emotive_checklists: 1,
+    case_events: 1,
+    emergency_contacts: 1,
+};
+
+async function syncOneItem(item: any): Promise<string | null> {
+    const payload = JSON.parse(item.payload);
+    let remoteId: string | null = null;
+
+    switch (item.operation) {
+        case 'insert':
+            remoteId = await syncInsert(item.table_name, item.record_id, payload);
+            break;
+        case 'update':
+            await syncUpdate(item.table_name, payload);
+            await markRecordSynced(item.table_name, item.record_id, payload.remote_id || payload.id || item.record_id);
+            break;
+        case 'delete':
+            await syncDelete(item.table_name, payload.id || item.record_id);
+            await markRecordSynced(item.table_name, item.record_id, payload.id || item.record_id);
+            break;
+    }
+
+    return remoteId;
+}
+
 export async function processQueue(): Promise<{
     synced: number;
     failed: number;
@@ -52,36 +82,47 @@ export async function processQueue(): Promise<{
     let synced = 0;
     let failed = 0;
 
+    // Sort by table priority — parent records (profiles) sync before dependents (vitals, events)
+    pendingItems.sort((a: any, b: any) =>
+        (TABLE_PRIORITY[a.table_name] ?? 99) - (TABLE_PRIORITY[b.table_name] ?? 99)
+    );
+
+    const deferred: typeof pendingItems = [];
+
     for (const item of pendingItems) {
         try {
             await updateSyncItemStatus(item.id, 'syncing');
-
-            const payload = JSON.parse(item.payload);
-            let remoteId: string | null = null;
-
-            switch (item.operation) {
-                case 'insert':
-                    remoteId = await syncInsert(item.table_name, item.record_id, payload);
-                    break;
-                case 'update':
-                    await syncUpdate(item.table_name, payload);
-                    // For update, the record_id is already the remote ID (or local ID if mapped)
-                    await markRecordSynced(item.table_name, item.record_id, payload.remote_id || payload.id || item.record_id);
-                    break;
-                case 'delete':
-                    await syncDelete(item.table_name, payload.id || item.record_id);
-                    // For delete, trigger markRecordSynced to clean up local storage
-                    await markRecordSynced(item.table_name, item.record_id, payload.id || item.record_id);
-                    break;
-            }
-
+            const remoteId = await syncOneItem(item);
             await updateSyncItemStatus(item.id, 'synced');
-
-            // Mark the local record as synced
             if (remoteId) {
                 await markRecordSynced(item.table_name, item.record_id, remoteId);
             }
+            synced++;
+        } catch (error: any) {
+            if (error?.message?.includes('not yet synced')) {
+                // Parent hasn't synced yet — defer for second pass instead of failing
+                await updateSyncItemStatus(item.id, 'pending');
+                deferred.push(item);
+            } else {
+                await updateSyncItemStatus(
+                    item.id,
+                    'failed',
+                    error?.message ?? 'Unknown sync error'
+                );
+                failed++;
+            }
+        }
+    }
 
+    // Second pass: retry deferred items (parent should be synced now)
+    for (const item of deferred) {
+        try {
+            await updateSyncItemStatus(item.id, 'syncing');
+            const remoteId = await syncOneItem(item);
+            await updateSyncItemStatus(item.id, 'synced');
+            if (remoteId) {
+                await markRecordSynced(item.table_name, item.record_id, remoteId);
+            }
             synced++;
         } catch (error: any) {
             await updateSyncItemStatus(
@@ -224,6 +265,15 @@ export function startSyncListener(): void {
             if (result.failed > 0) {
                 console.warn(`[SyncQueue] Failed to sync ${result.failed} items`);
             }
+        }
+    });
+
+    // Process any pending items immediately if already online
+    NetInfo.fetch().then(state => {
+        if (state.isConnected) {
+            processQueue().catch(err =>
+                console.warn('[SyncQueue] Initial queue processing failed:', err)
+            );
         }
     });
 }
