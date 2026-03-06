@@ -55,6 +55,9 @@ export interface LocalVitalSign {
     shock_index?: number;
     estimated_blood_loss: number;
     blood_loss_method?: string;
+    blood_loss_ai_estimate?: number;
+    blood_loss_confidence?: number;
+    blood_loss_ai_method?: string;
     is_synced: boolean;
     recorded_at: string;
     [key: string]: any;

@@ -122,6 +122,19 @@ export function calculateShockIndex(
     };
 }
 
+// ── Audio Alarm ─────────────────────────────────────────────
+
+export async function triggerShockAlarm(level: ShockLevel): Promise<void> {
+    const { playAlarm, stopAlarm } = await import('@/lib/audio/shock-alarm');
+    if (level === 'emergency') {
+        await playAlarm('emergency');
+    } else if (level === 'critical') {
+        await playAlarm('critical');
+    } else {
+        await stopAlarm();
+    }
+}
+
 // ── Haptic Feedback ──────────────────────────────────────────
 
 export function triggerShockHaptic(level: ShockLevel): void {

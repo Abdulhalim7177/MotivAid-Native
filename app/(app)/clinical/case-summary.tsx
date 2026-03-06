@@ -12,7 +12,9 @@
 
 import { Colors, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 import { useClinical } from '@/context/clinical';
+import { useToast } from '@/context/toast';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { printCaseReport, shareCaseReport } from '@/lib/pdf/case-report';
 import { RISK_COLORS, RISK_LABELS, RiskLevel } from '@/lib/risk-calculator';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
@@ -52,6 +54,7 @@ export default function CaseSummaryScreen() {
     const { localId } = useLocalSearchParams<{ localId: string }>();
     const colorScheme = useColorScheme();
     const colors = Colors[colorScheme ?? 'light'];
+    const { showToast } = useToast();
     const {
         profiles,
         vitalSigns,
@@ -91,6 +94,22 @@ export default function CaseSummaryScreen() {
     }
 
     const riskColors = RISK_COLORS[profile.risk_level as RiskLevel] ?? RISK_COLORS.low;
+
+    const handlePrintPDF = async () => {
+        try {
+            await printCaseReport({ profile, vitalSigns, emotiveChecklist, caseEvents });
+        } catch {
+            showToast('Failed to generate PDF', 'error');
+        }
+    };
+
+    const handleSharePDF = async () => {
+        try {
+            await shareCaseReport({ profile, vitalSigns, emotiveChecklist, caseEvents });
+        } catch {
+            showToast('Failed to share report', 'error');
+        }
+    };
 
     // Compute elapsed from first E-MOTIVE step to last
     const emotiveFirstTime = emotiveChecklist
@@ -132,10 +151,18 @@ export default function CaseSummaryScreen() {
                         {profile.patient_id || 'Patient'} · Age {profile.age}
                     </Text>
                 </View>
-                <View style={[styles.statusPill, { backgroundColor: riskColors.border + '20' }]}>
-                    <Text style={[styles.statusPillText, { color: riskColors.text }]}>
-                        {profile.status.replace('_', ' ')}
-                    </Text>
+                <View style={styles.headerActions}>
+                    <TouchableOpacity onPress={handlePrintPDF} style={styles.headerActionButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <Ionicons name="document-text-outline" size={20} color={colors.primary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={handleSharePDF} style={styles.headerActionButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <Ionicons name="share-outline" size={20} color={colors.primary} />
+                    </TouchableOpacity>
+                    <View style={[styles.statusPill, { backgroundColor: riskColors.border + '20' }]}>
+                        <Text style={[styles.statusPillText, { color: riskColors.text }]}>
+                            {profile.status.replace('_', ' ')}
+                        </Text>
+                    </View>
                 </View>
             </View>
 
@@ -399,6 +426,14 @@ const styles = StyleSheet.create({
     headerCenter: { flex: 1 },
     headerTitle: { ...Typography.headingSm },
     headerSubtitle: { ...Typography.bodySm },
+    headerActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.sm,
+    },
+    headerActionButton: {
+        padding: Spacing.xs,
+    },
     statusPill: {
         paddingHorizontal: Spacing.sm,
         paddingVertical: 2,

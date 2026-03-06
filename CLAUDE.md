@@ -18,7 +18,7 @@ MotivAid is a mobile health (mHealth) app for midwives and frontline healthcare 
 - **expo-speech** for text-to-speech (planned)
 - **expo-camera** for AI blood loss capture (planned)
 - **expo-print** for PDF generation (planned)
-- **@react-native-voice/voice** for speech-to-text (planned)
+- **expo-speech-recognition** for speech-to-text (planned)
 - New Architecture enabled (`newArchEnabled: true`)
 
 ## Commands

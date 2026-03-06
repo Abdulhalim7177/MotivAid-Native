@@ -9,11 +9,12 @@
  * - Haptic feedback on critical values
  */
 
+import { ShockAlarmBanner } from '@/components/clinical/ShockAlarmBanner';
 import { Colors, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 import { useClinical } from '@/context/clinical';
 import { useToast } from '@/context/toast';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { ShockResult, assessBloodLoss, calculateShockIndex, triggerShockHaptic } from '@/lib/shock-index';
+import { ShockResult, assessBloodLoss, calculateShockIndex, triggerShockAlarm, triggerShockHaptic } from '@/lib/shock-index';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -41,7 +42,7 @@ export default function RecordVitalsScreen() {
     const { localId } = useLocalSearchParams<{ localId: string }>();
     const colorScheme = useColorScheme();
     const colors = Colors[colorScheme ?? 'light'];
-    const { recordVitals, profiles, emotiveChecklist, startEmotiveBundle } = useClinical();
+    const { recordVitals, profiles, emotiveChecklist, startEmotiveBundle, alarmMuted, toggleAlarmMute } = useClinical();
     const { showToast } = useToast();
 
     const profile = profiles.find(p => p.local_id === localId);
@@ -70,9 +71,10 @@ export default function RecordVitalsScreen() {
         if (hr > 0 && sbp > 0) {
             const result = calculateShockIndex(hr, sbp);
 
-            // Trigger haptic on significant level changes
+            // Trigger haptic + audio on significant level changes
             if (result.level === 'critical' || result.level === 'emergency') {
                 triggerShockHaptic(result.level);
+                triggerShockAlarm(result.level);
                 pulseScale.value = withRepeat(
                     withSequence(
                         withTiming(1.05, { duration: 500 }),
@@ -83,6 +85,7 @@ export default function RecordVitalsScreen() {
                 );
             } else {
                 pulseScale.value = 1;
+                triggerShockAlarm(result.level); // stops alarm for non-critical
             }
 
             return result;
@@ -171,6 +174,16 @@ export default function RecordVitalsScreen() {
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
                 >
+                    {/* Alarm Banner for Critical/Emergency */}
+                    {shockResult && (shockResult.level === 'critical' || shockResult.level === 'emergency') && (
+                        <ShockAlarmBanner
+                            shockLevel={shockResult.level}
+                            shockValue={shockResult.value}
+                            isMuted={alarmMuted}
+                            onMuteToggle={toggleAlarmMute}
+                        />
+                    )}
+
                     {/* Live Shock Index Banner */}
                     {shockResult && (
                         <Animated.View

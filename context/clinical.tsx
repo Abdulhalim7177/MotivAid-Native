@@ -31,13 +31,28 @@ import {
     updateEmotiveStep,
     updateMaternalProfileStatus
 } from '@/lib/clinical-db';
+import {
+    clearAllTrainingData,
+    deleteTrainingProfile,
+    getTrainingCaseEvents,
+    getTrainingChecklist,
+    getTrainingProfile,
+    getTrainingProfiles,
+    getTrainingVitals,
+    saveTrainingCaseEvent,
+    saveTrainingChecklist,
+    saveTrainingProfile,
+    saveTrainingVitals,
+} from '@/lib/training-db';
+import { initAlarmSounds, isAlarmMuted, releaseAlarmSounds, setAlarmMuted } from '@/lib/audio/shock-alarm';
 import { calculateRisk, MaternalRiskInput, RiskResult } from '@/lib/risk-calculator';
-import { calculateShockIndex, ShockResult } from '@/lib/shock-index';
+import { calculateShockIndex, ShockResult, triggerShockAlarm } from '@/lib/shock-index';
 import { supabase } from '@/lib/supabase';
-import { generateUUID, processQueue, queueOperation, startSyncListener, stopSyncListener } from '@/lib/sync-queue';
+import { generateUUID, processQueue, pullFromRemote, queueOperation, startSyncListener, stopSyncListener } from '@/lib/sync-queue';
 import NetInfo from '@react-native-community/netinfo';
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useAuth } from './auth';
+import { useMode } from './mode';
 import { useUnits } from './unit';
 
 // ── Types ────────────────────────────────────────────────────
@@ -74,6 +89,7 @@ type ClinicalContextType = {
     fetchAllFacilityProfiles: () => Promise<void>;
     refreshVitals: (profileLocalId: string) => Promise<void>;
     syncNow: () => Promise<void>;
+    lastSyncResult: { pushed: number; pulled: number; errors: number } | null;
 
     // E-MOTIVE checklist
     emotiveChecklist: LocalEmotiveChecklist | null;
@@ -98,6 +114,16 @@ type ClinicalContextType = {
     isVitalsPromptDue: boolean;
     dismissVitalsPrompt: () => void;
     lastVitalsTime: Date | null;
+
+    // Alarm
+    alarmActive: boolean;
+    alarmMuted: boolean;
+    toggleAlarmMute: () => Promise<void>;
+
+    // Training / simulation
+    isSimulation: boolean;
+    clearTrainingData: () => Promise<void>;
+    deleteProfile: (localId: string) => Promise<void>;
 };
 
 export interface CreateProfileInput {
@@ -131,6 +157,7 @@ const ClinicalContext = createContext<ClinicalContextType | undefined>(undefined
 export const ClinicalProvider = ({ children }: { children: React.ReactNode }) => {
     const { user, profile: authProfile } = useAuth();
     const { activeUnit } = useUnits();
+    const { isSimulation } = useMode();
 
     // State
     const [profiles, setProfiles] = useState<MaternalProfile[]>([]);
@@ -139,6 +166,7 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
     const [vitalSigns, setVitalSigns] = useState<VitalSign[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
+    const [lastSyncResult, setLastSyncResult] = useState<{ pushed: number; pulled: number; errors: number } | null>(null);
 
     // E-MOTIVE checklist state
     const [emotiveChecklist, setEmotiveChecklist] = useState<LocalEmotiveChecklist | null>(null);
@@ -146,6 +174,10 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
     // Timeline & Escalation state
     const [caseEvents, setCaseEvents] = useState<LocalCaseEvent[]>([]);
     const [emergencyContacts, setEmergencyContacts] = useState<LocalEmergencyContact[]>([]);
+
+    // Alarm state
+    const [alarmActive, setAlarmActive] = useState(false);
+    const [alarmMuted, setAlarmMutedState] = useState(false);
 
     // Auto-prompt state
     const [vitalsPromptInterval, setVitalsPromptInterval] = useState(15); // minutes
@@ -159,6 +191,19 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
         setIsLoading(true);
         try {
             await initClinicalDatabase();
+
+            // ── Simulation mode — read from training tables only ──
+            if (isSimulation) {
+                const trainingProfiles = await getTrainingProfiles();
+                const enriched = trainingProfiles.map(p => ({
+                    ...p,
+                    riskResult: calculateRiskFromProfile(p),
+                }));
+                setProfiles(enriched);
+                setIsLoading(false);
+                return;
+            }
+
             const isSupervisor = authProfile?.role === 'supervisor' || authProfile?.role === 'admin';
             const isStaffRole = ['midwife', 'nurse', 'student'].includes(authProfile?.role || '');
             const isNormalUser = !authProfile?.role || authProfile.role === 'user';
@@ -220,7 +265,7 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
         } finally {
             setIsLoading(false);
         }
-    }, [activeUnit, authProfile?.role, authProfile?.facility_id, user?.id]);
+    }, [activeUnit, authProfile?.role, authProfile?.facility_id, user?.id, isSimulation]);
 
     const fetchAllFacilityProfiles = useCallback(async () => {
         if (!authProfile?.facility_id) return;
@@ -296,21 +341,28 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
             updated_at: now,
         };
 
-        await saveMaternalProfile(profile);
-        await queueOperation('maternal_profiles', localId, 'insert', profile);
+        if (isSimulation) {
+            // Training mode — save to training tables, no sync
+            const { is_synced: _, ...trainingProfile } = profile;
+            await saveTrainingProfile(trainingProfile);
+        } else {
+            await saveMaternalProfile(profile);
+            await queueOperation('maternal_profiles', localId, 'insert', profile);
+        }
 
         // Debug: Log what was actually saved
         console.log('DEBUG - Profile saved:', {
             localId: profile.local_id,
             createdBy: profile.created_by,
             facilityId: profile.facility_id,
-            unitId: profile.unit_id
+            unitId: profile.unit_id,
+            mode: isSimulation ? 'simulation' : 'clinical',
         });
 
         await refreshProfiles();
 
         return localId;
-    }, [activeUnit, authProfile?.facility_id, user, refreshProfiles]);
+    }, [activeUnit, authProfile?.facility_id, user, refreshProfiles, isSimulation]);
 
     const updateProfileStatus = useCallback(async (
         localId: string,
@@ -328,7 +380,21 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
 
         const oldStatus = oldProfile?.status;
 
-        await updateMaternalProfileStatus(localId, status, outcome);
+        if (isSimulation) {
+            // Training mode — update training profile directly
+            const existing = await getTrainingProfile(localId);
+            if (existing) {
+                const { is_synced: _, ...rest } = existing;
+                await saveTrainingProfile({
+                    ...rest,
+                    status,
+                    outcome: outcome ?? rest.outcome,
+                    updated_at: new Date().toISOString(),
+                });
+            }
+        } else {
+            await updateMaternalProfileStatus(localId, status, outcome);
+        }
 
         // Auto-log status change event
         if (oldStatus !== status) {
@@ -341,32 +407,46 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
             });
         }
 
-        try {
+        if (!isSimulation) {
+            try {
+                const updated = await getMaternalProfile(localId);
+                if (updated) {
+                    await queueOperation('maternal_profiles', localId, 'update', updated);
+                }
+            } catch (e) {
+                console.warn('[Clinical] Status sync queued but may retry:', e);
+            }
+        }
+        await refreshProfiles();
+    }, [refreshProfiles, isSimulation]);
+
+    const updateDeliveryTimeCallback = useCallback(async (localId: string, deliveryTime: string) => {
+        if (isSimulation) {
+            const existing = await getTrainingProfile(localId);
+            if (existing) {
+                const { is_synced: _, ...rest } = existing;
+                await saveTrainingProfile({ ...rest, delivery_time: deliveryTime, updated_at: new Date().toISOString() });
+            }
+        } else {
+            await updateDeliveryTime(localId, deliveryTime);
             const updated = await getMaternalProfile(localId);
             if (updated) {
                 await queueOperation('maternal_profiles', localId, 'update', updated);
             }
-        } catch (e) {
-            // Sync may fail if profile not yet synced — that's OK,
-            // it will sync when the insert completes first.
-            console.warn('[Clinical] Status sync queued but may retry:', e);
         }
         await refreshProfiles();
-    }, [refreshProfiles]);
-
-    const updateDeliveryTimeCallback = useCallback(async (localId: string, deliveryTime: string) => {
-        await updateDeliveryTime(localId, deliveryTime);
-        const updated = await getMaternalProfile(localId);
-        if (updated) {
-            await queueOperation('maternal_profiles', localId, 'update', updated);
-        }
-        await refreshProfiles();
-    }, [refreshProfiles]);
+    }, [refreshProfiles, isSimulation]);
 
     // ── Timeline & Escalation Operations ────────────────────
 
     const refreshCaseEvents = useCallback(async (profileLocalId: string) => {
         try {
+            if (isSimulation) {
+                const events = await getTrainingCaseEvents(profileLocalId);
+                setCaseEvents(events);
+                return;
+            }
+
             // First try local
             const local = await getCaseEvents(profileLocalId);
             setCaseEvents(local);
@@ -397,7 +477,7 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
         } catch (error) {
             console.error('Error refreshing case events:', error);
         }
-    }, []);
+    }, [isSimulation]);
 
     const addCaseEvent = useCallback(async (
         eventInput: Omit<LocalCaseEvent, 'local_id' | 'is_synced' | 'occurred_at'>
@@ -424,10 +504,15 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
             is_synced: false,
         };
 
-        await saveCaseEvent(event);
-        await queueOperation('case_events', localId, 'insert', event);
+        if (isSimulation) {
+            const { is_synced: _, ...trainingEvent } = event;
+            await saveTrainingCaseEvent(trainingEvent);
+        } else {
+            await saveCaseEvent(event);
+            await queueOperation('case_events', localId, 'insert', event);
+        }
         await refreshCaseEvents(eventInput.maternal_profile_id);
-    }, [refreshCaseEvents, profiles, user?.id]);
+    }, [refreshCaseEvents, profiles, user?.id, isSimulation]);
 
     const refreshEmergencyContacts = useCallback(async () => {
         try {
@@ -550,6 +635,21 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
 
     const refreshVitals = useCallback(async (profileLocalId: string) => {
         try {
+            if (isSimulation) {
+                const trainingVitals = await getTrainingVitals(profileLocalId);
+                const enriched: VitalSign[] = trainingVitals.map(v => ({
+                    ...v,
+                    shockResult: v.heart_rate && v.systolic_bp
+                        ? calculateShockIndex(v.heart_rate, v.systolic_bp)
+                        : undefined,
+                }));
+                setVitalSigns(enriched);
+                if (enriched.length > 0) {
+                    setLastVitalsTime(new Date(enriched[0].recorded_at));
+                }
+                return;
+            }
+
             // First try local
             const local = await getVitalSigns(profileLocalId);
 
@@ -592,7 +692,7 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
         } catch (error) {
             console.error('Error refreshing vitals:', error);
         }
-    }, []);
+    }, [isSimulation]);
 
     const recordVitals = useCallback(async (input: RecordVitalsInput) => {
         const profile = profiles.find(p => p.local_id === input.maternalProfileLocalId);
@@ -625,8 +725,25 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
             recorded_at: now,
         };
 
-        await saveVitalSign(vital);
-        await queueOperation('vital_signs', localId, 'insert', vital);
+        if (isSimulation) {
+            const { is_synced: _, ...trainingVital } = vital;
+            await saveTrainingVitals(trainingVital);
+        } else {
+            await saveVitalSign(vital);
+            await queueOperation('vital_signs', localId, 'insert', vital);
+        }
+
+        // Trigger shock alarm for critical/emergency
+        if (shockIndex !== undefined && input.heartRate && input.systolicBp) {
+            const shockResult = calculateShockIndex(input.heartRate, input.systolicBp);
+            if (shockResult.level === 'critical' || shockResult.level === 'emergency') {
+                triggerShockAlarm(shockResult.level);
+                setAlarmActive(true);
+            } else {
+                triggerShockAlarm(shockResult.level); // stops alarm
+                setAlarmActive(false);
+            }
+        }
 
         // Auto-log event (addCaseEvent has its own closed-case guard)
         await addCaseEvent({
@@ -646,7 +763,7 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
         setIsVitalsPromptDue(false);
 
         await refreshVitals(input.maternalProfileLocalId);
-    }, [user, refreshVitals, profiles, addCaseEvent]);
+    }, [user, refreshVitals, profiles, addCaseEvent, isSimulation]);
 
     const dismissVitalsPrompt = useCallback(() => {
         setIsVitalsPromptDue(false);
@@ -656,6 +773,12 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
 
     const refreshEmotiveChecklist = useCallback(async (profileLocalId: string) => {
         try {
+            if (isSimulation) {
+                const checklist = await getTrainingChecklist(profileLocalId);
+                setEmotiveChecklist(checklist);
+                return;
+            }
+
             // First try local
             const local = await getEmotiveChecklist(profileLocalId);
             setEmotiveChecklist(local);
@@ -691,7 +814,7 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
         } catch (error) {
             console.error('Error refreshing emotive checklist:', error);
         }
-    }, []);
+    }, [isSimulation]);
 
     const startEmotiveBundle = useCallback(async (profileLocalId: string) => {
         const now = new Date().toISOString();
@@ -712,8 +835,13 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
             updated_at: now,
         };
 
-        await saveEmotiveChecklist(newChecklist);
-        await queueOperation('emotive_checklists', localId, 'insert', newChecklist);
+        if (isSimulation) {
+            const { is_synced: _, ...trainingChecklist } = newChecklist;
+            await saveTrainingChecklist(trainingChecklist);
+        } else {
+            await saveEmotiveChecklist(newChecklist);
+            await queueOperation('emotive_checklists', localId, 'insert', newChecklist);
+        }
         setEmotiveChecklist(newChecklist);
 
         // Auto-log event
@@ -730,7 +858,7 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
         if (profile?.status === 'pre_delivery') {
             await updateProfileStatus(profileLocalId, 'active');
         }
-    }, [user, profiles, addCaseEvent, updateProfileStatus]);
+    }, [user, profiles, addCaseEvent, updateProfileStatus, isSimulation]);
 
     const toggleEmotiveStep = useCallback(async (
         step: EmotiveStep,
@@ -768,8 +896,13 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
             if (details?.volume) (newChecklist as any)[`${step}_volume`] = details.volume;
             if (details?.notes) (newChecklist as any)[`${step}_notes`] = details.notes;
 
-            await saveEmotiveChecklist(newChecklist);
-            await queueOperation('emotive_checklists', localId, 'insert', newChecklist);
+            if (isSimulation) {
+                const { is_synced: _, ...trainingChecklist } = newChecklist;
+                await saveTrainingChecklist(trainingChecklist);
+            } else {
+                await saveEmotiveChecklist(newChecklist);
+                await queueOperation('emotive_checklists', localId, 'insert', newChecklist);
+            }
             setEmotiveChecklist(newChecklist);
 
             // Auto-log event if done
@@ -793,15 +926,13 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
             if (details?.volume) (fields as any)[`${step}_volume`] = details.volume;
             if (details?.notes !== undefined) (fields as any)[`${step}_notes`] = details.notes;
 
-            await updateEmotiveStep(emotiveChecklist.local_id, fields);
+            if (isSimulation) {
+                // In simulation, re-save the whole checklist with updated fields
+                const updatedChecklist = { ...emotiveChecklist, ...fields, updated_at: now };
+                const { is_synced: _, ...trainingChecklist } = updatedChecklist;
+                await saveTrainingChecklist(trainingChecklist);
+                setEmotiveChecklist(updatedChecklist);
 
-            // Queue sync
-            const updated = await getEmotiveChecklist(activeProfileId);
-            if (updated) {
-                await queueOperation('emotive_checklists', emotiveChecklist.local_id, 'update', updated);
-                setEmotiveChecklist(updated);
-
-                // Auto-log event if newly done
                 const wasDone = (emotiveChecklist as any)[`${step}_done`];
                 if (done && !wasDone) {
                     await addCaseEvent({
@@ -812,9 +943,30 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
                         performed_by: user?.id,
                     });
                 }
+            } else {
+                await updateEmotiveStep(emotiveChecklist.local_id, fields);
+
+                // Queue sync
+                const updated = await getEmotiveChecklist(activeProfileId);
+                if (updated) {
+                    await queueOperation('emotive_checklists', emotiveChecklist.local_id, 'update', updated);
+                    setEmotiveChecklist(updated);
+
+                    // Auto-log event if newly done
+                    const wasDone = (emotiveChecklist as any)[`${step}_done`];
+                    if (done && !wasDone) {
+                        await addCaseEvent({
+                            maternal_profile_id: activeProfileId,
+                            event_type: 'emotive_step',
+                            event_label: `E-MOTIVE: ${step.split('_').join(' ')} completed`,
+                            event_data: JSON.stringify(details || {}),
+                            performed_by: user?.id,
+                        });
+                    }
+                }
             }
         }
-    }, [activeProfileId, emotiveChecklist, user, addCaseEvent]);
+    }, [activeProfileId, emotiveChecklist, user, addCaseEvent, isSimulation]);
 
     const saveDiagnostics = useCallback(async (
         profileLocalId: string,
@@ -841,19 +993,31 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
                 created_at: now,
                 updated_at: now,
             };
-            await saveEmotiveChecklist(newChecklist);
-            await queueOperation('emotive_checklists', localId, 'insert', newChecklist);
+            if (isSimulation) {
+                const { is_synced: _, ...trainingChecklist } = newChecklist;
+                await saveTrainingChecklist(trainingChecklist);
+            } else {
+                await saveEmotiveChecklist(newChecklist);
+                await queueOperation('emotive_checklists', localId, 'insert', newChecklist);
+            }
             setEmotiveChecklist(newChecklist);
         } else {
             const fields: Partial<LocalEmotiveChecklist> = {
                 diagnostics_causes: causes,
                 diagnostics_notes: notes,
             };
-            await updateEmotiveStep(emotiveChecklist.local_id, fields);
-            const updated = await getEmotiveChecklist(profileLocalId);
-            if (updated) {
-                await queueOperation('emotive_checklists', emotiveChecklist.local_id, 'update', updated);
-                setEmotiveChecklist(updated);
+            if (isSimulation) {
+                const updatedChecklist = { ...emotiveChecklist, ...fields, updated_at: new Date().toISOString() };
+                const { is_synced: _, ...trainingChecklist } = updatedChecklist;
+                await saveTrainingChecklist(trainingChecklist);
+                setEmotiveChecklist(updatedChecklist);
+            } else {
+                await updateEmotiveStep(emotiveChecklist.local_id, fields);
+                const updated = await getEmotiveChecklist(profileLocalId);
+                if (updated) {
+                    await queueOperation('emotive_checklists', emotiveChecklist.local_id, 'update', updated);
+                    setEmotiveChecklist(updated);
+                }
             }
         }
 
@@ -865,23 +1029,75 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
             event_data: JSON.stringify({ causes, notes }),
             performed_by: user?.id,
         });
-    }, [emotiveChecklist, user?.id, addCaseEvent]);
+    }, [emotiveChecklist, user?.id, addCaseEvent, isSimulation]);
+
+    // ── Training / Simulation ────────────────────────────────
+
+    const clearTrainingDataCallback = useCallback(async () => {
+        await clearAllTrainingData();
+        if (isSimulation) {
+            setProfiles([]);
+            setVitalSigns([]);
+            setEmotiveChecklist(null);
+            setCaseEvents([]);
+            setActiveProfileId(null);
+        }
+    }, [isSimulation]);
+
+    const deleteProfile = useCallback(async (localId: string) => {
+        if (isSimulation) {
+            await deleteTrainingProfile(localId);
+        }
+        // Clear active if deleting current profile
+        if (activeProfileId === localId) {
+            setActiveProfileId(null);
+        }
+        await refreshProfiles();
+    }, [isSimulation, activeProfileId, refreshProfiles]);
+
+    // ── Alarm ─────────────────────────────────────────────────
+
+    const toggleAlarmMute = useCallback(async () => {
+        const newMuted = !alarmMuted;
+        setAlarmMutedState(newMuted);
+        await setAlarmMuted(newMuted);
+    }, [alarmMuted]);
 
     // ── Sync ─────────────────────────────────────────────────
 
     const syncNow = useCallback(async () => {
+        if (isSimulation) return; // No sync in simulation mode
         setIsSyncing(true);
         try {
-            await processQueue();
+            // 1. Push: upload local changes to Supabase
+            const pushResult = await processQueue();
+
+            // 2. Pull: download remote data into SQLite
+            const pullResult = await pullFromRemote({
+                userId: user?.id,
+                facilityId: authProfile?.facility_id,
+                unitId: activeUnit?.id,
+                role: authProfile?.role,
+            });
+
+            setLastSyncResult({
+                pushed: pushResult.synced,
+                pulled: pullResult.pulled,
+                errors: pushResult.failed + pullResult.errors,
+            });
+
+            // 3. Refresh React state from SQLite
             await refreshProfiles();
             await refreshEmergencyContacts();
             if (activeProfileId) {
+                await refreshVitals(activeProfileId);
                 await refreshCaseEvents(activeProfileId);
+                await refreshEmotiveChecklist(activeProfileId);
             }
         } finally {
             setIsSyncing(false);
         }
-    }, [refreshProfiles, activeProfileId, refreshCaseEvents, refreshEmergencyContacts]);
+    }, [refreshProfiles, activeProfileId, refreshCaseEvents, refreshEmergencyContacts, isSimulation, user?.id, authProfile?.facility_id, authProfile?.role, activeUnit?.id, refreshVitals, refreshEmotiveChecklist]);
 
     // ── Effects ──────────────────────────────────────────────
 
@@ -889,14 +1105,42 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
     useEffect(() => {
         initClinicalDatabase();
         startSyncListener();
-        return () => stopSyncListener();
+        initAlarmSounds().then(() => {
+            setAlarmMutedState(isAlarmMuted());
+        });
+        return () => {
+            stopSyncListener();
+            releaseAlarmSounds();
+        };
     }, []);
 
-    // Load profiles and contacts when unit changes (or on initial mount for unassigned users)
+    // Pull remote data on first load when online (enables cross-device sync)
+    const hasPulledRef = useRef(false);
     useEffect(() => {
+        if (hasPulledRef.current || !user?.id || isSimulation) return;
+        hasPulledRef.current = true;
+        NetInfo.fetch().then(async (state) => {
+            if (state.isConnected) {
+                await pullFromRemote({
+                    userId: user.id,
+                    facilityId: authProfile?.facility_id,
+                    unitId: activeUnit?.id,
+                    role: authProfile?.role,
+                });
+                refreshProfiles();
+            }
+        }).catch(err => console.warn('[Clinical] Initial pull failed:', err));
+    }, [user?.id, authProfile?.facility_id, authProfile?.role, activeUnit?.id, isSimulation, refreshProfiles]);
+
+    // Load profiles and contacts when unit or mode changes
+    useEffect(() => {
+        // Reset active profile when switching modes
+        setActiveProfileId(null);
         refreshProfiles();
-        refreshEmergencyContacts();
-    }, [activeUnit?.id, refreshEmergencyContacts, refreshProfiles]);
+        if (!isSimulation) {
+            refreshEmergencyContacts();
+        }
+    }, [activeUnit?.id, refreshEmergencyContacts, refreshProfiles, isSimulation]);
 
     // Load vitals, checklist, and events when active profile changes
     useEffect(() => {
@@ -957,6 +1201,7 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
                 fetchAllFacilityProfiles,
                 refreshVitals,
                 syncNow,
+                lastSyncResult,
                 emotiveChecklist,
                 startEmotiveBundle,
                 toggleEmotiveStep,
@@ -975,6 +1220,12 @@ export const ClinicalProvider = ({ children }: { children: React.ReactNode }) =>
                 isVitalsPromptDue,
                 dismissVitalsPrompt,
                 lastVitalsTime,
+                alarmActive,
+                alarmMuted,
+                toggleAlarmMute,
+                isSimulation,
+                clearTrainingData: clearTrainingDataCallback,
+                deleteProfile,
             }}
         >
             {children}

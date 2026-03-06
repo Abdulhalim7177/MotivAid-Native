@@ -7,6 +7,7 @@ import 'react-native-reanimated';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { AuthProvider, useAuth } from '@/context/auth';
 import { ClinicalProvider } from '@/context/clinical';
+import { ModeProvider } from '@/context/mode';
 import { ThemeProvider as AppThemeProvider } from '@/context/theme';
 import { ToastProvider } from '@/context/toast';
 import { UnitProvider } from '@/context/unit';
@@ -52,9 +53,11 @@ export default function RootLayout() {
         <ToastProvider>
           <AuthProvider>
             <UnitProvider>
-              <ClinicalProvider>
-                <RootLayoutNav />
-              </ClinicalProvider>
+              <ModeProvider>
+                <ClinicalProvider>
+                  <RootLayoutNav />
+                </ClinicalProvider>
+              </ModeProvider>
             </UnitProvider>
           </AuthProvider>
         </ToastProvider>

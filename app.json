@@ -3,6 +3,15 @@
     "name": "MotivAid",
     "slug": "MotivAid",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/a6704210-5f1b-4b8a-8a0b-4158c0072ecb",
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "motivaid",
@@ -12,7 +21,10 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.megamindhalimi.MotivAid",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "MotivAid uses the camera for AI-assisted blood loss estimation",
+        "NSMicrophoneUsageDescription": "MotivAid uses the microphone for voice-based vital sign entry",
+        "NSSpeechRecognitionUsageDescription": "MotivAid uses speech recognition for hands-free vital sign entry"
       }
     },
     "android": {
@@ -41,7 +53,14 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "MotivAid uses the camera for AI-assisted blood loss estimation"
+        }
+      ],
+      "expo-speech-recognition"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -9,6 +9,7 @@ import { Dropdown } from '@/components/ui/dropdown';
 import { Colors, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { MaternalProfile, useClinical } from '@/context/clinical';
+import { useMode } from '@/context/mode';
 import { useUnits } from '@/context/unit';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { RISK_COLORS, RISK_LABELS, RiskLevel } from '@/lib/risk-calculator';
@@ -36,9 +37,10 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: string
 export default function ClinicalScreen() {
     const colorScheme = useColorScheme();
     const colors = Colors[colorScheme ?? 'light'];
-    const { profiles, allProfiles, isLoading, refreshProfiles, fetchAllFacilityProfiles, isSyncing, syncNow } = useClinical();
+    const { profiles, allProfiles, isLoading, refreshProfiles, fetchAllFacilityProfiles, isSyncing, syncNow, isSimulation, clearTrainingData } = useClinical();
     const { activeUnit, availableUnits } = useUnits();
     const { profile: authProfile, user } = useAuth();
+    const { setMode } = useMode();
 
     const [filter, setFilter] = useState<string | null>(null);
     const [showMyCasesOnly, setShowMyCasesOnly] = useState(false);
@@ -210,10 +212,21 @@ export default function ClinicalScreen() {
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+            {/* Simulation Banner */}
+            {isSimulation && (
+                <View style={styles.simulationBanner}>
+                    <Ionicons name="flask-outline" size={16} color="#FFF" />
+                    <Text style={styles.simulationBannerText}>SIMULATION MODE</Text>
+                    <Text style={styles.simulationBannerSub}>Data is local only and will not sync</Text>
+                </View>
+            )}
+
             {/* Header */}
             <View style={styles.header}>
                 <View>
-                    <Text style={[styles.headerTitle, { color: colors.text }]}>Clinical</Text>
+                    <Text style={[styles.headerTitle, { color: colors.text }]}>
+                        {isSimulation ? 'Simulation' : 'Clinical'}
+                    </Text>
                     <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
                         {headerSubtitle}
                     </Text>
@@ -240,6 +253,39 @@ export default function ClinicalScreen() {
                         </TouchableOpacity>
                     )}
                 </View>
+            </View>
+
+            {/* Mode Toggle */}
+            <View style={styles.topFilterBar}>
+                <TouchableOpacity
+                    style={[
+                        styles.modeToggle,
+                        {
+                            borderColor: isSimulation ? '#F59E0B' : colors.border,
+                            backgroundColor: isSimulation ? '#F59E0B15' : 'transparent',
+                        },
+                    ]}
+                    onPress={() => setMode(isSimulation ? 'clinical' : 'simulation')}
+                >
+                    <Ionicons
+                        name={isSimulation ? 'flask' : 'flask-outline'}
+                        size={16}
+                        color={isSimulation ? '#F59E0B' : colors.textSecondary}
+                    />
+                    <Text style={[styles.modeToggleText, { color: isSimulation ? '#F59E0B' : colors.textSecondary }]}>
+                        {isSimulation ? 'Simulation' : 'Clinical'}
+                    </Text>
+                </TouchableOpacity>
+
+                {isSimulation && (
+                    <TouchableOpacity
+                        style={[styles.modeToggle, { borderColor: '#EF4444', backgroundColor: '#EF444415' }]}
+                        onPress={clearTrainingData}
+                    >
+                        <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                        <Text style={[styles.modeToggleText, { color: '#EF4444' }]}>Clear Data</Text>
+                    </TouchableOpacity>
+                )}
             </View>
 
             {/* Monitoring & Personal Filters (hidden for normal users) */}
@@ -336,6 +382,24 @@ function formatTimeAgo(dateStr: string): string {
 
 const styles = StyleSheet.create({
     container: { flex: 1 },
+    simulationBanner: {
+        backgroundColor: '#F59E0B',
+        paddingVertical: 8,
+        paddingHorizontal: Spacing.md,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    simulationBannerText: {
+        ...Typography.labelMd,
+        color: '#FFF',
+        fontWeight: '700',
+    },
+    simulationBannerSub: {
+        ...Typography.bodySm,
+        color: '#FFFFFFCC',
+        marginLeft: 'auto',
+    },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',

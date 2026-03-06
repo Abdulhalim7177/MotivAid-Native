@@ -15,7 +15,15 @@
       "Bash(git checkout:*)",
       "Bash(find:*)",
       "Bash(npm uninstall:*)",
-      "Bash(npx expo start:*)"
+      "Bash(npx expo start:*)",
+      "Bash(npx expo install expo-av expo-speech expo-camera expo-print)",
+      "Bash(npm install:*)",
+      "Bash(npx expo install:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(npx expo lint:*)",
+      "Bash(wc:*)",
+      "Bash(grep:*)",
+      "Bash(node:*)"
     ]
   }
 }

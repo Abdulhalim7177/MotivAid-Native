@@ -4,6 +4,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ScreenContainer } from '@/components/ui/screen-container';
 import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
+import { useClinical } from '@/context/clinical';
 import { useAppTheme } from '@/context/theme';
 import { useToast } from '@/context/toast';
 import { supabase } from '@/lib/supabase';
@@ -17,6 +18,7 @@ export default function SettingsScreen() {
   const { showToast } = useToast();
   const { preference, setThemePreference, theme } = useAppTheme();
   const { signOut, user, profile } = useAuth();
+  const { alarmMuted, toggleAlarmMute, syncNow, isSyncing, lastSyncResult } = useClinical();
   const themeColors = Colors[theme];
   const isDark = preference === 'dark';
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -131,6 +133,42 @@ export default function SettingsScreen() {
             onToggle={(val: boolean) => {
               setThemePreference(val ? 'dark' : 'light');
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+          />
+        </Section>
+
+        {/* Clinical */}
+        <Section title="CLINICAL">
+          <SettingItem
+            label="Alarm Sounds"
+            icon="volume-high-outline"
+            iconColor="#EF4444"
+            type="toggle"
+            value={!alarmMuted}
+            onToggle={async () => {
+              await toggleAlarmMute();
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+          />
+          <SettingItem
+            label={isSyncing ? 'Syncing...' : 'Sync Now'}
+            icon="arrow.triangle.2.circlepath"
+            iconColor="#3B82F6"
+            isLast
+            onPress={async () => {
+              if (isSyncing) return;
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              try {
+                await syncNow();
+                showToast(
+                  lastSyncResult
+                    ? `Synced: ${lastSyncResult.pushed} pushed, ${lastSyncResult.pulled} pulled`
+                    : 'Sync complete',
+                  'success'
+                );
+              } catch {
+                showToast('Sync failed. Check your connection.', 'error');
+              }
             }}
           />
         </Section>
